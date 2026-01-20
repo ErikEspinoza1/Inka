@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+  import 'package:flutter/material.dart';
 // Importamos las otras pantallas para poder navegar a ellas
 import 'ar_tattoo_screen.dart';
 import 'test_upload_screen.dart';
@@ -10,7 +10,7 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   void _logout(BuildContext context) async {
-    final authService = AuthService();
+    final authService = AuthService();  
     await authService.logout();
     
     // Volver al Login eliminando el historial

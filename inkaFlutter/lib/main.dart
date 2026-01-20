@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Importamos la pantalla de Login
-import 'screens/auth_screen.dart'; 
+import 'screens/menu_inicio.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,9 +31,8 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Tattoo AR',
       theme: ThemeData.dark(),
-      // AQUÍ ESTÁ EL CAMBIO:
-      // En lugar de ir a HomeScreen, vamos primero a AuthScreen (Login)
-      home: const AuthScreen(),
+      // Pantalla principal: Menu de inicio
+      home: const MenuInicio(),
     );
   }
 }
