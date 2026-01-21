@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'auth_screen.dart';
-import 'map_screen.dart';
 import 'artist_auth_screen.dart';
 
 class MenuInicio extends StatelessWidget {
