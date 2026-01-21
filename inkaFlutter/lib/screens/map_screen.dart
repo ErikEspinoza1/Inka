@@ -1,8 +1,11 @@
+import 'dart:convert'; // Para decodificar el JSON
 import 'dart:ui' as ui; // Para Glassmorphism
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart'; // Importar Geolocator
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:http/http.dart' as http; // Para hacer la petición a la API
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Importar
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -13,59 +16,29 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   final MapController _mapController = MapController();
-  // final PageController _pageController = PageController(viewportFraction: 0.85); // YA NO SE USA
+
+  // ⚠️ CAMBIA ESTO POR TU IP LOCAL SI CAMBIA
+  final String _apiUrl = '${dotenv.env['API_URL']}/artists/';
   
   // Ubicación inicial (Barcelona)
   final LatLng _defaultLocation = const LatLng(41.3879, 2.1699);
   LatLng? _currentPosition;
 
-  // Lista MAESTRA de tatuadores
-  final List<TattooArtist> _allArtists = [
-    TattooArtist(
-      id: '1',
-      name: 'Ink Master BCN',
-      specialty: 'Realismo • 1.2km',
-      rating: 4.8,
-      position: const LatLng(41.3879, 2.1699), 
-      imageColor: Colors.purpleAccent,
-    ),
-    TattooArtist(
-      id: '2',
-      name: 'Dark Art Gràcia',
-      specialty: 'Blackwork • 0.8km',
-      rating: 4.5,
-      position: const LatLng(41.4036, 2.1554), 
-      imageColor: Colors.tealAccent, 
-    ),
-    TattooArtist(
-      id: '3',
-      name: 'Gótico Ink',
-      specialty: 'Watercolor • 2.5km',
-      rating: 4.9,
-      position: const LatLng(41.3825, 2.1769), 
-      imageColor: Colors.orangeAccent,
-    ),
-    TattooArtist(
-      id: '4',
-      name: 'Traditional Sants',
-      specialty: 'Old School • 3.0km',
-      rating: 4.7,
-      position: const LatLng(41.3750, 2.1350), 
-      imageColor: Colors.redAccent,
-    ),
-  ];
-
+  // Estado de los datos
+  List<TattooArtist> _allArtists = []; // Lista vacía al inicio
   List<TattooArtist> _filteredArtists = [];
+  bool _isLoading = true; // Para mostrar carga al inicio
+
   final TextEditingController _searchCtrl = TextEditingController();
-  
-  // ESTADO NUEVO: Artista seleccionado para mostrar la tarjeta flotante
   TattooArtist? _selectedArtist;
 
   @override
   void initState() {
     super.initState();
-    _filteredArtists = _allArtists; 
+    // 1. Cargar artistas de la API
+    _fetchArtists();
 
+    // 2. Obtener ubicación del usuario
     _determinePosition().then((pos) {
       if (mounted) {
         setState(() {
@@ -77,18 +50,48 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // --- NUEVA FUNCIÓN: CARGAR DATOS REALES ---
+  Future<void> _fetchArtists() async {
+    try {
+      final response = await http.get(Uri.parse(_apiUrl));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+
+        // Convertimos el JSON a objetos TattooArtist
+        final List<TattooArtist> loadedArtists = data.map((json) {
+          return TattooArtist.fromJson(json);
+        }).toList();
+
+        if (mounted) {
+          setState(() {
+            _allArtists = loadedArtists;
+            _filteredArtists = loadedArtists; // Al principio mostramos todos
+            _isLoading = false;
+          });
+        }
+      } else {
+        debugPrint("Error API: ${response.statusCode}");
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      debugPrint("Error conexión: $e");
+      setState(() => _isLoading = false);
+    }
+  }
+
   void _filterArtists(String query) {
     final lowerQuery = query.toLowerCase();
     setState(() {
       _filteredArtists = _allArtists.where((artist) {
-        return artist.name.toLowerCase().contains(lowerQuery) || 
-               artist.specialty.toLowerCase().contains(lowerQuery);
+        // Buscamos por nombre o por estilo
+        return artist.name.toLowerCase().contains(lowerQuery) ||
+            artist.specialty.toLowerCase().contains(lowerQuery);
       }).toList();
-      _selectedArtist = null; // Cerrar tarjeta si se busca
+      _selectedArtist = null;
     });
   }
 
-  // Al tocar marcador -> Seleccionar artista y centrar
   void _onMarkerTapped(TattooArtist artist) {
     setState(() {
       _selectedArtist = artist;
@@ -96,7 +99,6 @@ class _MapScreenState extends State<MapScreen> {
     _animatedMapMove(artist.position, 15.5);
   }
 
-  // Cerrar tarjeta al tocar el mapa vacío
   void _onMapTap() {
     if (_selectedArtist != null) {
       setState(() {
@@ -119,10 +121,12 @@ class _MapScreenState extends State<MapScreen> {
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return Future.error('Permisos denegados');
+      if (permission == LocationPermission.denied)
+        return Future.error('Permisos denegados');
     }
-    
-    if (permission == LocationPermission.deniedForever) return Future.error('Permisos denegados permanentemente');
+
+    if (permission == LocationPermission.deniedForever)
+      return Future.error('Permisos denegados permanentemente');
     return await Geolocator.getCurrentPosition();
   }
 
@@ -148,35 +152,37 @@ class _MapScreenState extends State<MapScreen> {
             mapController: _mapController,
             options: MapOptions(
               initialCenter: _defaultLocation,
-              initialZoom: 14.0,
-              interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
-              onTap: (_, __) => _onMapTap(), // Cerrar tarjeta al tocar fuera
+              initialZoom: 13.0,
+              interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
+              onTap: (_, __) => _onMapTap(),
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                urlTemplate:
+                    'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
                 subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'com.inka.app',
-                keepBuffer: 10, 
-                panBuffer: 2,   
-                tileDisplay: const TileDisplay.fadeIn(duration: Duration(milliseconds: 300)), 
+                keepBuffer: 10,
+                panBuffer: 2,
+                tileDisplay: const TileDisplay.fadeIn(
+                    duration: Duration(milliseconds: 300)),
               ),
-              
               MarkerLayer(
                 markers: [
-                  // --- MARCADORES CON ETIQUETAS ---
+                  // --- MARCADORES ARTISTAS (REALES) ---
                   ..._filteredArtists.map((artist) {
                     final isSelected = _selectedArtist?.id == artist.id;
                     return Marker(
                       point: artist.position,
-                      width: 120, // Más ancho para el texto
-                      height: 100, // Más alto para incluir texto abajo
+                      width: 120,
+                      height: 100,
                       child: GestureDetector(
                         onTap: () => _onMarkerTapped(artist),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // 1. El Icono/Avatar
+                            // Icono/Avatar
                             AnimatedContainer(
                               duration: const Duration(milliseconds: 300),
                               width: isSelected ? 60 : 45,
@@ -185,7 +191,9 @@ class _MapScreenState extends State<MapScreen> {
                                 shape: BoxShape.circle,
                                 color: const Color(0xFF1A1A1A),
                                 border: Border.all(
-                                  color: isSelected ? const Color(0xFF4A9DFF) : Colors.white,
+                                  color: isSelected
+                                      ? const Color(0xFF4A9DFF)
+                                      : Colors.white,
                                   width: isSelected ? 3 : 2,
                                 ),
                                 boxShadow: [
@@ -198,7 +206,9 @@ class _MapScreenState extends State<MapScreen> {
                               child: CircleAvatar(
                                 backgroundColor: const Color(0xFF1A1A1A),
                                 child: Text(
-                                  artist.name[0],
+                                  artist.name.isNotEmpty
+                                      ? artist.name[0].toUpperCase()
+                                      : '?',
                                   style: TextStyle(
                                     color: artist.imageColor,
                                     fontWeight: FontWeight.bold,
@@ -206,12 +216,12 @@ class _MapScreenState extends State<MapScreen> {
                                 ),
                               ),
                             ),
-                            
-                            // 2. La Etiqueta de Nombre (Siempre visible o solo en zoom alto?)
-                            // Lo ponemos siempre visible como pidió el usuario.
+
+                            // Etiqueta Nombre
                             const SizedBox(height: 4),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: Colors.black.withOpacity(0.7),
                                 borderRadius: BorderRadius.circular(4),
@@ -220,7 +230,9 @@ class _MapScreenState extends State<MapScreen> {
                                 artist.name,
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  color: isSelected ? const Color(0xFF4A9DFF) : Colors.white,
+                                  color: isSelected
+                                      ? const Color(0xFF4A9DFF)
+                                      : Colors.white,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -246,7 +258,8 @@ class _MapScreenState extends State<MapScreen> {
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
-                        child: const Icon(Icons.my_location, color: Colors.blueAccent),
+                        child: const Icon(Icons.my_location,
+                            color: Colors.blueAccent),
                       ),
                     ),
                 ],
@@ -256,26 +269,36 @@ class _MapScreenState extends State<MapScreen> {
 
           // 2. SEARCH BAR
           Positioned(
-            top: 50, 
-            left: 16, 
+            top: 50,
+            left: 16,
             right: 16,
             child: _glassContainer(
               child: Row(
                 children: [
-                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_back, color: Colors.white54)),
+                  IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon:
+                          const Icon(Icons.arrow_back, color: Colors.white54)),
                   Expanded(
                     child: TextField(
                       controller: _searchCtrl,
                       onChanged: _filterArtists,
                       style: const TextStyle(color: Colors.white),
                       decoration: const InputDecoration(
-                        hintText: "Buscar 'Blackwork'...",
+                        hintText: "Buscar por nombre o estilo...",
                         hintStyle: TextStyle(color: Colors.white38),
                         border: InputBorder.none,
                       ),
                     ),
                   ),
-                  const Icon(Icons.search, color: Color(0xFF4A9DFF)),
+                  _isLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2)))
+                      : const Icon(Icons.search, color: Color(0xFF4A9DFF)),
                   const SizedBox(width: 16),
                 ],
               ),
@@ -285,7 +308,7 @@ class _MapScreenState extends State<MapScreen> {
           // 3. BOTÓN GPS
           Positioned(
             right: 16,
-            bottom: _selectedArtist != null ? 300 : 50, // Se mueve sutilmente si hay card
+            bottom: _selectedArtist != null ? 300 : 50,
             child: GestureDetector(
               onTap: _centerOnUser,
               child: _glassContainer(
@@ -295,15 +318,15 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
 
-          // 4. TARJETA DE DETALLE EXPANDIBLE (Solo aparece al clickar)
+          // 4. TARJETA DE DETALLE EXPANDIBLE
           AnimatedPositioned(
             duration: const Duration(milliseconds: 400),
             curve: Curves.easeInOutBack,
-            bottom: _selectedArtist != null ? 30 : -400, // Se oculta abajo
+            bottom: _selectedArtist != null ? 30 : -400,
             left: 16,
             right: 16,
-            child: _selectedArtist != null 
-                ? _buildDetailCard(_selectedArtist!) 
+            child: _selectedArtist != null
+                ? _buildDetailCard(_selectedArtist!)
                 : const SizedBox.shrink(),
           ),
         ],
@@ -317,25 +340,30 @@ class _MapScreenState extends State<MapScreen> {
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.6), blurRadius: 20, spreadRadius: 2),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.6),
+              blurRadius: 20,
+              spreadRadius: 2),
         ],
         border: Border.all(color: Colors.white10),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min, // Se ajusta al contenido
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Cabecera: Info Artista
+          // Cabecera
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
                 Container(
-                  width: 60, height: 60,
+                  width: 60,
+                  height: 60,
                   decoration: BoxDecoration(
                     color: artist.imageColor.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Icon(Icons.palette, color: artist.imageColor, size: 30),
+                  child:
+                      Icon(Icons.palette, color: artist.imageColor, size: 30),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -345,16 +373,20 @@ class _MapScreenState extends State<MapScreen> {
                       Text(
                         artist.name,
                         style: const TextStyle(
-                          color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold),
                       ),
                       Text(
                         artist.specialty,
-                        style: const TextStyle(color: Colors.grey, fontSize: 13),
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 13),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-                // Botón Cerrar (X) pequeña
                 GestureDetector(
                   onTap: () => setState(() => _selectedArtist = null),
                   child: const Icon(Icons.close, color: Colors.grey),
@@ -362,14 +394,14 @@ class _MapScreenState extends State<MapScreen> {
               ],
             ),
           ),
-          
-          // Galería Imágenes (Horizontal Scroll)
+
+          // Galería Placeholder (Más adelante conectaremos esto con posts reales)
           SizedBox(
             height: 100,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: 5, // 5 fotos de ejemplo
+              itemCount: 5,
               itemBuilder: (context, index) {
                 return Container(
                   width: 100,
@@ -378,9 +410,9 @@ class _MapScreenState extends State<MapScreen> {
                     color: Colors.white.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(12),
                     image: const DecorationImage(
-                      image: NetworkImage('https://via.placeholder.com/150'), // Placeholder
+                      image: NetworkImage('https://via.placeholder.com/150'),
                       fit: BoxFit.cover,
-                      opacity: 0.5, // Oscurecer un poco
+                      opacity: 0.5,
                     ),
                   ),
                   child: const Center(
@@ -390,7 +422,7 @@ class _MapScreenState extends State<MapScreen> {
               },
             ),
           ),
-          
+
           const SizedBox(height: 16),
 
           // Botón Acción
@@ -400,14 +432,17 @@ class _MapScreenState extends State<MapScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                   // Ir a perfil completo
+                  // Navegar a detalle completo
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4A9DFF),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                child: const Text("Ver Perfil y Reservar", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: const Text("Ver Perfil y Reservar",
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ),
           ),
@@ -417,14 +452,15 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _glassContainer({required Widget child, EdgeInsets padding = EdgeInsets.zero}) {
+  Widget _glassContainer(
+      {required Widget child, EdgeInsets padding = EdgeInsets.zero}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
         filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           padding: padding,
-          color: Colors.white.withOpacity(0.08), 
+          color: Colors.white.withOpacity(0.08),
           child: child,
         ),
       ),
@@ -432,21 +468,53 @@ class _MapScreenState extends State<MapScreen> {
   }
 }
 
-// Modelo de datos
+// ==========================================
+// 4. MODELO ACTUALIZADO PARA TU BASE DE DATOS
+// ==========================================
 class TattooArtist {
   final String id;
-  final String name;
-  final String specialty;
-  final double rating;
-  final LatLng position;
-  final Color imageColor; 
+  final String name; // Mapped from 'shop_name'
+  final String specialty; // Mapped from 'styles'
+  final LatLng position; // Mapped from lat/lng
+  final Color imageColor; // Generado aleatoriamente para UI
 
   TattooArtist({
     required this.id,
     required this.name,
     required this.specialty,
-    required this.rating,
     required this.position,
-    this.imageColor = Colors.grey,
+    this.imageColor = Colors.purpleAccent, // Color por defecto
   });
+
+  // Factory para convertir el JSON de la API en Objeto Dart
+  factory TattooArtist.fromJson(Map<String, dynamic> json) {
+    // 1. Manejar estilos (vienen como lista, cogemos el primero o un string unido)
+    String stylesText = "Sin estilo definido";
+    if (json['styles'] != null && (json['styles'] as List).isNotEmpty) {
+      stylesText = (json['styles'] as List).join(" • ");
+    }
+
+    // 2. Determinar un color aleatorio o basado en el ID para que no sean todos iguales
+    // Esto es puramente estético para el mapa
+    final colors = [
+      Colors.purpleAccent,
+      Colors.tealAccent,
+      Colors.orangeAccent,
+      Colors.redAccent,
+      Colors.blueAccent
+    ];
+    final colorIndex = (json['shop_name'] ?? "").length % colors.length;
+
+    return TattooArtist(
+      id: json['id'].toString(),
+      name: json['shop_name'] ?? "Artista Desconocido",
+      specialty: stylesText,
+      // 3. Mapear coordenadas
+      position: LatLng(
+        (json['latitude'] as num).toDouble(),
+        (json['longitude'] as num).toDouble(),
+      ),
+      imageColor: colors[colorIndex],
+    );
+  }
 }

@@ -6,7 +6,7 @@ from sqlalchemy.sql import func
 import enum
 from database import Base
 
-# Enums basados en tu SQL
+# --- ENUMS ---
 class UserRole(str, enum.Enum):
     cliente = "cliente"
     artista = "artista"
@@ -18,6 +18,12 @@ class BookingStatus(str, enum.Enum):
     rechazado = "rechazado"
     finalizado = "finalizado"
 
+# Nuevo Enum para el tipo de espacio de trabajo
+class StudioType(str, enum.Enum):
+    shop = "shop"       # Local comercial
+    private = "private" # Estudio privado / Casa
+    mobile = "mobile"   # Guest spot / Viajero
+
 class Profile(Base):
     __tablename__ = "profiles"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -25,28 +31,45 @@ class Profile(Base):
     full_name = Column(String)
     avatar_url = Column(String, nullable=True)
     role = Column(Enum(UserRole), default=UserRole.cliente)
-    password = Column(String) # Hash
+    password = Column(String) 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # Relaciones
     artist_profile = relationship("Artist", back_populates="profile", uselist=False)
     bookings_as_client = relationship("Booking", back_populates="client", foreign_keys="Booking.client_id")
+    # simulations, reviews_given, etc...
 
 class Artist(Base):
     __tablename__ = "artists"
     id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"), primary_key=True)
+    
+    # Info Básica
     shop_name = Column(String)
     bio = Column(Text)
-    styles = Column(ARRAY(String)) # Requiere Postgres
+    styles = Column(ARRAY(String)) 
+    
+    # Verificación y Contacto
+    instagram_handle = Column(String) # Vital para validar portafolio
+    whatsapp_number = Column(String, nullable=True)
+    website_url = Column(String, nullable=True)
+    
+    # Documentación (Privado)
+    business_license_id = Column(String, nullable=True) # DNI o CIF
+    business_document_url = Column(String, nullable=True) # URL de la foto del certificado higiénico
+    is_verified = Column(Boolean, default=False) # Por defecto NADIE entra verificado
+    
+    # Ubicación Avanzada
     address = Column(String)
     latitude = Column(Float)
     longitude = Column(Float)
-    is_verified = Column(Boolean, default=False)
+    workspace_type = Column(Enum(StudioType), default=StudioType.shop)
+    show_exact_location = Column(Boolean, default=True) # False = Privacidad (Estudios privados)
 
+    # Relaciones
     profile = relationship("Profile", back_populates="artist_profile")
     posts = relationship("Post", back_populates="artist")
     bookings = relationship("Booking", back_populates="artist", foreign_keys="Booking.artist_id")
 
+# ... (Booking, Post, Message se quedan igual) ...
 class Post(Base):
     __tablename__ = "posts"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -55,7 +78,6 @@ class Post(Base):
     description = Column(Text)
     style_tag = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
     artist = relationship("Artist", back_populates="posts")
 
 class Booking(Base):
@@ -70,7 +92,6 @@ class Booking(Base):
     price_quote = Column(Numeric, nullable=True)
     booking_date = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
     client = relationship("Profile", foreign_keys=[client_id])
     artist = relationship("Artist", foreign_keys=[artist_id])
     messages = relationship("Message", back_populates="booking")
@@ -82,7 +103,24 @@ class Message(Base):
     sender_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"))
     content = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
     booking = relationship("Booking", back_populates="messages")
+    
+# Añade Review y AIDesign aquí si no los tienes en el archivo original
+class Review(Base):
+    __tablename__ = "reviews"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    booking_id = Column(UUID(as_uuid=True), ForeignKey("bookings.id"))
+    reviewer_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"))
+    artist_id = Column(UUID(as_uuid=True), ForeignKey("artists.id"))
+    rating = Column(Integer)
+    comment = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-# ... Agrega AI_Designs, Reviews, SavedPosts siguiendo este patrón ...
+class AIDesign(Base):
+    __tablename__ = "ai_designs"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"))
+    prompt_text = Column(Text)
+    image_url = Column(String, nullable=False)
+    style_tag = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

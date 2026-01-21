@@ -1,35 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart'; 
 import '../services/auth_service.dart';
-import 'map_screen.dart'; 
+import 'map_screen.dart';
 
-class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key});
+class ArtistAuthScreen extends StatefulWidget {
+  const ArtistAuthScreen({super.key});
 
   @override
-  State<AuthScreen> createState() => _AuthScreenState();
+  State<ArtistAuthScreen> createState() => _ArtistAuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> {
+class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
   final AuthService _authService = AuthService();
 
   final TextEditingController _emailCtrl = TextEditingController();
   final TextEditingController _passCtrl = TextEditingController();
-  final TextEditingController _nameCtrl = TextEditingController();
+  final TextEditingController _nameCtrl = TextEditingController(); 
+  final TextEditingController _specialtyCtrl = TextEditingController();
+  final TextEditingController _addressCtrl = TextEditingController();
 
-  bool _isLogin = true; 
+  bool _isLogin = true;
   bool _isLoading = false;
 
   void _submit() async {
-    // 1. PRIMERO: Recoger valores
+    // 1. PRIMERO: Recoger valores de los controladores
     final email = _emailCtrl.text.trim();
     final pass = _passCtrl.text.trim();
-    final name = _nameCtrl.text.trim();
+    final shopName = _nameCtrl.text.trim();
+    final specialty = _specialtyCtrl.text.trim();
+    final address = _addressCtrl.text.trim();
 
-    // 2. Validaciones comunes
+    // 2. Validaciones básicas
     if (email.isEmpty || pass.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor rellena los campos')),
-      );
+      _showError('Email y contraseña obligatorios');
       return;
     }
 
@@ -37,42 +40,63 @@ class _AuthScreenState extends State<AuthScreen> {
 
     if (_isLogin) {
       // ===========================
-      // LÓGICA LOGIN + SEGURIDAD
+      // LÓGICA DE LOGIN + SEGURIDAD
       // ===========================
       final token = await _authService.login(email, pass);
 
       if (token != null) {
-        // 🔒 VALIDACIÓN: ¿Es cliente normal?
+        // 🔒 VALIDACIÓN: ¿Es realmente un artista?
         final role = await _authService.getUserRole();
 
-        // Permitimos 'cliente' y 'admin' aquí, pero bloqueamos 'artista'
-        if (role == 'cliente' || role == 'admin') {
-          _goToHome(); // ✅ Pasa
+        if (role == 'artista') {
+          _goToHome(); // ✅ Es artista, entra.
         } else {
-          // ⛔ Es artista, fuera.
+          // ⛔ Es cliente, fuera.
           await _authService.logout();
-          _showError('Eres Artista. Por favor inicia sesión en la zona de Profesionales.');
+          _showError('Esta cuenta no es de tatuador. Por favor usa la app de Clientes.');
         }
       } else {
-        _showError('Credenciales incorrectas o error de conexión');
+        _showError('Credenciales incorrectas');
       }
     } else {
       // ===========================
-      // LÓGICA REGISTRO CLIENTE
+      // LÓGICA DE REGISTRO ARTISTA
       // ===========================
-      if (name.isEmpty) {
-        _showError('El nombre es obligatorio para registrarse');
+      if (shopName.isEmpty || specialty.isEmpty || address.isEmpty) {
+        _showError('Nombre, Especialidad y Dirección son obligatorios');
         setState(() => _isLoading = false);
         return;
       }
 
-      final success = await _authService.register(email, pass, name);
+      // Geocodificación (Dirección -> Coordenadas)
+      double lat = 0.0;
+      double lng = 0.0;
+
+      try {
+        List<Location> locations = await locationFromAddress(address);
+        if (locations.isNotEmpty) {
+          lat = locations.first.latitude;
+          lng = locations.first.longitude;
+        }
+      } catch (e) {
+        print("Error geocoding: $e");
+      }
+
+      // Llamada al servicio
+      final success = await _authService.registerArtist(
+        email: email,
+        password: pass,
+        fullName: shopName,
+        specialty: specialty, // ¡Ojo! Asegúrate de pasar specialty aquí
+        address: address,
+        lat: lat,
+        lng: lng,
+      );
+
       if (success) {
-        // Si se registra bien, hacemos login automático
-        await _authService.login(email, pass);
         _goToHome();
       } else {
-        _showError('No se pudo registrar. ¿El email ya existe?');
+        _showError('Error al registrar artista. Revisa los datos.');
       }
     }
 
@@ -82,7 +106,7 @@ class _AuthScreenState extends State<AuthScreen> {
   void _goToHome() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const MapScreen()), 
+      MaterialPageRoute(builder: (_) => const MapScreen()),
     );
   }
 
@@ -97,33 +121,45 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black87,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.fingerprint, size: 80, color: Colors.tealAccent),
+              const Icon(Icons.palette, size: 80, color: Colors.purpleAccent),
               const SizedBox(height: 20),
               Text(
-                _isLogin ? 'INKA LOGIN' : 'CREAR CUENTA',
+                _isLogin ? 'ARTIST LOGIN' : 'JOIN AS ARTIST',
                 style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Colors.white),
               ),
-              const SizedBox(height: 40),
-
-              // Campo Nombre (Solo en registro)
-              if (!_isLogin)
+              const SizedBox(height: 30),
+              if (!_isLogin) ...[
                 TextField(
                   controller: _nameCtrl,
-                  decoration: _inputDeco('Nombre Completo', Icons.person),
+                  decoration: _inputDeco('Nombre Estudio / Artístico', Icons.store),
                   style: const TextStyle(color: Colors.white),
                 ),
-              if (!_isLogin) const SizedBox(height: 16),
-
-              // Campo Email
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _specialtyCtrl,
+                  decoration: _inputDeco('Estilo (ej. Realismo)', Icons.brush),
+                  style: const TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _addressCtrl,
+                  decoration: _inputDeco('Dirección (Calle, Ciudad)', Icons.map),
+                  style: const TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 16),
+              ],
               TextField(
                 controller: _emailCtrl,
                 decoration: _inputDeco('Email', Icons.email),
@@ -131,8 +167,6 @@ class _AuthScreenState extends State<AuthScreen> {
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
-
-              // Campo Password
               TextField(
                 controller: _passCtrl,
                 decoration: _inputDeco('Contraseña', Icons.lock),
@@ -140,16 +174,14 @@ class _AuthScreenState extends State<AuthScreen> {
                 obscureText: true,
               ),
               const SizedBox(height: 30),
-
-              // Botón Acción
               _isLoading
-                  ? const CircularProgressIndicator(color: Colors.tealAccent)
+                  ? const CircularProgressIndicator(color: Colors.purpleAccent)
                   : SizedBox(
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.teal,
+                          backgroundColor: Colors.purple,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12)),
                         ),
@@ -157,20 +189,18 @@ class _AuthScreenState extends State<AuthScreen> {
                         child: Text(
                           _isLogin ? 'ENTRAR' : 'REGISTRARSE',
                           style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white),
                         ),
                       ),
                     ),
-
               const SizedBox(height: 20),
-
               TextButton(
                 onPressed: () => setState(() => _isLogin = !_isLogin),
                 child: Text(
-                  _isLogin
-                      ? '¿No tienes cuenta? Regístrate aquí'
-                      : '¿Ya tienes cuenta? Inicia sesión',
-                  style: const TextStyle(color: Colors.tealAccent),
+                  _isLogin ? 'Crear cuenta de Artista' : 'Ya tengo cuenta',
+                  style: const TextStyle(color: Colors.purpleAccent),
                 ),
               )
             ],
@@ -190,7 +220,7 @@ class _AuthScreenState extends State<AuthScreen> {
         borderRadius: BorderRadius.circular(12),
       ),
       focusedBorder: OutlineInputBorder(
-        borderSide: const BorderSide(color: Colors.tealAccent),
+        borderSide: const BorderSide(color: Colors.purpleAccent),
         borderRadius: BorderRadius.circular(12),
       ),
       filled: true,

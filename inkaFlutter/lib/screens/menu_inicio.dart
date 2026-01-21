@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'auth_screen.dart';
 import 'map_screen.dart';
+import 'artist_auth_screen.dart';
 
 class MenuInicio extends StatelessWidget {
   const MenuInicio({super.key});
@@ -45,7 +46,7 @@ class MenuInicio extends StatelessWidget {
                   // Navegar a pantalla de mapa directamente (Bypass Login)
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const MapScreen()),
+                    MaterialPageRoute(builder: (context) => const AuthScreen()),
                   );
                 },
               ),
@@ -58,8 +59,11 @@ class MenuInicio extends StatelessWidget {
                 title: 'Are You a Tattoo Artist?',
                 subtitle: 'Showcase your portfolio and manage\nclient requests',
                 onTap: () {
-                  // Navegar a pantalla de artista
-                  // Navigator.push(context, MaterialPageRoute(builder: (context) => ArtistScreen()));
+                  // Navegar a pantalla de registro de artista
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ArtistAuthScreen()),
+                  );
                 },
               ),
               const Spacer(),

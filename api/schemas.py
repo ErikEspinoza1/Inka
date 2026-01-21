@@ -2,9 +2,9 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
-from models import UserRole, BookingStatus
+from models import UserRole, BookingStatus, StudioType # Importamos el nuevo Enum
 
-# --- AUTH & PROFILES ---
+# ... (User schemas se quedan igual) ...
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
@@ -27,21 +27,51 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 # --- ARTISTS ---
+
 class ArtistCreate(BaseModel):
     shop_name: str
     bio: str
     styles: List[str]
+    
+    # Ubicación y Geolocalización (Flutter enviará esto)
     address: str
+    latitude: float
+    longitude: float
+    workspace_type: StudioType # 'shop', 'private', 'mobile'
+    show_exact_location: bool
+    
+    # Contacto
+    instagram_handle: str
+    whatsapp_number: Optional[str] = None
+    website_url: Optional[str] = None
+    
+    # Documentación para verificar
+    business_license_id: str # DNI/NIF
+    business_document_url: Optional[str] = None # URL de la foto del certificado
 
 class ArtistResponse(BaseModel):
     id: UUID
     shop_name: str
     bio: str
+    styles: List[str]
+    
+    # Datos públicos seguros
+    address: str # Quizás quieras ocultar esto si es 'private' y show_exact_location es False
+    latitude: float
+    longitude: float
+    workspace_type: StudioType
+    show_exact_location: bool
+    
+    instagram_handle: str
+    whatsapp_number: Optional[str]
+    website_url: Optional[str]
+    
     is_verified: bool
+    
     class Config:
         from_attributes = True
 
-# --- BOOKINGS ---
+# ... (Bookings, Posts, Reviews, AI Designs se quedan igual) ...
 class BookingCreate(BaseModel):
     artist_id: UUID
     idea_description: str
@@ -62,7 +92,6 @@ class BookingResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# --- POSTS ---
 class PostCreate(BaseModel):
     image_url: str
     description: Optional[str] = None
@@ -77,10 +106,9 @@ class PostResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# --- REVIEWS ---
 class ReviewCreate(BaseModel):
     booking_id: UUID
-    rating: int # Validar que sea 1-5 en frontend o con validator aquí
+    rating: int
     comment: Optional[str] = None
 
 class ReviewResponse(BaseModel):
@@ -93,10 +121,9 @@ class ReviewResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# --- AI DESIGNS ---
 class AIDesignCreate(BaseModel):
     prompt_text: str
-    image_url: str # En la vida real, aquí la API generaría la imagen, pero por ahora guardamos la URL
+    image_url: str
     style_tag: Optional[str] = None
 
 class AIDesignResponse(BaseModel):

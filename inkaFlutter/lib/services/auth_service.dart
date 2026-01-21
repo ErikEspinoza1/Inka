@@ -1,15 +1,16 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Importar
 
 class AuthService {
-  // ⚠️ TU IP LOCAL AQUÍ (Asegúrate que el servidor Python corre con --host 0.0.0.0)
-  final String baseUrl = 'http://192.168.11.112:8000';
-
-  // --- REGISTER (Envía JSON) ---
+  // ⚠️ Asegúrate de que esta IP es correcta
+  final String baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:8000';
+  // ==========================================================
+  // 1. REGISTRO DE USUARIO BASE (Cliente)
+  // ==========================================================
   Future<bool> register(String email, String password, String fullName) async {
     final url = Uri.parse('$baseUrl/auth/register');
-    
     try {
       final response = await http.post(
         url,
@@ -20,89 +21,136 @@ class AuthService {
           'full_name': fullName,
         }),
       );
-
-      if (response.statusCode == 200) {
-        return true; // Registro exitoso
-      } else {
-        print('Error Register: ${response.body}');
-        return false;
-      }
+      // Solo devuelve TRUE si se creó (200). Si devuelve 400 (ya existe), devuelve false.
+      return response.statusCode == 200;
     } catch (e) {
-      print('Error de conexión: $e');
+      print('Error conexión register: $e');
       return false;
     }
   }
 
-  // --- LOGIN (Envía Form-UrlEncoded para OAuth2) ---
-  Future<String?> login(String email, String password) async {
-    final url = Uri.parse('$baseUrl/auth/login');
+  // ==========================================================
+  // 2. REGISTRO DE ARTISTA (ESTRICTO + ROBUSTO)
+  // ==========================================================
+  Future<bool> registerArtist({
+    required String email,
+    required String password,
+    required String fullName,
+    required String specialty,
+    required String address,
+    required double lat,
+    required double lng,
+  }) async {
+    // PASO A: Crear usuario base
+    final userCreated = await register(email, password, fullName);
 
+    // 🛑 ESTRICTO: Si el usuario no se pudo crear (ej: email ya existe),
+    // PARAMOS AQUÍ. No permitimos reutilizar cuentas viejas.
+    if (!userCreated) {
+      print("Registro cancelado: El email ya existe o hubo un error.");
+      return false;
+    }
+
+    // ⏳ PAUSA TÉCNICA: Esperamos 500ms para asegurar que la DB guardó el registro
+    // Esto evita el error 403 "Forbidden" por intentar entrar muy rápido
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // PASO B: Login para obtener token
+    final token = await login(email, password);
+    if (token == null) {
+      // Si falla el login justo después de crear la cuenta, es un error raro de conexión
+      return false;
+    }
+
+    // PASO C: Convertir a Artista
+    final url = Uri.parse('$baseUrl/artists/become-artist');
     try {
-      // OJO: OAuth2 espera 'username' y 'password' como formulario, no JSON
       final response = await http.post(
         url,
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
         },
-        body: {
-          'username': email, // Tu API mapea username -> email
-          'password': password,
-        },
+        body: jsonEncode({
+          'shop_name': fullName,
+          'bio': 'Artista registrado desde Inka',
+          'styles': [specialty],
+          'address': address,
+          'latitude': lat,
+          'longitude': lng,
+          'workspace_type': 'shop',
+          'show_exact_location': true,
+          'instagram_handle': '@pendiente',
+          'business_license_id': 'pendiente',
+        }),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error become-artist: $e');
+      return false;
+    }
+  }
+
+  // ... (El resto de métodos: login, getUserRole, getToken, logout se quedan igual) ...
+  Future<String?> login(String email, String password) async {
+    final url = Uri.parse('$baseUrl/auth/login');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {'username': email, 'password': password},
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final token = data['access_token'];
-        
-        // Guardamos el token en el móvil
         await _saveToken(token);
         return token;
-      } else {
-        print('Error Login: ${response.body}');
-        return null;
       }
+      return null;
     } catch (e) {
-      print('Error de conexión: $e');
+      print('Error login: $e');
       return null;
     }
   }
 
-  // --- GUARDAR TOKEN ---
+  Future<String?> getUserRole() async {
+    final token = await getToken();
+    if (token == null) return null;
+
+    final url = Uri.parse('$baseUrl/users/me');
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['role'];
+      }
+    } catch (e) {
+      print("Error obteniendo rol: $e");
+    }
+    return null;
+  }
+
   Future<void> _saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('jwt_token', token);
   }
 
-  // --- LEER TOKEN ---
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('jwt_token');
   }
 
-  // --- CERRAR SESIÓN ---
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('jwt_token');
-  }
-  
-  // --- OBTENER PERFIL (Ejemplo de uso del Token Bearer) ---
-  Future<Map<String, dynamic>?> getUserProfile() async {
-    final token = await getToken();
-    if (token == null) return null;
-
-    final url = Uri.parse('$baseUrl/users/me');
-    
-    final response = await http.get(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token', // Aquí se inyecta el token
-      },
-    );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    }
-    return null;
   }
 }
