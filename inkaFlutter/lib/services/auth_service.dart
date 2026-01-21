@@ -153,4 +153,52 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('jwt_token');
   }
+
+  // --- ACTUALIZAR PERFIL ARTISTA ---
+  Future<bool> updateArtistProfile(Map<String, dynamic> data) async {
+    final token = await getToken();
+    if (token == null) return false;
+
+    final url = Uri.parse('$baseUrl/artists/me');
+    try {
+      final response = await http.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(data),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error update artist: $e');
+      return false;
+    }
+  }
+
+// --- OBTENER MI PERFIL DE ARTISTA ---
+  Future<Map<String, dynamic>?> getArtistProfile() async {
+    final token = await getToken();
+    if (token == null) return null;
+
+    final url = Uri.parse('$baseUrl/artists/me');
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // Decodificamos el JSON
+        // IMPORTANTE: Asegúrate de decodificar UTF-8 para tildes y ñ
+        return jsonDecode(utf8.decode(response.bodyBytes));
+      }
+    } catch (e) {
+      print('Error getArtistProfile: $e');
+    }
+    return null;
+  }
 }

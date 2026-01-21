@@ -133,3 +133,33 @@ class AIDesignResponse(BaseModel):
     created_at: datetime
     class Config:
         from_attributes = True
+
+class ArtistUpdate(BaseModel):
+    shop_name: Optional[str] = None
+    bio: Optional[str] = None
+    styles: Optional[List[str]] = None
+    instagram_handle: Optional[str] = None
+    
+    # Ubicación
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    workspace_type: Optional[StudioType] = None
+    
+    # Documentos
+    business_document_url: Optional[str] = None # Aquí irá la URL de la foto del certificado
+
+class ArtistResponse(BaseModel):
+    id: UUID
+    shop_name: str
+    bio: Optional[str] = None      # Cambiado a Optional
+    styles: Optional[List[str]] = []
+    
+    # Nuevos campos para el formulario
+    address: Optional[str] = None
+    workspace_type: Optional[str] = None # 'shop' o 'mobile'
+    instagram_handle: Optional[str] = None
+    is_verified: bool
+    
+    class Config:
+        from_attributes = True

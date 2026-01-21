@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart'; 
 import '../services/auth_service.dart';
-import 'map_screen.dart';
+import 'artist_profile_screen.dart';
 
 class ArtistAuthScreen extends StatefulWidget {
   const ArtistAuthScreen({super.key});
@@ -106,7 +106,7 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
   void _goToHome() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const MapScreen()),
+      MaterialPageRoute(builder: (_) => const ArtistProfileScreen()),
     );
   }
 

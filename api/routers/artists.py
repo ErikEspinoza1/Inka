@@ -58,3 +58,38 @@ def create_artist_profile(
     db.refresh(new_artist)
     
     return new_artist
+
+# --- ENDPOINT ACTUALIZAR PERFIL ---
+@router.patch("/me", response_model=schemas.ArtistResponse)
+def update_artist_profile(
+    update_data: schemas.ArtistUpdate,
+    current_user: models.Profile = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    # Validar que sea artista
+    if current_user.role != models.UserRole.artista:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    artist = db.query(models.Artist).filter(models.Artist.id == current_user.id).first()
+    if not artist:
+        raise HTTPException(status_code=404, detail="Artist profile not found")
+        
+    # Actualizar campos dinámicamente
+    update_dict = update_data.dict(exclude_unset=True)
+    for key, value in update_dict.items():
+        setattr(artist, key, value)
+        
+    db.commit()
+    db.refresh(artist)
+    return artist
+
+@router.get("/me", response_model=schemas.ArtistResponse)
+def get_my_artist_profile(
+    current_user: models.Profile = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    # Verificamos si tiene perfil de artista
+    if not current_user.artist_profile:
+        raise HTTPException(status_code=404, detail="No artist profile found")
+    
+    return current_user.artist_profile
