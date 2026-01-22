@@ -79,7 +79,7 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
           lng = locations.first.longitude;
         }
       } catch (e) {
-        print("Error geocoding: $e");
+        debugPrint("Error geocoding: $e");
       }
 
       // Llamada al servicio

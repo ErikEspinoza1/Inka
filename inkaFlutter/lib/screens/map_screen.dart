@@ -121,12 +121,14 @@ class _MapScreenState extends State<MapScreen> {
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied)
+      if (permission == LocationPermission.denied) {
         return Future.error('Permisos denegados');
+      }
     }
 
-    if (permission == LocationPermission.deniedForever)
+    if (permission == LocationPermission.deniedForever) {
       return Future.error('Permisos denegados permanentemente');
+    }
     return await Geolocator.getCurrentPosition();
   }
 
@@ -137,7 +139,9 @@ class _MapScreenState extends State<MapScreen> {
       setState(() => _currentPosition = userPos);
       _mapController.move(userPos, 16.0);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
     }
   }
 
@@ -198,7 +202,7 @@ class _MapScreenState extends State<MapScreen> {
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.5),
+                                    color: Colors.black.withValues(alpha: 0.5),
                                     blurRadius: 8,
                                   )
                                 ],
@@ -223,7 +227,7 @@ class _MapScreenState extends State<MapScreen> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.7),
+                                color: Colors.black.withValues(alpha: 0.7),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -254,7 +258,7 @@ class _MapScreenState extends State<MapScreen> {
                       height: 60,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.blueAccent.withOpacity(0.3),
+                          color: Colors.blueAccent.withValues(alpha: 0.3),
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -341,7 +345,7 @@ class _MapScreenState extends State<MapScreen> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.6),
+              color: Colors.black.withValues(alpha: 0.6),
               blurRadius: 20,
               spreadRadius: 2),
         ],
@@ -359,7 +363,7 @@ class _MapScreenState extends State<MapScreen> {
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: artist.imageColor.withOpacity(0.2),
+                    color: artist.imageColor.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child:
@@ -407,7 +411,7 @@ class _MapScreenState extends State<MapScreen> {
                   width: 100,
                   margin: const EdgeInsets.only(right: 10),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
                     image: const DecorationImage(
                       image: NetworkImage('https://via.placeholder.com/150'),
@@ -460,7 +464,7 @@ class _MapScreenState extends State<MapScreen> {
         filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           padding: padding,
-          color: Colors.white.withOpacity(0.08),
+          color: Colors.white.withValues(alpha: 0.08),
           child: child,
         ),
       ),

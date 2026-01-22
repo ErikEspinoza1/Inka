@@ -71,9 +71,9 @@ class MenuInicio extends StatelessWidget {
                 onPressed: () {
                   // Navegar a ver componentes
                 },
-                child: Row(
+                child: const Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
+                  children: [
                     Text(
                       'View New Components',
                       style: TextStyle(
@@ -126,7 +126,7 @@ class MenuInicio extends StatelessWidget {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.15),
+                color: iconColor.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: Icon(
