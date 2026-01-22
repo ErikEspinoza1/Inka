@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // Importar
@@ -24,7 +25,7 @@ class AuthService {
       // Solo devuelve TRUE si se creó (200). Si devuelve 400 (ya existe), devuelve false.
       return response.statusCode == 200;
     } catch (e) {
-      print('Error conexión register: $e');
+      debugPrint('Error conexión register: $e');
       return false;
     }
   }
@@ -47,7 +48,7 @@ class AuthService {
     // 🛑 ESTRICTO: Si el usuario no se pudo crear (ej: email ya existe),
     // PARAMOS AQUÍ. No permitimos reutilizar cuentas viejas.
     if (!userCreated) {
-      print("Registro cancelado: El email ya existe o hubo un error.");
+      debugPrint("Registro cancelado: El email ya existe o hubo un error.");
       return false;
     }
 
@@ -87,7 +88,7 @@ class AuthService {
 
       return response.statusCode == 200;
     } catch (e) {
-      print('Error become-artist: $e');
+      debugPrint('Error become-artist: $e');
       return false;
     }
   }
@@ -110,7 +111,7 @@ class AuthService {
       }
       return null;
     } catch (e) {
-      print('Error login: $e');
+      debugPrint('Error login: $e');
       return null;
     }
   }
@@ -134,7 +135,7 @@ class AuthService {
         return data['role'];
       }
     } catch (e) {
-      print("Error obteniendo rol: $e");
+      debugPrint("Error obteniendo rol: $e");
     }
     return null;
   }

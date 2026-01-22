@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -17,7 +18,7 @@ class ImageService {
       if (image != null) return File(image.path);
       return null;
     } catch (e) {
-      print('Error: $e');
+      debugPrint('Error: $e');
       return null;
     }
   }
@@ -29,7 +30,7 @@ class ImageService {
       final imageUrl = _supabase.storage.from('app-images').getPublicUrl(fileName);
       return imageUrl;
     } catch (e) {
-      print('Error upload: $e');
+      debugPrint('Error upload: $e');
       return null;
     }
   }

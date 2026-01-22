@@ -2,6 +2,7 @@
 // Importamos las otras pantallas para poder navegar a ellas
 import 'ar_tattoo_screen.dart';
 import 'test_upload_screen.dart';
+import 'unity_test_screen.dart';
 // Si tuvieras AuthService para hacer logout, lo importarías aquí también
 import '../services/auth_service.dart'; 
 import 'auth_screen.dart';
@@ -14,10 +15,12 @@ class HomeScreen extends StatelessWidget {
     await authService.logout();
     
     // Volver al Login eliminando el historial
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const AuthScreen()),
-    );
+    if (context.mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AuthScreen()),
+      );
+    }
   }
 
   @override
@@ -67,6 +70,24 @@ class HomeScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const TestUploadScreen()),
+                );
+              },
+            ),
+
+            const SizedBox(height: 30),
+
+            // --- BOTÓN 3: TEST UNITY ---
+            ElevatedButton.icon(
+              icon: const Icon(Icons.sports_esports),
+              label: const Text("TEST UNITY INTEGRATION"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const UnityTestScreen()),
                 );
               },
             ),
