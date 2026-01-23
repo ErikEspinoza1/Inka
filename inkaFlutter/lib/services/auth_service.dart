@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // Importar
+import 'package:flutter_dotenv/flutter_dotenv.dart'; 
 
 class AuthService {
-  // ⚠️ Asegúrate de que esta IP es correcta
-  final String baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:8000';
+  // ⚠️ Carga la URL del .env, si falla usa localhost
+  final String baseUrl = dotenv.env['API_URL'] ?? 'http://192.168.1.134:8000';
+
   // ==========================================================
   // 1. REGISTRO DE USUARIO BASE (Cliente)
   // ==========================================================
@@ -41,6 +42,7 @@ class AuthService {
     required double lat,
     required double lng,
   }) async {
+    
     // PASO A: Crear usuario base
     final userCreated = await register(email, password, fullName);
 
@@ -48,7 +50,7 @@ class AuthService {
     // PARAMOS AQUÍ. No permitimos reutilizar cuentas viejas.
     if (!userCreated) {
       print("Registro cancelado: El email ya existe o hubo un error.");
-      return false;
+      return false; 
     }
 
     // ⏳ PAUSA TÉCNICA: Esperamos 500ms para asegurar que la DB guardó el registro
@@ -58,7 +60,6 @@ class AuthService {
     // PASO B: Login para obtener token
     final token = await login(email, password);
     if (token == null) {
-      // Si falla el login justo después de crear la cuenta, es un error raro de conexión
       return false;
     }
 
@@ -74,13 +75,13 @@ class AuthService {
         body: jsonEncode({
           'shop_name': fullName,
           'bio': 'Artista registrado desde Inka',
-          'styles': [specialty],
+          'styles': [specialty], 
           'address': address,
           'latitude': lat,
           'longitude': lng,
           'workspace_type': 'shop',
           'show_exact_location': true,
-          'instagram_handle': '@pendiente',
+          'instagram_handle': '@pendiente', 
           'business_license_id': 'pendiente',
         }),
       );
@@ -92,7 +93,9 @@ class AuthService {
     }
   }
 
-  // ... (El resto de métodos: login, getUserRole, getToken, logout se quedan igual) ...
+  // ==========================================================
+  // 3. LOGIN & TOKENS
+  // ==========================================================
   Future<String?> login(String email, String password) async {
     final url = Uri.parse('$baseUrl/auth/login');
     try {
@@ -131,7 +134,7 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['role'];
+        return data['role']; 
       }
     } catch (e) {
       print("Error obteniendo rol: $e");
@@ -154,7 +157,11 @@ class AuthService {
     await prefs.remove('jwt_token');
   }
 
-  // --- ACTUALIZAR PERFIL ARTISTA ---
+  // ==========================================================
+  // 4. GESTIÓN DEL PERFIL DE ARTISTA
+  // ==========================================================
+  
+  // Actualizar datos (PATCH)
   Future<bool> updateArtistProfile(Map<String, dynamic> data) async {
     final token = await getToken();
     if (token == null) return false;
@@ -176,7 +183,7 @@ class AuthService {
     }
   }
 
-// --- OBTENER MI PERFIL DE ARTISTA ---
+  // Obtener mis datos (GET)
   Future<Map<String, dynamic>?> getArtistProfile() async {
     final token = await getToken();
     if (token == null) return null;
@@ -192,13 +199,46 @@ class AuthService {
       );
 
       if (response.statusCode == 200) {
-        // Decodificamos el JSON
-        // IMPORTANTE: Asegúrate de decodificar UTF-8 para tildes y ñ
+        // Decodificamos UTF-8 para evitar problemas con tildes
         return jsonDecode(utf8.decode(response.bodyBytes));
       }
     } catch (e) {
       print('Error getArtistProfile: $e');
     }
     return null;
+  }
+
+  // Subir Certificado (POST Multipart)
+  // Devuelve el JSON completo con el análisis de la IA
+  Future<Map<String, dynamic>?> uploadCertificate(String filePath) async {
+    final token = await getToken();
+    if (token == null) return null;
+
+    final url = Uri.parse('$baseUrl/artists/upload-certificate');
+    
+    try {
+      var request = http.MultipartRequest('POST', url);
+      
+      // Headers
+      request.headers['Authorization'] = 'Bearer $token';
+      
+      // Archivo
+      request.files.add(await http.MultipartFile.fromPath('file', filePath));
+
+      // Enviar
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        // Devolvemos todo el JSON (status, ai_analysis, url...)
+        return jsonDecode(utf8.decode(response.bodyBytes)); 
+      } else {
+        print("Error subida: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      print("Error conexión upload: $e");
+      return null;
+    }
   }
 }

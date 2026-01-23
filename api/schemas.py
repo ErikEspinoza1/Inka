@@ -152,13 +152,21 @@ class ArtistUpdate(BaseModel):
 class ArtistResponse(BaseModel):
     id: UUID
     shop_name: str
-    bio: Optional[str] = None      # Cambiado a Optional
+    bio: Optional[str] = None
     styles: Optional[List[str]] = []
     
-    # Nuevos campos para el formulario
+    # --- CAMPOS QUE FALTABAN ---
+    latitude: float   # <--- IMPORTANTE: Sin esto, el mapa no sabe dónde poner el pin
+    longitude: float  # <--- IMPORTANTE
+    
+    # Resto de campos
     address: Optional[str] = None
-    workspace_type: Optional[str] = None # 'shop' o 'mobile'
+    workspace_type: Optional[str] = None 
     instagram_handle: Optional[str] = None
+    
+    # URLs de imágenes (opcional, para el futuro)
+    avatar_url: Optional[str] = None 
+    
     is_verified: bool
     
     class Config:
