@@ -177,3 +177,101 @@ async def upload_certificate(
         "is_verified": artist.is_verified,
         "url": public_url
     }
+
+# --- PORTFOLIO ENDPOINTS ---
+
+@router.get("/me/posts", response_model=List[schemas.PostResponse])
+def get_my_posts(
+    current_user: models.Profile = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    if current_user.role != models.UserRole.artista:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    artist = db.query(models.Artist).filter(models.Artist.id == current_user.id).first()
+    if not artist:
+        raise HTTPException(status_code=404, detail="Artist profile not found")
+    
+    return db.query(models.Post).filter(models.Post.artist_id == current_user.id).all()
+
+@router.post("/me/posts", response_model=schemas.PostResponse)
+async def create_post(
+    description: str = "",
+    style_tag: str = "",
+    file: UploadFile = File(...),
+    current_user: models.Profile = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    if current_user.role != models.UserRole.artista:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    artist = db.query(models.Artist).filter(models.Artist.id == current_user.id).first()
+    if not artist:
+        raise HTTPException(status_code=404, detail="Artist profile not found")
+    
+    # Generar nombre único
+    clean_shop_name = artist.shop_name.replace(" ", "_")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"portfolio_{clean_shop_name}_{current_user.id}_{timestamp}.jpg"
+    
+    # Leer archivo
+    file_bytes = await file.read()
+    
+    # Subir a Supabase
+    public_url = upload_file_to_supabase(file_bytes, filename, folder="portfolio-artistas")
+    if not public_url:
+        raise HTTPException(status_code=500, detail="Failed to upload image")
+    
+    # Crear post
+    new_post = models.Post(
+        artist_id=current_user.id,
+        image_url=public_url,
+        description=description,
+        style_tag=style_tag
+    )
+    
+    db.add(new_post)
+    db.commit()
+    db.refresh(new_post)
+    
+    return new_post
+
+@router.delete("/me/posts/{post_id}")
+def delete_post(
+    post_id: str,
+    current_user: models.Profile = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    if current_user.role != models.UserRole.artista:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    post = db.query(models.Post).filter(
+        models.Post.id == post_id,
+        models.Post.artist_id == current_user.id
+    ).first()
+    
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    db.delete(post)
+    db.commit()
+    
+    return {"status": "deleted"}
+
+# --- CLIENT ENDPOINTS ---
+
+@router.get("/{artist_id}", response_model=schemas.ArtistResponse)
+def get_artist_by_id(artist_id: str, db: Session = Depends(database.get_db)):
+    artist = db.query(models.Artist).filter(models.Artist.id == artist_id).first()
+    if not artist:
+        raise HTTPException(status_code=404, detail="Artist not found")
+    return artist
+
+@router.get("/{artist_id}/posts", response_model=List[schemas.PostResponse])
+def get_artist_posts(artist_id: str, db: Session = Depends(database.get_db)):
+    # Verificar que el artista existe
+    artist = db.query(models.Artist).filter(models.Artist.id == artist_id).first()
+    if not artist:
+        raise HTTPException(status_code=404, detail="Artist not found")
+    
+    return db.query(models.Post).filter(models.Post.artist_id == artist_id).all()

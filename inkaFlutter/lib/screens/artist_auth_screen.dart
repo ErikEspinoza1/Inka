@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart'; 
 import '../services/auth_service.dart';
 import 'artist_profile_screen.dart';
+import 'artist_home_screen.dart';
 
 class ArtistAuthScreen extends StatefulWidget {
   const ArtistAuthScreen({super.key});
@@ -103,11 +104,21 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
     if (mounted) setState(() => _isLoading = false);
   }
 
-  void _goToHome() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const ArtistProfileScreen()),
-    );
+  void _goToHome() async {
+    final data = await _authService.getArtistProfile();
+    if (data != null && data['is_verified'] == true) {
+      // Verificado: ir a pantalla principal
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ArtistHomeScreen()),
+      );
+    } else {
+      // No verificado: ir a editar perfil para subir certificado
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ArtistProfileScreen()),
+      );
+    }
   }
 
   void _showError(String msg) {

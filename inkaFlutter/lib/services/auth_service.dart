@@ -157,6 +157,30 @@ class AuthService {
     await prefs.remove('jwt_token');
   }
 
+  Future<String?> getCurrentUserId() async {
+    final token = await getToken();
+    if (token == null) return null;
+
+    final url = Uri.parse('$baseUrl/users/me');
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['id'];
+      }
+    } catch (e) {
+      print('Error getCurrentUserId: $e');
+    }
+    return null;
+  }
+
   // ==========================================================
   // 4. GESTIÓN DEL PERFIL DE ARTISTA
   // ==========================================================
@@ -239,6 +263,194 @@ class AuthService {
     } catch (e) {
       print("Error conexión upload: $e");
       return null;
+    }
+  }
+
+  // ==========================================================
+  // PORTFOLIO METHODS
+  // ==========================================================
+  Future<List<dynamic>?> getPortfolioPosts() async {
+    final token = await getToken();
+    if (token == null) return null;
+
+    final url = Uri.parse('$baseUrl/artists/me/posts');
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      print('Error getPortfolioPosts: $e');
+    }
+    return null;
+  }
+
+  Future<bool> uploadPortfolioImage(String imagePath, {String description = '', String styleTag = ''}) async {
+    final token = await getToken();
+    if (token == null) return false;
+
+    final url = Uri.parse('$baseUrl/artists/me/posts');
+    
+    var request = http.MultipartRequest('POST', url);
+    request.headers['Authorization'] = 'Bearer $token';
+    request.fields['description'] = description;
+    request.fields['style_tag'] = styleTag;
+    
+    request.files.add(await http.MultipartFile.fromPath('file', imagePath));
+
+    try {
+      final response = await request.send();
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error uploadPortfolioImage: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deletePortfolioPost(String postId) async {
+    final token = await getToken();
+    if (token == null) return false;
+
+    final url = Uri.parse('$baseUrl/artists/me/posts/$postId');
+    try {
+      final response = await http.delete(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error deletePortfolioPost: $e');
+      return false;
+    }
+  }
+
+  // ==========================================================
+  // CLIENT METHODS
+  // ==========================================================
+  Future<Map<String, dynamic>?> getArtistById(String artistId) async {
+    final url = Uri.parse('$baseUrl/artists/$artistId');
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        return jsonDecode(utf8.decode(response.bodyBytes));
+      }
+    } catch (e) {
+      print('Error getArtistById: $e');
+    }
+    return null;
+  }
+
+  Future<List<dynamic>?> getVerifiedArtists({String? style}) async {
+    final query = style != null ? '?style=$style' : '';
+    final url = Uri.parse('$baseUrl/artists/$query');
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      print('Error getVerifiedArtists: $e');
+    }
+    return null;
+  }
+
+  Future<List<dynamic>?> getArtistPortfolio(String artistId) async {
+    final url = Uri.parse('$baseUrl/artists/$artistId/posts');
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      print('Error getArtistPortfolio: $e');
+    }
+    return null;
+  }
+
+  Future<List<dynamic>?> getMessagesWithArtist(String artistId) async {
+    final token = await getToken();
+    if (token == null) return null;
+
+    final url = Uri.parse('$baseUrl/messages/?artist_id=$artistId');
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      print('Error getMessagesWithArtist: $e');
+    }
+    return null;
+  }
+
+  Future<bool> sendMessageToArtist(String artistId, String content, {String? bookingId}) async {
+    final token = await getToken();
+    if (token == null) return false;
+
+    final url = Uri.parse('$baseUrl/messages/');
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'receiver_id': artistId,
+          'content': content,
+          if (bookingId != null) 'booking_id': bookingId,
+        }),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error sendMessageToArtist: $e');
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getCurrentUserProfile() async {
+    final token = await getToken();
+    if (token == null) return null;
+
+    final url = Uri.parse('$baseUrl/users/me');
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(utf8.decode(response.bodyBytes));
+      }
+    } catch (e) {
+      print('Error getCurrentUserProfile: $e');
+    }
+    return null;
+  }
+
+  Future<bool> updateUserProfile(Map<String, dynamic> data) async {
+    final token = await getToken();
+    if (token == null) return false;
+
+    final url = Uri.parse('$baseUrl/users/me');
+    try {
+      final response = await http.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(data),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error updateUserProfile: $e');
+      return false;
     }
   }
 }

@@ -21,13 +21,23 @@ def read_user(user_id: str, db: Session = Depends(database.get_db)):
 # Actualizar mi avatar o nombre
 @router.patch("/me", response_model=schemas.UserResponse)
 def update_user_me(
-    full_name: str = None, 
+    full_name: str = None,
+    email: str = None,
     avatar_url: str = None,
     current_user: models.Profile = Depends(auth.get_current_user),
     db: Session = Depends(database.get_db)
 ):
     if full_name:
         current_user.full_name = full_name
+    if email:
+        # Verificar que el email no esté en uso por otro usuario
+        existing_user = db.query(models.Profile).filter(
+            models.Profile.email == email,
+            models.Profile.id != current_user.id
+        ).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already in use")
+        current_user.email = email
     if avatar_url:
         current_user.avatar_url = avatar_url
     

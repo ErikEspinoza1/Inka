@@ -134,6 +134,23 @@ class AIDesignResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# Mensajería 
+class MessageCreate(BaseModel):
+    receiver_id: UUID
+    content: str
+    booking_id: Optional[UUID] = None
+
+class MessageResponse(BaseModel):
+    id: UUID
+    booking_id: Optional[UUID]
+    sender_id: UUID
+    receiver_id: UUID
+    content: str
+    is_read: bool
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
 class ArtistUpdate(BaseModel):
     shop_name: Optional[str] = None
     bio: Optional[str] = None

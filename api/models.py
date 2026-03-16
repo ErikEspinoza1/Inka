@@ -101,7 +101,9 @@ class Message(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     booking_id = Column(UUID(as_uuid=True), ForeignKey("bookings.id"))
     sender_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"))
+    receiver_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"))
     content = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     booking = relationship("Booking", back_populates="messages")
     

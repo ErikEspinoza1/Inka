@@ -11,10 +11,10 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def upload_file_to_supabase(file_bytes, file_name, bucket="app-images"):
+def upload_file_to_supabase(file_bytes, file_name, bucket="app-images", folder="certificados-higiene"):
     try:
-        # Subir a la carpeta 'certificados-higiene' dentro del bucket
-        path = f"certificados-higiene/{file_name}"
+        # Subir a la carpeta especificada dentro del bucket
+        path = f"{folder}/{file_name}"
         
         # content-type es importante para que se vea en el navegador
         res = supabase.storage.from_(bucket).upload(
