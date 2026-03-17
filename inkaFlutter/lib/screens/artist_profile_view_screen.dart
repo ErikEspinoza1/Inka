@@ -310,6 +310,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 60),
       ],
     );
   }

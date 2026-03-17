@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 
 class BookingScreen extends StatefulWidget {
   final String artistId;
@@ -11,6 +12,7 @@ class BookingScreen extends StatefulWidget {
 }
 
 class _BookingScreenState extends State<BookingScreen> {
+  final AuthService _authService = AuthService();
   final TextEditingController _ideaCtrl = TextEditingController();
   final TextEditingController _bodyPartCtrl = TextEditingController();
   final TextEditingController _sizeCtrl = TextEditingController();
@@ -45,6 +47,14 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _ideaCtrl.dispose();
+    _bodyPartCtrl.dispose();
+    _sizeCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _submitBooking() async {
     if (_ideaCtrl.text.isEmpty || _bodyPartCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -55,19 +65,35 @@ class _BookingScreenState extends State<BookingScreen> {
 
     setState(() => _isLoading = true);
 
-    // TODO: Implementar envío de reserva a la API
-    await Future.delayed(const Duration(seconds: 2)); // Simulación
+    // Llamar a la API para enviar la reserva
+    final success = await _authService.submitBooking(
+      artistId: widget.artistId,
+      ideaDescription: _ideaCtrl.text.trim(),
+      bodyPart: _bodyPartCtrl.text.trim(),
+      sizeCm: _sizeCtrl.text.isNotEmpty ? _sizeCtrl.text.trim() : null,
+      bookingDate: _selectedDate,
+    );
 
     setState(() => _isLoading = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Reserva enviada correctamente. El artista se pondrá en contacto contigo.'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    if (!success) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al enviar la reserva'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
 
-    Navigator.pop(context);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Reserva enviada correctamente. El artista se pondrá en contacto contigo.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context);
+    }
   }
 
   @override

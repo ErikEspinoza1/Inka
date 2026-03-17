@@ -12,7 +12,19 @@ def create_booking(
     current_user: models.Profile = Depends(auth.get_current_user),
     db: Session = Depends(database.get_db)
 ):
-    booking = models.Booking(**booking_data.dict(), client_id=current_user.id)
+    # Validar que el usuario sea cliente
+    if current_user.role != models.UserRole.cliente:
+        raise HTTPException(status_code=403, detail="Only clients can create bookings")
+    
+    # Validar que el artista existe y está verificado
+    artist = db.query(models.Artist).filter(models.Artist.id == booking_data.artist_id).first()
+    if not artist:
+        raise HTTPException(status_code=404, detail="Artist not found")
+    
+    if not artist.is_verified:
+        raise HTTPException(status_code=403, detail="Artist is not verified")
+    
+    booking = models.Booking(**booking_data.dict(), client_id=current_user.id, status=models.BookingStatus.pendiente)
     db.add(booking)
     db.commit()
     db.refresh(booking)

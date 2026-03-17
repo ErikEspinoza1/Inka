@@ -81,7 +81,7 @@ class AuthService {
           'longitude': lng,
           'workspace_type': 'shop',
           'show_exact_location': true,
-          'instagram_handle': '@pendiente', 
+          'instagram_handle': 'pendiente', 
           'business_license_id': 'pendiente',
         }),
       );
@@ -450,6 +450,58 @@ class AuthService {
       return response.statusCode == 200;
     } catch (e) {
       print('Error updateUserProfile: $e');
+      return false;
+    }
+  }
+
+  Future<List<dynamic>?> getMessageContacts() async {
+    final token = await getToken();
+    if (token == null) return null;
+
+    final url = Uri.parse('$baseUrl/messages/contacts');
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      print('Error getMessageContacts: $e');
+    }
+    return null;
+  }
+
+  Future<bool> submitBooking({
+    required String artistId,
+    required String ideaDescription,
+    required String bodyPart,
+    String? sizeCm,
+    DateTime? bookingDate,
+  }) async {
+    final token = await getToken();
+    if (token == null) return false;
+
+    final url = Uri.parse('$baseUrl/bookings/');
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'artist_id': artistId,
+          'idea_description': ideaDescription,
+          'body_part': bodyPart,
+          if (sizeCm != null && sizeCm.isNotEmpty) 'size_cm': sizeCm,
+          if (bookingDate != null) 'booking_date': bookingDate.toIso8601String(),
+        }),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error submitBooking: $e');
       return false;
     }
   }

@@ -77,6 +77,7 @@ class BookingCreate(BaseModel):
     idea_description: str
     body_part: str
     size_cm: Optional[str] = None
+    booking_date: Optional[datetime] = None
 
 class BookingUpdate(BaseModel):
     status: Optional[BookingStatus] = None
@@ -85,8 +86,13 @@ class BookingUpdate(BaseModel):
 
 class BookingResponse(BaseModel):
     id: UUID
+    client_id: UUID
+    artist_id: UUID
     status: BookingStatus
     idea_description: str
+    body_part: str
+    size_cm: Optional[str]
+    booking_date: Optional[datetime]
     price_quote: Optional[float]
     created_at: datetime
     class Config:

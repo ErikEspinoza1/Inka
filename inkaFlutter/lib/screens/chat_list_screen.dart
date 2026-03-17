@@ -24,10 +24,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   Future<void> _loadArtists() async {
     setState(() => _isLoading = true);
-    final artists = await _authService.getVerifiedArtists();
+    final contacts = await _authService.getMessageContacts();
     if (mounted) {
       setState(() {
-        _artists = artists ?? [];
+        _artists = contacts ?? [];
         _isLoading = false;
       });
     }
@@ -36,9 +36,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
   List<dynamic> get _filteredArtists {
     final query = _searchCtrl.text.trim().toLowerCase();
     if (query.isEmpty) return _artists;
-    return _artists.where((artist) {
-      final name = (artist['shop_name'] ?? '').toString().toLowerCase();
-      final styles = (artist['styles'] ?? []).join(' ').toString().toLowerCase();
+    return _artists.where((contact) {
+      // Buscar por nombre (shop_name si es artista, full_name si es cliente)
+      final shopName = (contact['shop_name'] ?? '').toString().toLowerCase();
+      final fullName = (contact['full_name'] ?? '').toString().toLowerCase();
+      final name = shopName.isNotEmpty ? shopName : fullName;
+      
+      // Buscar por estilos si es artista
+      final styles = (contact['styles'] ?? []).join(' ').toString().toLowerCase();
+      
       return name.contains(query) || styles.contains(query);
     }).toList();
   }
@@ -84,9 +90,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           itemCount: _filteredArtists.length,
                           itemBuilder: (context, index) {
-                            final artist = _filteredArtists[index];
-                            final name = artist['shop_name'] ?? 'Artista';
-                            final styles = (artist['styles'] as List?) ?? [];
+                            final contact = _filteredArtists[index];
+                            final isArtist = contact['shop_name'] != null;
+                            final name = isArtist 
+                                ? contact['shop_name'] ?? 'Artista' 
+                                : contact['full_name'] ?? 'Usuario';
+                            final styles = (contact['styles'] as List?) ?? [];
                             final specialty = styles.isNotEmpty ? styles.join(' • ') : '';
                             return Card(
                               color: const Color(0xFF1A1A1A),
@@ -102,19 +111,21 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                   style: const TextStyle(
                                       color: Colors.white, fontWeight: FontWeight.bold),
                                 ),
-                                subtitle: Text(
-                                  specialty,
-                                  style: const TextStyle(color: Colors.white70),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                subtitle: isArtist && specialty.isNotEmpty
+                                    ? Text(
+                                        specialty,
+                                        style: const TextStyle(color: Colors.white70),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      )
+                                    : null,
                                 trailing: const Icon(Icons.chat, color: Colors.tealAccent),
                                 onTap: () {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) => ChatScreen(
-                                        artistId: artist['id'].toString(),
+                                        artistId: contact['id'].toString(),
                                         artistName: name,
                                       ),
                                     ),

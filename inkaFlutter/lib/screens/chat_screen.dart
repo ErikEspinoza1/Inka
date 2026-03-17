@@ -134,7 +134,7 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: EdgeInsets.only(
                 left: 16,
                 right: 16,
-                bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom + 12,
+                bottom: MediaQuery.of(context).padding.bottom + 12,
                 top: 12,
               ),
               child: Row(
