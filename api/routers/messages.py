@@ -60,9 +60,24 @@ def get_messages_with_artist(
     db: Session = Depends(database.get_db)
 ):
     # Devuelve mensajes entre el usuario actual y el artista especificado
+    # Incluyendo mensajes de sistema asociados a sus bookings
+    from sqlalchemy import or_
+
+    # Find total bookings between current_user and artist
+    bookings = db.query(models.Booking.id).filter(
+        or_(
+            (models.Booking.client_id == current_user.id) & (models.Booking.artist_id == artist_id),
+            (models.Booking.artist_id == current_user.id) & (models.Booking.client_id == artist_id)
+        )
+    ).all()
+    booking_ids = [b[0] for b in bookings]
+
     messages = db.query(models.Message).filter(
-        ((models.Message.sender_id == current_user.id) & (models.Message.receiver_id == artist_id))
-        | ((models.Message.sender_id == artist_id) & (models.Message.receiver_id == current_user.id))
+        or_(
+            (models.Message.sender_id == current_user.id) & (models.Message.receiver_id == artist_id),
+            (models.Message.sender_id == artist_id) & (models.Message.receiver_id == current_user.id),
+            models.Message.booking_id.in_(booking_ids) if booking_ids else False
+        )
     ).order_by(models.Message.created_at.asc()).all()
     return messages
 

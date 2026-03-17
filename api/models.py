@@ -14,6 +14,7 @@ class UserRole(str, enum.Enum):
 
 class BookingStatus(str, enum.Enum):
     pendiente = "pendiente"
+    contactado = "contactado"
     aceptado = "aceptado"
     rechazado = "rechazado"
     finalizado = "finalizado"
@@ -91,6 +92,8 @@ class Booking(Base):
     size_cm = Column(String)
     price_quote = Column(Numeric, nullable=True)
     booking_date = Column(DateTime(timezone=True), nullable=True)
+    client_accepted = Column(Boolean, default=False)
+    artist_accepted = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     client = relationship("Profile", foreign_keys=[client_id])
     artist = relationship("Artist", foreign_keys=[artist_id])

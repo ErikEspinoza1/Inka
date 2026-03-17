@@ -505,4 +505,63 @@ class AuthService {
       return false;
     }
   }
+
+  Future<List<dynamic>?> getMyBookings() async {
+    final token = await getToken();
+    if (token == null) return null;
+
+    final url = Uri.parse('$baseUrl/bookings/me');
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      print('Error getMyBookings: $e');
+    }
+    return null;
+  }
+
+  Future<bool> updateBooking(String bookingId, Map<String, dynamic> updates) async {
+    final token = await getToken();
+    if (token == null) return false;
+
+    final url = Uri.parse('$baseUrl/bookings/$bookingId');
+    try {
+      final response = await http.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(updates),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error updateBooking: $e');
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getUserById(String userId) async {
+    final token = await getToken();
+    if (token == null) return null;
+
+    final url = Uri.parse('$baseUrl/users/$userId');
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(utf8.decode(response.bodyBytes));
+      }
+    } catch (e) {
+      print('Error getUserById: $e');
+    }
+    return null;
+  }
 }

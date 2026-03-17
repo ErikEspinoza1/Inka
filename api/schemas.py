@@ -83,6 +83,8 @@ class BookingUpdate(BaseModel):
     status: Optional[BookingStatus] = None
     price_quote: Optional[float] = None
     booking_date: Optional[datetime] = None
+    client_accepted: Optional[bool] = None
+    artist_accepted: Optional[bool] = None
 
 class BookingResponse(BaseModel):
     id: UUID
@@ -94,6 +96,8 @@ class BookingResponse(BaseModel):
     size_cm: Optional[str]
     booking_date: Optional[datetime]
     price_quote: Optional[float]
+    client_accepted: bool
+    artist_accepted: bool
     created_at: datetime
     class Config:
         from_attributes = True
