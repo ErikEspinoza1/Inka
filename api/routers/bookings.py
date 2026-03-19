@@ -75,7 +75,7 @@ def update_booking(
                 setattr(booking, key, value)
             else:
                 raise HTTPException(status_code=403, detail=f"Not allowed to update field: {key}")
-        elif key in {"status", "price_quote", "booking_date"} and is_artist:
+        elif key in {"status", "price_quote", "booking_date", "idea_description", "body_part", "size_cm"} and is_artist:
             setattr(booking, key, value)
         else:
             raise HTTPException(status_code=403, detail=f"Not allowed to update field: {key}")

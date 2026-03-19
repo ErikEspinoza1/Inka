@@ -26,8 +26,9 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoading = true;
   bool _isArtist = false;
   
-  // Controladores dinámicos para el precio en las tarjetas de oferta
-  final Map<String, TextEditingController> _priceControllers = {};
+  // Controladores dinámicos para los campos en las tarjetas de oferta
+  final Map<String, Map<String, TextEditingController>> _bookingControllers = {};
+  final Map<String, DateTime?> _selectedDates = {};
 
   @override
   void initState() {
@@ -39,8 +40,10 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _messageCtrl.dispose();
     _scrollController.dispose();
-    for (var ctrl in _priceControllers.values) {
-      ctrl.dispose();
+    for (var innerMap in _bookingControllers.values) {
+      for (var ctrl in innerMap.values) {
+        ctrl.dispose();
+      }
     }
     super.dispose();
   }
@@ -102,24 +105,38 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<void> _updateBookingPrice(String bookingId, String priceText) async {
+  Future<void> _updateBookingProposal(
+    String bookingId, {
+    required String idea,
+    required String part,
+    required String size,
+    required String priceText,
+    DateTime? date,
+  }) async {
     final price = double.tryParse(priceText);
-    if (price == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Precio inválido'), backgroundColor: Colors.red),
-      );
-      return;
+    
+    final Map<String, dynamic> updateData = {
+      'idea_description': idea,
+      'body_part': part,
+      'size_cm': size,
+      'price_quote': price,
+      'artist_accepted': true,
+      'client_accepted': false,
+    };
+
+    if (date != null) {
+      updateData['booking_date'] = date.toIso8601String();
     }
 
-    final success = await _authService.updateBooking(bookingId, {'price_quote': price, 'artist_accepted': true, 'client_accepted': false});
+    final success = await _authService.updateBooking(bookingId, updateData);
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Oferta enviada'), backgroundColor: Colors.green),
+        const SnackBar(content: Text('Propuesta enviada'), backgroundColor: Colors.green),
       );
       _loadMessages(); // Recargar para ver el nuevo mensaje
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al enviar oferta'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Error al enviar propuesta'), backgroundColor: Colors.red),
       );
     }
   }
@@ -309,35 +326,38 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildBookingCard(Map<String, dynamic> data, bool isMine, DateTime timestamp, String msgId) {
-    // Si la alineación debe coincidir con el diseño, centramos la carta de "Booking" 
-    // al medio del chat u opcionalmente lado derecho/izquierdo. 
-    // Para estilo Vinted, suele estar centrado o en función del autor.
-    final autorEsIsMine = isMine;
-    
+   Widget _buildBookingCard(Map<String, dynamic> data, bool isMine, DateTime timestamp, String msgId) {
     final bId = data['booking_id']?.toString() ?? '';
     final status = data['status']?.toString() ?? 'pendiente';
     final idea = data['idea_description']?.toString() ?? '';
     final part = data['body_part']?.toString() ?? '';
-    final size = data['size_cm']?.toString();
+    final size = data['size_cm']?.toString() ?? '';
     final price = data['price_quote'];
+    final dateStr = data['booking_date']?.toString();
+    DateTime? bookingDate = dateStr != null ? DateTime.parse(dateStr) : null;
+    
     final clientAcc = data['client_accepted'] as bool? ?? false;
     final artistAcc = data['artist_accepted'] as bool? ?? false;
     
-    // Obtener un controlador solo si es artista y el estado lo permite o para crear oferta
-    if (_isArtist && price != null && !_priceControllers.containsKey(msgId)) {
-        _priceControllers[msgId] = TextEditingController(text: price.toString());
-    } else if (_isArtist && !_priceControllers.containsKey(msgId)) {
-        _priceControllers[msgId] = TextEditingController();
+    // Inicializar controladores para este mensaje si es artista
+    if (_isArtist && !_bookingControllers.containsKey(msgId)) {
+      _bookingControllers[msgId] = {
+        'idea': TextEditingController(text: idea),
+        'part': TextEditingController(text: part),
+        'size': TextEditingController(text: size),
+        'price': TextEditingController(text: price?.toString() ?? ''),
+      };
+      _selectedDates[msgId] = bookingDate;
     }
     
-    final ctrl = _priceControllers[msgId];
+    final ctrls = _bookingControllers[msgId];
+    final selectedDate = _selectedDates[msgId];
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       padding: const EdgeInsets.all(16),
-       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E), // Un gris más oscuro para diferenciarlo
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.tealAccent.withOpacity(0.5)),
       ),
@@ -352,83 +372,102 @@ class _ChatScreenState extends State<ChatScreen> {
                 style: TextStyle(color: Colors.tealAccent, fontWeight: FontWeight.bold, fontSize: 16),
               ),
               Container(
-                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(color: Colors.grey[800], borderRadius: BorderRadius.circular(8)),
                 child: Text(status.toUpperCase(), style: const TextStyle(color: Colors.white70, fontSize: 10)),
               )
             ],
           ),
           const SizedBox(height: 12),
-          Text('Idea: $idea', style: const TextStyle(color: Colors.white)),
-          Text('Zona: $part', style: const TextStyle(color: Colors.white70)),
-          if (size != null && size.isNotEmpty) Text('Tamaño: $size cm', style: const TextStyle(color: Colors.white70)),
-          
-          const Divider(color: Colors.white24, height: 24),
-          
-          // Lógica de Renderizado del Precio / Acciones
-          if (_isArtist) ...[
-            // ARTISTA Ve input de precio si no está completado
-            if (status != 'aceptado') ...[
-              const Text('Precio propuesto (€):', style: TextStyle(color: Colors.white70, fontSize: 12)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: ctrl,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        isDense: true,
-                         filled: true,
-                        fillColor: Colors.black26,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                     onPressed: () => _updateBookingPrice(bId, ctrl?.text ?? '0'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.tealAccent, foregroundColor: Colors.black),
-                    child: const Text('Enviar Oferta'),
-                  )
-                ],
+
+          if (_isArtist && status != 'aceptado') ...[
+            // VISTA EDICIÓN ARTISTA
+            _buildEditField('Idea:', ctrls?['idea']),
+            _buildEditField('Zona:', ctrls?['part']),
+            _buildEditField('Tamaño (cm):', ctrls?['size']),
+            
+            const Text('Fecha:', style: TextStyle(color: Colors.white70, fontSize: 12)),
+            const SizedBox(height: 4),
+            InkWell(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: selectedDate ?? DateTime.now().add(const Duration(days: 7)),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                );
+                if (picked != null) {
+                  setState(() => _selectedDates[msgId] = picked);
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8)),
+                child: Text(
+                  selectedDate != null ? '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}' : 'Seleccionar fecha',
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
-              if (clientAcc && !artistAcc) ...[
-                 const SizedBox(height: 12),
-                 ElevatedButton(
-                   onPressed: () => _acceptBooking(bId),
-                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                   child: const Text('Confirmar Trato'),
-                 )
-              ]
-            ] else ...[
-               Text('Precio fijado: ${price ?? 'No especificado'} €', style: const TextStyle(color: Colors.tealAccent, fontSize: 18, fontWeight: FontWeight.bold)),
-               const SizedBox(height: 8),
-               const Text('¡Trato cerrado!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 12),
+            _buildEditField('Precio (€):', ctrls?['price'], isNumber: true),
+            
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => _updateBookingProposal(
+                bId,
+                idea: ctrls?['idea']?.text ?? '',
+                part: ctrls?['part']?.text ?? '',
+                size: ctrls?['size']?.text ?? '',
+                priceText: ctrls?['price']?.text ?? '0',
+                date: selectedDate,
+              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.tealAccent, foregroundColor: Colors.black),
+              child: const Text('Enviar Propuesta Actualizada'),
+            ),
+            
+            if (clientAcc && !artistAcc) ...[
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () => _acceptBooking(bId),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                child: const Text('Confirmar Trato con estos datos'),
+              )
             ]
           ] else ...[
-             // CLIENTE ve el precio o "Esperando..."
-             const Text('Precio ofrecido por Artista:', style: TextStyle(color: Colors.white70, fontSize: 12)),
-             const SizedBox(height: 4),
-             if (price != null) ...[
-                 Text('${price} €', style: const TextStyle(color: Colors.tealAccent, fontSize: 22, fontWeight: FontWeight.bold)),
-                 const SizedBox(height: 12),
-                 if (status != 'aceptado') ...[
-                     if (!clientAcc)
-                       ElevatedButton(
-                          onPressed: () => _acceptBooking(bId),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.tealAccent, foregroundColor: Colors.black),
-                          child: const Text('Aceptar Oferta'),
-                       )
-                     else
-                       const Text('Has aceptado. Esperando confirmación del artista...', style: TextStyle(color: Colors.orange)),
-                 ] else ...[
-                     const Text('¡Trato cerrado!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                 ]
-             ] else ...[
-                  const Text('Esperando oferta del artista...', style: TextStyle(color: Colors.orange, fontStyle: FontStyle.italic)),
-             ]
+            // VISTA LECTURA (PARA CLIENTE O TRATO CERRADO)
+            Text('Idea: $idea', style: const TextStyle(color: Colors.white)),
+            Text('Zona: $part', style: const TextStyle(color: Colors.white70)),
+            if (size.isNotEmpty) Text('Tamaño: $size cm', style: const TextStyle(color: Colors.white70)),
+            if (bookingDate != null) 
+              Text('Fecha: ${bookingDate.day}/${bookingDate.month}/${bookingDate.year}', style: const TextStyle(color: Colors.white70)),
+            
+            const Divider(color: Colors.white24, height: 24),
+            
+            if (price != null) ...[
+              Text('${price} €', style: const TextStyle(color: Colors.tealAccent, fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              if (status != 'aceptado') ...[
+                if (!_isArtist && !clientAcc)
+                  ElevatedButton(
+                    onPressed: () => _acceptBooking(bId),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.tealAccent, foregroundColor: Colors.black),
+                    child: const Text('Aceptar Oferta'),
+                  )
+                else if (!_isArtist)
+                  const Text('Has aceptado. Esperando confirmación del artista...', style: TextStyle(color: Colors.orange))
+                else if (_isArtist && clientAcc && !artistAcc)
+                  ElevatedButton(
+                    onPressed: () => _acceptBooking(bId),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    child: const Text('Confirmar Trato'),
+                  )
+              ] else ...[
+                const Text('¡Trato cerrado!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+              ]
+            ] else ...[
+              const Text('Esperando oferta del artista...', style: TextStyle(color: Colors.orange, fontStyle: FontStyle.italic)),
+            ]
           ],
 
           const SizedBox(height: 8),
@@ -438,6 +477,29 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildEditField(String label, TextEditingController? ctrl, {bool isNumber = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        const SizedBox(height: 4),
+        TextField(
+          controller: ctrl,
+          keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+          decoration: InputDecoration(
+            isDense: true,
+            filled: true,
+            fillColor: Colors.black26,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
     );
   }
 

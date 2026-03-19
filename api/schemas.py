@@ -83,6 +83,9 @@ class BookingUpdate(BaseModel):
     status: Optional[BookingStatus] = None
     price_quote: Optional[float] = None
     booking_date: Optional[datetime] = None
+    idea_description: Optional[str] = None
+    body_part: Optional[str] = None
+    size_cm: Optional[str] = None
     client_accepted: Optional[bool] = None
     artist_accepted: Optional[bool] = None
 
