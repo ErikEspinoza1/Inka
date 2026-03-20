@@ -1,14 +1,16 @@
+import os
+import requests # <--- MIRA, USAMOS REQUESTS
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware  
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import engine, Base, get_db
-import os
-import requests # <--- MIRA, USAMOS REQUESTS
 
+# --- PARCHE PARA EL ERROR DE SSL ---
 if "SSL_CERT_FILE" in os.environ:
     del os.environ["SSL_CERT_FILE"]
 
+# Importamos TODOS los routers
 from routers import auth, artists, bookings, users, content, messages
 
 Base.metadata.create_all(bind=engine)
@@ -92,3 +94,6 @@ def buscar_tatuajes_ia(idea: str, db: Session = Depends(get_db)):
 @app.get("/")
 def read_root():
     return {"status": "online", "db": "supabase"}
+
+# .\venv\Scripts\activate
+# uvicorn main:app --host 0.0.0.0 --reload

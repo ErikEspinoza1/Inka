@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'portfolio_screen.dart';
 import 'artist_profile_panel_screen.dart';
 import 'chat_list_screen.dart';
+import 'artist_booking_management_screen.dart';
 
 class ArtistHomeScreen extends StatefulWidget {
   const ArtistHomeScreen({super.key});
@@ -16,6 +17,7 @@ class _ArtistHomeScreenState extends State<ArtistHomeScreen> {
   static const List<Widget> _screens = <Widget>[
     PortfolioScreen(),
     ChatListScreen(),
+    ArtistBookingManagementScreen(),
     ArtistProfilePanelScreen(),
   ];
 
@@ -30,6 +32,8 @@ class _ArtistHomeScreenState extends State<ArtistHomeScreen> {
     return Scaffold(
       body: _screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
+        // Añadimos el tipo 'fixed' para que no se rompa al tener 4 botones
+        type: BottomNavigationBarType.fixed,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.photo_library),
@@ -38,6 +42,10 @@ class _ArtistHomeScreenState extends State<ArtistHomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.chat),
             label: 'Chats',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_today),
+            label: 'Reservas',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),

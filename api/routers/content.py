@@ -12,8 +12,8 @@ def create_post(
     current_user: models.Profile = Depends(auth.get_current_user),
     db: Session = Depends(database.get_db)
 ):
-    # Verificar si es artista
-    if current_user.role != models.UserRole.ARTISTA:
+    # CORRECCIÓN: Usamos 'artista' en minúsculas para coincidir con el Enum de models.py
+    if current_user.role != models.UserRole.artista:
         raise HTTPException(status_code=403, detail="Only artists can create posts")
     
     # Buscamos el ID del artista asociado al perfil
@@ -68,7 +68,6 @@ def save_ai_design(
     current_user: models.Profile = Depends(auth.get_current_user),
     db: Session = Depends(database.get_db)
 ):
-    # Aquí es donde guardarías el resultado de una generación por IA
     new_design = models.AIDesign(
         user_id=current_user.id,
         **design.dict()

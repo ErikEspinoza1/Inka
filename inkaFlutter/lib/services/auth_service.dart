@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart'; // Mantengo tu import para el debugPrint
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; 
@@ -50,7 +50,7 @@ class AuthService {
     // 🛑 ESTRICTO: Si el usuario no se pudo crear (ej: email ya existe),
     // PARAMOS AQUÍ. No permitimos reutilizar cuentas viejas.
     if (!userCreated) {
-      print("Registro cancelado: El email ya existe o hubo un error.");
+      debugPrint("Registro cancelado: El email ya existe o hubo un error.");
       return false; 
     }
 
@@ -82,7 +82,7 @@ class AuthService {
           'longitude': lng,
           'workspace_type': 'shop',
           'show_exact_location': true,
-          'instagram_handle': '@pendiente', 
+          'instagram_handle': 'pendiente', 
           'business_license_id': 'pendiente',
         }),
       );
@@ -177,7 +177,7 @@ class AuthService {
         return data['id'];
       }
     } catch (e) {
-      print('Error getCurrentUserId: $e');
+      debugPrint('Error getCurrentUserId: $e');
     }
     return null;
   }
@@ -203,7 +203,7 @@ class AuthService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('Error update artist: $e');
+      debugPrint('Error update artist: $e');
       return false;
     }
   }
@@ -228,7 +228,7 @@ class AuthService {
         return jsonDecode(utf8.decode(response.bodyBytes));
       }
     } catch (e) {
-      print('Error getArtistProfile: $e');
+      debugPrint('Error getArtistProfile: $e');
     }
     return null;
   }
@@ -258,11 +258,11 @@ class AuthService {
         // Devolvemos todo el JSON (status, ai_analysis, url...)
         return jsonDecode(utf8.decode(response.bodyBytes)); 
       } else {
-        print("Error subida: ${response.body}");
+        debugPrint("Error subida: ${response.body}");
         return null;
       }
     } catch (e) {
-      print("Error conexión upload: $e");
+      debugPrint("Error conexión upload: $e");
       return null;
     }
   }
@@ -284,7 +284,7 @@ class AuthService {
         return jsonDecode(response.body);
       }
     } catch (e) {
-      print('Error getPortfolioPosts: $e');
+      debugPrint('Error getPortfolioPosts: $e');
     }
     return null;
   }
@@ -306,7 +306,7 @@ class AuthService {
       final response = await request.send();
       return response.statusCode == 200;
     } catch (e) {
-      print('Error uploadPortfolioImage: $e');
+      debugPrint('Error uploadPortfolioImage: $e');
       return false;
     }
   }
@@ -323,7 +323,7 @@ class AuthService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('Error deletePortfolioPost: $e');
+      debugPrint('Error deletePortfolioPost: $e');
       return false;
     }
   }
@@ -339,7 +339,7 @@ class AuthService {
         return jsonDecode(utf8.decode(response.bodyBytes));
       }
     } catch (e) {
-      print('Error getArtistById: $e');
+      debugPrint('Error getArtistById: $e');
     }
     return null;
   }
@@ -353,7 +353,7 @@ class AuthService {
         return jsonDecode(response.body);
       }
     } catch (e) {
-      print('Error getVerifiedArtists: $e');
+      debugPrint('Error getVerifiedArtists: $e');
     }
     return null;
   }
@@ -366,7 +366,7 @@ class AuthService {
         return jsonDecode(response.body);
       }
     } catch (e) {
-      print('Error getArtistPortfolio: $e');
+      debugPrint('Error getArtistPortfolio: $e');
     }
     return null;
   }
@@ -385,7 +385,7 @@ class AuthService {
         return jsonDecode(response.body);
       }
     } catch (e) {
-      print('Error getMessagesWithArtist: $e');
+      debugPrint('Error getMessagesWithArtist: $e');
     }
     return null;
   }
@@ -410,7 +410,7 @@ class AuthService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('Error sendMessageToArtist: $e');
+      debugPrint('Error sendMessageToArtist: $e');
       return false;
     }
   }
@@ -429,7 +429,7 @@ class AuthService {
         return jsonDecode(utf8.decode(response.bodyBytes));
       }
     } catch (e) {
-      print('Error getCurrentUserProfile: $e');
+      debugPrint('Error getCurrentUserProfile: $e');
     }
     return null;
   }
@@ -450,8 +450,119 @@ class AuthService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('Error updateUserProfile: $e');
+      debugPrint('Error updateUserProfile: $e');
       return false;
     }
+  }
+
+  Future<List<dynamic>?> getMessageContacts() async {
+    final token = await getToken();
+    if (token == null) return null;
+
+    final url = Uri.parse('$baseUrl/messages/contacts');
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      debugPrint('Error getMessageContacts: $e');
+    }
+    return null;
+  }
+
+  Future<bool> submitBooking({
+    required String artistId,
+    required String ideaDescription,
+    required String bodyPart,
+    String? sizeCm,
+    DateTime? bookingDate,
+  }) async {
+    final token = await getToken();
+    if (token == null) return false;
+
+    final url = Uri.parse('$baseUrl/bookings/');
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'artist_id': artistId,
+          'idea_description': ideaDescription,
+          'body_part': bodyPart,
+          if (sizeCm != null && sizeCm.isNotEmpty) 'size_cm': sizeCm,
+          if (bookingDate != null) 'booking_date': bookingDate.toIso8601String(),
+        }),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Error submitBooking: $e');
+      return false;
+    }
+  }
+
+  Future<List<dynamic>?> getMyBookings() async {
+    final token = await getToken();
+    if (token == null) return null;
+
+    final url = Uri.parse('$baseUrl/bookings/me');
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      debugPrint('Error getMyBookings: $e');
+    }
+    return null;
+  }
+
+  Future<bool> updateBooking(String bookingId, Map<String, dynamic> updates) async {
+    final token = await getToken();
+    if (token == null) return false;
+
+    final url = Uri.parse('$baseUrl/bookings/$bookingId');
+    try {
+      final response = await http.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(updates),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Error updateBooking: $e');
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getUserById(String userId) async {
+    final token = await getToken();
+    if (token == null) return null;
+
+    final url = Uri.parse('$baseUrl/users/$userId');
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(utf8.decode(response.bodyBytes));
+      }
+    } catch (e) {
+      debugPrint('Error getUserById: $e');
+    }
+    return null;
   }
 }

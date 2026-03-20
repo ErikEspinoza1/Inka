@@ -14,6 +14,7 @@ class UserRole(str, enum.Enum):
 
 class BookingStatus(str, enum.Enum):
     pendiente = "pendiente"
+    contactado = "contactado"
     aceptado = "aceptado"
     rechazado = "rechazado"
     finalizado = "finalizado"
@@ -36,7 +37,6 @@ class Profile(Base):
 
     artist_profile = relationship("Artist", back_populates="profile", uselist=False)
     bookings_as_client = relationship("Booking", back_populates="client", foreign_keys="Booking.client_id")
-    # simulations, reviews_given, etc...
 
 class Artist(Base):
     __tablename__ = "artists"
@@ -48,28 +48,27 @@ class Artist(Base):
     styles = Column(ARRAY(String)) 
     
     # Verificación y Contacto
-    instagram_handle = Column(String) # Vital para validar portafolio
+    instagram_handle = Column(String) 
     whatsapp_number = Column(String, nullable=True)
     website_url = Column(String, nullable=True)
     
-    # Documentación (Privado)
-    business_license_id = Column(String, nullable=True) # DNI o CIF
-    business_document_url = Column(String, nullable=True) # URL de la foto del certificado higiénico
-    is_verified = Column(Boolean, default=False) # Por defecto NADIE entra verificado
+    # Documentación
+    business_license_id = Column(String, nullable=True)
+    business_document_url = Column(String, nullable=True)
+    is_verified = Column(Boolean, default=False)
     
-    # Ubicación Avanzada
+    # Ubicación
     address = Column(String)
     latitude = Column(Float)
     longitude = Column(Float)
     workspace_type = Column(Enum(StudioType), default=StudioType.shop)
-    show_exact_location = Column(Boolean, default=True) # False = Privacidad (Estudios privados)
+    show_exact_location = Column(Boolean, default=True)
 
     # Relaciones
     profile = relationship("Profile", back_populates="artist_profile")
     posts = relationship("Post", back_populates="artist")
     bookings = relationship("Booking", back_populates="artist", foreign_keys="Booking.artist_id")
 
-# ... (Booking, Post, Message se quedan igual) ...
 class Post(Base):
     __tablename__ = "posts"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -91,6 +90,8 @@ class Booking(Base):
     size_cm = Column(String)
     price_quote = Column(Numeric, nullable=True)
     booking_date = Column(DateTime(timezone=True), nullable=True)
+    client_accepted = Column(Boolean, default=False)
+    artist_accepted = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     client = relationship("Profile", foreign_keys=[client_id])
     artist = relationship("Artist", foreign_keys=[artist_id])
@@ -107,7 +108,6 @@ class Message(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     booking = relationship("Booking", back_populates="messages")
     
-# Añade Review y AIDesign aquí si no los tienes en el archivo original
 class Review(Base):
     __tablename__ = "reviews"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

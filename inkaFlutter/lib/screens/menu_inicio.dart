@@ -12,7 +12,7 @@ class MenuInicio extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: SingleChildScrollView( // <--- CORREGIDO: ahora es "child" en lugar de "body"
+          child: SingleChildScrollView( // <--- CORREGIDO: Evita que la pantalla explote
             child: Column(
               children: [
                 const SizedBox(height: 60),
@@ -70,7 +70,7 @@ class MenuInicio extends StatelessWidget {
                     );
                   },
                 ),
-                const SizedBox(height: 40), // <--- CORREGIDO: Cambiamos el Spacer() por un SizedBox
+                const SizedBox(height: 40), 
                 // Link inferior
                 TextButton(
                   onPressed: () {

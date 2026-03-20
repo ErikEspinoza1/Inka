@@ -1,4 +1,4 @@
-  import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 // Importamos las otras pantallas para poder navegar a ellas
 import 'ar_tattoo_screen.dart';
 import 'test_upload_screen.dart';
