@@ -6,6 +6,10 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http; // Para hacer la petición a la API
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // Importar
+import '../services/auth_service.dart';
+import 'artist_profile_view_screen.dart';
+import 'booking_screen.dart';
+import 'chat_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -16,6 +20,7 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   final MapController _mapController = MapController();
+  final AuthService _authService = AuthService();
 
   // ⚠️ CAMBIA ESTO POR TU IP LOCAL SI CAMBIA
   final String _apiUrl = '${dotenv.env['API_URL']}/artists/';
@@ -92,11 +97,183 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  void _onMarkerTapped(TattooArtist artist) {
-    setState(() {
-      _selectedArtist = artist;
-    });
+  Future<void> _onMarkerTapped(TattooArtist artist) async {
+    setState(() => _selectedArtist = artist);
     _animatedMapMove(artist.position, 15.5);
+    await _showArtistBottomSheet(artist);
+    if (mounted) {
+      setState(() => _selectedArtist = null);
+    }
+  }
+
+  Future<void> _showArtistBottomSheet(TattooArtist artist) async {
+    final portfolio = await _authService.getArtistPortfolio(artist.id);
+
+    if (!mounted) return;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.55,
+          minChildSize: 0.3,
+          maxChildSize: 0.85,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          height: 4,
+                          width: 48,
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white12,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  artist.name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  artist.specialty,
+                                  style: const TextStyle(color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.verified, color: Colors.green),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      if (portfolio != null && portfolio.isNotEmpty) ...[
+                        SizedBox(
+                          height: 170,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: portfolio.length,
+                            itemBuilder: (context, index) {
+                              final item = portfolio[index];
+                              return Container(
+                                width: 140,
+                                margin: const EdgeInsets.only(right: 12),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  image: DecorationImage(
+                                    image: NetworkImage(item['image_url']),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                      ] else ...[
+                        const Text(
+                          'Este artista aún no tiene fotos en su portfolio.',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ArtistProfileViewScreen(artistId: artist.id),
+                                  ),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.tealAccent,
+                                foregroundColor: Colors.black,
+                              ),
+                              child: const Text('Ver perfil'),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => BookingScreen(
+                                      artistId: artist.id,
+                                      artistName: artist.name,
+                                    ),
+                                  ),
+                                );
+                              },
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.tealAccent),
+                              ),
+                              child: const Text('Reservar'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ChatScreen(
+                                  artistId: artist.id,
+                                  artistName: artist.name,
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.message, color: Colors.tealAccent),
+                          label: const Text('Chatear con el artista', style: TextStyle(color: Colors.tealAccent)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.tealAccent),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _onMapTap() {
@@ -322,135 +499,6 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
 
-          // 4. TARJETA DE DETALLE EXPANDIBLE
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeInOutBack,
-            bottom: _selectedArtist != null ? 30 : -400,
-            left: 16,
-            right: 16,
-            child: _selectedArtist != null
-                ? _buildDetailCard(_selectedArtist!)
-                : const SizedBox.shrink(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailCard(TattooArtist artist) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.6),
-              blurRadius: 20,
-              spreadRadius: 2),
-        ],
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Cabecera
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: artist.imageColor.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child:
-                      Icon(Icons.palette, color: artist.imageColor, size: 30),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        artist.name,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        artist.specialty,
-                        style:
-                            const TextStyle(color: Colors.grey, fontSize: 13),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => setState(() => _selectedArtist = null),
-                  child: const Icon(Icons.close, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-
-          // Galería Placeholder (Más adelante conectaremos esto con posts reales)
-          SizedBox(
-            height: 100,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: 5,
-              itemBuilder: (context, index) {
-                return Container(
-                  width: 100,
-                  margin: const EdgeInsets.only(right: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    image: const DecorationImage(
-                      image: NetworkImage('https://via.placeholder.com/150'),
-                      fit: BoxFit.cover,
-                      opacity: 0.5,
-                    ),
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.image, color: Colors.white30),
-                  ),
-                );
-              },
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Botón Acción
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  // Navegar a detalle completo
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4A9DFF),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: const Text("Ver Perfil y Reservar",
-                    style: TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
         ],
       ),
     );

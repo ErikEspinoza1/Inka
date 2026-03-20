@@ -1,0 +1,140 @@
+import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import 'artist_profile_screen.dart';
+import 'menu_inicio.dart';
+
+class ArtistProfilePanelScreen extends StatefulWidget {
+  const ArtistProfilePanelScreen({super.key});
+
+  @override
+  State<ArtistProfilePanelScreen> createState() => _ArtistProfilePanelScreenState();
+}
+
+class _ArtistProfilePanelScreenState extends State<ArtistProfilePanelScreen> {
+  final AuthService _authService = AuthService();
+  Map<String, dynamic>? _profileData;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final data = await _authService.getArtistProfile();
+    setState(() {
+      _profileData = data;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _logout() async {
+    await _authService.logout();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MenuInicio()),
+        (route) => false,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text('Mi Perfil'),
+        backgroundColor: Colors.transparent,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _profileData == null
+              ? const Center(child: Text('Error al cargar perfil', style: TextStyle(color: Colors.white)))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Foto de perfil o avatar
+                      Center(
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundColor: Colors.purpleAccent,
+                          child: Text(
+                            _profileData!['shop_name']?.substring(0, 1).toUpperCase() ?? 'A',
+                            style: const TextStyle(fontSize: 40, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      // Información del perfil
+                      _infoTile('Nombre del Estudio', _profileData!['shop_name'] ?? 'No especificado'),
+                      _infoTile('Instagram', _profileData!['instagram_handle'] ?? 'No especificado'),
+                      _infoTile('Biografía', _profileData!['bio'] ?? 'No especificada'),
+                      _infoTile('Dirección', _profileData!['address'] ?? 'No especificada'),
+                      _infoTile('Estado de Verificación',
+                          _profileData!['is_verified'] == true ? '✅ Verificado' : '⏳ Pendiente'),
+
+                      const SizedBox(height: 40),
+                      // Botones de acción
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const ArtistProfileScreen()),
+                            ).then((_) => _loadProfile()); // Recargar al volver
+                          },
+                          icon: const Icon(Icons.edit),
+                          label: const Text('Editar Perfil'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.purple,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _logout,
+                          icon: const Icon(Icons.logout),
+                          label: const Text('Cerrar Sesión'),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.red),
+                            foregroundColor: Colors.red,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+    );
+  }
+
+  Widget _infoTile(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: Colors.tealAccent, fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          ),
+          const Divider(color: Colors.white24),
+        ],
+      ),
+    );
+  }
+}

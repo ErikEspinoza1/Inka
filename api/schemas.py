@@ -77,17 +77,30 @@ class BookingCreate(BaseModel):
     idea_description: str
     body_part: str
     size_cm: Optional[str] = None
+    booking_date: Optional[datetime] = None
 
 class BookingUpdate(BaseModel):
     status: Optional[BookingStatus] = None
     price_quote: Optional[float] = None
     booking_date: Optional[datetime] = None
+    idea_description: Optional[str] = None
+    body_part: Optional[str] = None
+    size_cm: Optional[str] = None
+    client_accepted: Optional[bool] = None
+    artist_accepted: Optional[bool] = None
 
 class BookingResponse(BaseModel):
     id: UUID
+    client_id: UUID
+    artist_id: UUID
     status: BookingStatus
     idea_description: str
+    body_part: str
+    size_cm: Optional[str]
+    booking_date: Optional[datetime]
     price_quote: Optional[float]
+    client_accepted: bool
+    artist_accepted: bool
     created_at: datetime
     class Config:
         from_attributes = True
@@ -131,5 +144,60 @@ class AIDesignResponse(BaseModel):
     prompt_text: str
     image_url: str
     created_at: datetime
+    class Config:
+        from_attributes = True
+
+# Mensajería 
+class MessageCreate(BaseModel):
+    receiver_id: UUID
+    content: str
+    booking_id: Optional[UUID] = None
+
+class MessageResponse(BaseModel):
+    id: UUID
+    booking_id: Optional[UUID]
+    sender_id: UUID
+    receiver_id: UUID
+    content: str
+    is_read: bool
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class ArtistUpdate(BaseModel):
+    shop_name: Optional[str] = None
+    bio: Optional[str] = None
+    styles: Optional[List[str]] = None
+    instagram_handle: Optional[str] = None
+    
+    # Ubicación
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    workspace_type: Optional[StudioType] = None
+    
+    # Documentos
+    business_document_url: Optional[str] = None # Aquí irá la URL de la foto del certificado
+
+class ArtistResponse(BaseModel):
+    id: UUID
+    shop_name: str
+    bio: Optional[str] = None
+    styles: Optional[List[str]] = []
+    
+    # --- CAMPOS QUE FALTABAN ---
+    latitude: float   # <--- IMPORTANTE: Sin esto, el mapa no sabe dónde poner el pin
+    longitude: float  # <--- IMPORTANTE
+    
+    # Resto de campos
+    address: Optional[str] = None
+    workspace_type: Optional[str] = None 
+    instagram_handle: Optional[str] = None
+    
+    # URLs de imágenes (opcional, para el futuro)
+    avatar_url: Optional[str] = None 
+    
+    is_verified: bool
+    
     class Config:
         from_attributes = True

@@ -6,7 +6,6 @@ from sqlalchemy.sql import func
 import enum
 from database import Base
 
-# --- ENUMS ---
 class UserRole(str, enum.Enum):
     cliente = "cliente"
     artista = "artista"
@@ -14,15 +13,15 @@ class UserRole(str, enum.Enum):
 
 class BookingStatus(str, enum.Enum):
     pendiente = "pendiente"
+    contactado = "contactado"
     aceptado = "aceptado"
     rechazado = "rechazado"
     finalizado = "finalizado"
 
-# Nuevo Enum para el tipo de espacio de trabajo
 class StudioType(str, enum.Enum):
-    shop = "shop"       # Local comercial
-    private = "private" # Estudio privado / Casa
-    mobile = "mobile"   # Guest spot / Viajero
+    shop = "shop"
+    private = "private"
+    mobile = "mobile"
 
 class Profile(Base):
     __tablename__ = "profiles"
@@ -31,45 +30,32 @@ class Profile(Base):
     full_name = Column(String)
     avatar_url = Column(String, nullable=True)
     role = Column(Enum(UserRole), default=UserRole.cliente)
-    password = Column(String) 
+    password = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
     artist_profile = relationship("Artist", back_populates="profile", uselist=False)
     bookings_as_client = relationship("Booking", back_populates="client", foreign_keys="Booking.client_id")
-    # simulations, reviews_given, etc...
 
 class Artist(Base):
     __tablename__ = "artists"
     id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"), primary_key=True)
-    
-    # Info Básica
     shop_name = Column(String)
     bio = Column(Text)
-    styles = Column(ARRAY(String)) 
-    
-    # Verificación y Contacto
-    instagram_handle = Column(String) # Vital para validar portafolio
+    styles = Column(ARRAY(String))
+    instagram_handle = Column(String)
     whatsapp_number = Column(String, nullable=True)
     website_url = Column(String, nullable=True)
-    
-    # Documentación (Privado)
-    business_license_id = Column(String, nullable=True) # DNI o CIF
-    business_document_url = Column(String, nullable=True) # URL de la foto del certificado higiénico
-    is_verified = Column(Boolean, default=False) # Por defecto NADIE entra verificado
-    
-    # Ubicación Avanzada
+    business_license_id = Column(String, nullable=True)
+    business_document_url = Column(String, nullable=True)
+    is_verified = Column(Boolean, default=False)
     address = Column(String)
     latitude = Column(Float)
     longitude = Column(Float)
     workspace_type = Column(Enum(StudioType), default=StudioType.shop)
-    show_exact_location = Column(Boolean, default=True) # False = Privacidad (Estudios privados)
-
-    # Relaciones
+    show_exact_location = Column(Boolean, default=True)
     profile = relationship("Profile", back_populates="artist_profile")
     posts = relationship("Post", back_populates="artist")
     bookings = relationship("Booking", back_populates="artist", foreign_keys="Booking.artist_id")
 
-# ... (Booking, Post, Message se quedan igual) ...
 class Post(Base):
     __tablename__ = "posts"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -78,6 +64,10 @@ class Post(Base):
     description = Column(Text)
     style_tag = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # ── Campos AR ──────────────────────────────────────────────────────────
+    clean_image_url = Column(String, nullable=True)  # PNG sin fondo (rembg)
+    bg_removed = Column(Boolean, default=False)       # True cuando rembg terminó OK
+    # ───────────────────────────────────────────────────────────────────────
     artist = relationship("Artist", back_populates="posts")
 
 class Booking(Base):
@@ -91,6 +81,8 @@ class Booking(Base):
     size_cm = Column(String)
     price_quote = Column(Numeric, nullable=True)
     booking_date = Column(DateTime(timezone=True), nullable=True)
+    client_accepted = Column(Boolean, default=False)
+    artist_accepted = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     client = relationship("Profile", foreign_keys=[client_id])
     artist = relationship("Artist", foreign_keys=[artist_id])
@@ -101,11 +93,12 @@ class Message(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     booking_id = Column(UUID(as_uuid=True), ForeignKey("bookings.id"))
     sender_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"))
+    receiver_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"))
     content = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     booking = relationship("Booking", back_populates="messages")
-    
-# Añade Review y AIDesign aquí si no los tienes en el archivo original
+
 class Review(Base):
     __tablename__ = "reviews"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
