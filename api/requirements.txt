@@ -6,6 +6,7 @@ python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
 pydantic
+email-validator
 supabase
 rembg>=2.0.57
 onnxruntime>=1.18.0
