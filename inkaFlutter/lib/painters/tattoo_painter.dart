@@ -35,9 +35,9 @@ class TattooPainter extends CustomPainter {
     final paint = Paint()
       ..filterQuality = FilterQuality.high
       ..isAntiAlias = true
-      ..color = Colors.white.withValues(alpha: opacity); // Aquí aplicamos la transparencia (Sintaxis moderna)
+      ..color = Colors.white.withValues(alpha: opacity); // Aplicamos transparencia con sintaxis moderna
 
-    // 1. Escalar coordenadas
+    // 1. Escalar coordenadas de la imagen de la cámara al tamaño de la pantalla
     final double scaleX = size.width / absoluteImageSize.height;
     final double scaleY = size.height / absoluteImageSize.width;
 
@@ -47,7 +47,7 @@ class TattooPainter extends CustomPainter {
     final endY = endPoint!.y * scaleY;
 
     // 2. MATEMÁTICA DE POSICIÓN (Interpolación Lineal)
-    // En lugar de dividir entre 2, nos movemos un porcentaje del camino
+    // Calculamos el centro basado en el slider de posición
     final centerX = startX + (endX - startX) * positionFactor;
     final centerY = startY + (endY - startY) * positionFactor;
     
@@ -57,7 +57,7 @@ class TattooPainter extends CustomPainter {
     // Distancia para calcular la base del tamaño
     final distance = sqrt(pow(endX - startX, 2) + pow(endY - startY, 2));
 
-    // 3. Tamaño
+    // 3. Cálculo de escala de la imagen
     final double desiredSize = distance * scaleFactor;
     final double imageScale = desiredSize / tattooImage!.width.toDouble();
 
@@ -69,6 +69,7 @@ class TattooPainter extends CustomPainter {
     final double imgW = tattooImage!.width.toDouble();
     final double imgH = tattooImage!.height.toDouble();
     
+    // Dibujamos centrado en el punto calculado
     canvas.drawImage(tattooImage!, Offset(-imgW / 2, -imgH / 2), paint);
     canvas.restore();
   }

@@ -12,7 +12,7 @@ class MenuInicio extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: SingleChildScrollView( // <--- CORREGIDO: Evita que la pantalla explote
+          child: SingleChildScrollView( // Evita errores de desbordamiento en pantallas pequeñas
             child: Column(
               children: [
                 const SizedBox(height: 60),
@@ -44,7 +44,6 @@ class MenuInicio extends StatelessWidget {
                   subtitle:
                       'Discover artists, save inspiration, and book\nyour next piece',
                   onTap: () {
-                    // Navegar a pantalla de mapa directamente (Bypass Login)
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -62,7 +61,6 @@ class MenuInicio extends StatelessWidget {
                   subtitle:
                       'Showcase your portfolio and manage\nclient requests',
                   onTap: () {
-                    // Navegar a pantalla de registro de artista
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -86,7 +84,7 @@ class MenuInicio extends StatelessWidget {
                           fontSize: 14,
                         ),
                       ),
-                      SizedBox(width: 4),
+                      const SizedBox(width: 4),
                       Icon(
                         Icons.arrow_forward,
                         color: Color(0xFF4A9DFF),
@@ -127,7 +125,6 @@ class MenuInicio extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // Icono circular
             Container(
               width: 60,
               height: 60,
@@ -142,7 +139,6 @@ class MenuInicio extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            // Título de la tarjeta
             Text(
               title,
               style: const TextStyle(
@@ -153,7 +149,6 @@ class MenuInicio extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 10),
-            // Subtítulo de la tarjeta
             Text(
               subtitle,
               style: const TextStyle(

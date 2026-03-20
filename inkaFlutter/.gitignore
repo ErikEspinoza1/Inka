@@ -46,6 +46,9 @@ app.*.map.json
 
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 5b2600fe0b427da192eb79d0c69dfc250901d7ed
 .env
 
 # Unity project (very large, export only unityLibrary)
@@ -55,7 +58,11 @@ unity/
 android/build/
 
 # VS Code settings
+<<<<<<< HEAD
 .vscode/
 =======
 .env
 >>>>>>> origin/auth
+=======
+.vscode/
+>>>>>>> 5b2600fe0b427da192eb79d0c69dfc250901d7ed

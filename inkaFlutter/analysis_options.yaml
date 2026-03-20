@@ -10,12 +10,18 @@
 include: package:flutter_lints/flutter.yaml
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 5b2600fe0b427da192eb79d0c69dfc250901d7ed
 analyzer:
   exclude:
     - unity/**
 
+<<<<<<< HEAD
 =======
 >>>>>>> origin/auth
+=======
+>>>>>>> 5b2600fe0b427da192eb79d0c69dfc250901d7ed
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`

@@ -1,16 +1,17 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart'; // Mantengo tu import para el debugPrint
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart'; 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AuthService {
-  // ⚠️ Carga la URL del .env, si falla usa localhost
-  final String baseUrl = dotenv.env['API_URL'] ?? 'http://192.168.1.134:8000';
+  // Carga la URL desde el archivo .env
+  final String baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:8000';
 
   // ==========================================================
-  // 1. REGISTRO DE USUARIO BASE (Cliente)
+  // 1. AUTENTICACIÓN BÁSICA (Registro, Login, Logout)
   // ==========================================================
+
   Future<bool> register(String email, String password, String fullName) async {
     final url = Uri.parse('$baseUrl/auth/register');
     try {
@@ -23,7 +24,6 @@ class AuthService {
           'full_name': fullName,
         }),
       );
-      // Solo devuelve TRUE si se creó (200). Si devuelve 400 (ya existe), devuelve false.
       return response.statusCode == 200;
     } catch (e) {
       debugPrint('Error conexión register: $e');
@@ -31,9 +31,37 @@ class AuthService {
     }
   }
 
+  Future<String?> login(String email, String password) async {
+    final url = Uri.parse('$baseUrl/auth/login');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {'username': email, 'password': password},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final token = data['access_token'];
+        await _saveToken(token);
+        return token;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error login: $e');
+      return null;
+    }
+  }
+
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('jwt_token');
+  }
+
   // ==========================================================
-  // 2. REGISTRO DE ARTISTA (ESTRICTO + ROBUSTO)
+  // 2. REGISTRO DE ARTISTA (Proceso Robusto)
   // ==========================================================
+
   Future<bool> registerArtist({
     required String email,
     required String password,
@@ -43,26 +71,20 @@ class AuthService {
     required double lat,
     required double lng,
   }) async {
-    
     // PASO A: Crear usuario base
     final userCreated = await register(email, password, fullName);
 
-    // 🛑 ESTRICTO: Si el usuario no se pudo crear (ej: email ya existe),
-    // PARAMOS AQUÍ. No permitimos reutilizar cuentas viejas.
     if (!userCreated) {
       debugPrint("Registro cancelado: El email ya existe o hubo un error.");
       return false; 
     }
 
-    // ⏳ PAUSA TÉCNICA: Esperamos 500ms para asegurar que la DB guardó el registro
-    // Esto evita el error 403 "Forbidden" por intentar entrar muy rápido
+    // Pausa técnica para asegurar que la DB guardó el registro
     await Future.delayed(const Duration(milliseconds: 500));
 
     // PASO B: Login para obtener token
     final token = await login(email, password);
-    if (token == null) {
-      return false;
-    }
+    if (token == null) return false;
 
     // PASO C: Convertir a Artista
     final url = Uri.parse('$baseUrl/artists/become-artist');
@@ -86,7 +108,6 @@ class AuthService {
           'business_license_id': 'pendiente',
         }),
       );
-
       return response.statusCode == 200;
     } catch (e) {
       debugPrint('Error become-artist: $e');
@@ -95,29 +116,8 @@ class AuthService {
   }
 
   // ==========================================================
-  // 3. LOGIN & TOKENS
+  // 3. GESTIÓN DE PERFIL Y ROLES
   // ==========================================================
-  Future<String?> login(String email, String password) async {
-    final url = Uri.parse('$baseUrl/auth/login');
-    try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: {'username': email, 'password': password},
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final token = data['access_token'];
-        await _saveToken(token);
-        return token;
-      }
-      return null;
-    } catch (e) {
-      debugPrint('Error login: $e');
-      return null;
-    }
-  }
 
   Future<String?> getUserRole() async {
     final token = await getToken();
@@ -132,7 +132,6 @@ class AuthService {
           'Authorization': 'Bearer $token',
         },
       );
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['role']; 
@@ -143,26 +142,11 @@ class AuthService {
     return null;
   }
 
-  Future<void> _saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('jwt_token', token);
-  }
-
-  Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('jwt_token');
-  }
-
-  Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('jwt_token');
-  }
-
-  Future<String?> getCurrentUserId() async {
+  Future<Map<String, dynamic>?> getArtistProfile() async {
     final token = await getToken();
     if (token == null) return null;
 
-    final url = Uri.parse('$baseUrl/users/me');
+    final url = Uri.parse('$baseUrl/artists/me');
     try {
       final response = await http.get(
         url,
@@ -171,22 +155,15 @@ class AuthService {
           'Authorization': 'Bearer $token',
         },
       );
-
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['id'];
+        return jsonDecode(utf8.decode(response.bodyBytes));
       }
     } catch (e) {
-      debugPrint('Error getCurrentUserId: $e');
+      debugPrint('Error getArtistProfile: $e');
     }
     return null;
   }
 
-  // ==========================================================
-  // 4. GESTIÓN DEL PERFIL DE ARTISTA
-  // ==========================================================
-  
-  // Actualizar datos (PATCH)
   Future<bool> updateArtistProfile(Map<String, dynamic> data) async {
     final token = await getToken();
     if (token == null) return false;
@@ -208,59 +185,23 @@ class AuthService {
     }
   }
 
-  // Obtener mis datos (GET)
-  Future<Map<String, dynamic>?> getArtistProfile() async {
-    final token = await getToken();
-    if (token == null) return null;
-
-    final url = Uri.parse('$baseUrl/artists/me');
-    try {
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        // Decodificamos UTF-8 para evitar problemas con tildes
-        return jsonDecode(utf8.decode(response.bodyBytes));
-      }
-    } catch (e) {
-      debugPrint('Error getArtistProfile: $e');
-    }
-    return null;
-  }
-
-  // Subir Certificado (POST Multipart)
-  // Devuelve el JSON completo con el análisis de la IA
   Future<Map<String, dynamic>?> uploadCertificate(String filePath) async {
     final token = await getToken();
     if (token == null) return null;
 
     final url = Uri.parse('$baseUrl/artists/upload-certificate');
-    
     try {
       var request = http.MultipartRequest('POST', url);
-      
-      // Headers
       request.headers['Authorization'] = 'Bearer $token';
-      
-      // Archivo
       request.files.add(await http.MultipartFile.fromPath('file', filePath));
 
-      // Enviar
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
-        // Devolvemos todo el JSON (status, ai_analysis, url...)
         return jsonDecode(utf8.decode(response.bodyBytes)); 
-      } else {
-        debugPrint("Error subida: ${response.body}");
-        return null;
       }
+      return null;
     } catch (e) {
       debugPrint("Error conexión upload: $e");
       return null;
@@ -268,8 +209,9 @@ class AuthService {
   }
 
   // ==========================================================
-  // PORTFOLIO METHODS
+  // 4. PORTFOLIO Y CONTENIDO
   // ==========================================================
+
   Future<List<dynamic>?> getPortfolioPosts() async {
     final token = await getToken();
     if (token == null) return null;
@@ -280,9 +222,7 @@ class AuthService {
         url,
         headers: {'Authorization': 'Bearer $token'},
       );
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      }
+      if (response.statusCode == 200) return jsonDecode(response.body);
     } catch (e) {
       debugPrint('Error getPortfolioPosts: $e');
     }
@@ -294,12 +234,10 @@ class AuthService {
     if (token == null) return false;
 
     final url = Uri.parse('$baseUrl/artists/me/posts');
-    
     var request = http.MultipartRequest('POST', url);
     request.headers['Authorization'] = 'Bearer $token';
     request.fields['description'] = description;
     request.fields['style_tag'] = styleTag;
-    
     request.files.add(await http.MultipartFile.fromPath('file', imagePath));
 
     try {
@@ -311,62 +249,20 @@ class AuthService {
     }
   }
 
-  Future<bool> deletePortfolioPost(String postId) async {
+  // ==========================================================
+  // 5. MENSAJERÍA Y CHAT
+  // ==========================================================
+
+  Future<List<dynamic>?> getMessageContacts() async {
     final token = await getToken();
-    if (token == null) return false;
+    if (token == null) return null;
 
-    final url = Uri.parse('$baseUrl/artists/me/posts/$postId');
+    final url = Uri.parse('$baseUrl/messages/contacts');
     try {
-      final response = await http.delete(
-        url,
-        headers: {'Authorization': 'Bearer $token'},
-      );
-      return response.statusCode == 200;
+      final response = await http.get(url, headers: {'Authorization': 'Bearer $token'});
+      if (response.statusCode == 200) return jsonDecode(response.body);
     } catch (e) {
-      debugPrint('Error deletePortfolioPost: $e');
-      return false;
-    }
-  }
-
-  // ==========================================================
-  // CLIENT METHODS
-  // ==========================================================
-  Future<Map<String, dynamic>?> getArtistById(String artistId) async {
-    final url = Uri.parse('$baseUrl/artists/$artistId');
-    try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        return jsonDecode(utf8.decode(response.bodyBytes));
-      }
-    } catch (e) {
-      debugPrint('Error getArtistById: $e');
-    }
-    return null;
-  }
-
-  Future<List<dynamic>?> getVerifiedArtists({String? style}) async {
-    final query = style != null ? '?style=$style' : '';
-    final url = Uri.parse('$baseUrl/artists/$query');
-    try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      }
-    } catch (e) {
-      debugPrint('Error getVerifiedArtists: $e');
-    }
-    return null;
-  }
-
-  Future<List<dynamic>?> getArtistPortfolio(String artistId) async {
-    final url = Uri.parse('$baseUrl/artists/$artistId/posts');
-    try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      }
-    } catch (e) {
-      debugPrint('Error getArtistPortfolio: $e');
+      debugPrint('Error getMessageContacts: $e');
     }
     return null;
   }
@@ -377,13 +273,8 @@ class AuthService {
 
     final url = Uri.parse('$baseUrl/messages/?artist_id=$artistId');
     try {
-      final response = await http.get(
-        url,
-        headers: {'Authorization': 'Bearer $token'},
-      );
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      }
+      final response = await http.get(url, headers: {'Authorization': 'Bearer $token'});
+      if (response.statusCode == 200) return jsonDecode(response.body);
     } catch (e) {
       debugPrint('Error getMessagesWithArtist: $e');
     }
@@ -415,64 +306,9 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>?> getCurrentUserProfile() async {
-    final token = await getToken();
-    if (token == null) return null;
-
-    final url = Uri.parse('$baseUrl/users/me');
-    try {
-      final response = await http.get(
-        url,
-        headers: {'Authorization': 'Bearer $token'},
-      );
-      if (response.statusCode == 200) {
-        return jsonDecode(utf8.decode(response.bodyBytes));
-      }
-    } catch (e) {
-      debugPrint('Error getCurrentUserProfile: $e');
-    }
-    return null;
-  }
-
-  Future<bool> updateUserProfile(Map<String, dynamic> data) async {
-    final token = await getToken();
-    if (token == null) return false;
-
-    final url = Uri.parse('$baseUrl/users/me');
-    try {
-      final response = await http.patch(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(data),
-      );
-      return response.statusCode == 200;
-    } catch (e) {
-      debugPrint('Error updateUserProfile: $e');
-      return false;
-    }
-  }
-
-  Future<List<dynamic>?> getMessageContacts() async {
-    final token = await getToken();
-    if (token == null) return null;
-
-    final url = Uri.parse('$baseUrl/messages/contacts');
-    try {
-      final response = await http.get(
-        url,
-        headers: {'Authorization': 'Bearer $token'},
-      );
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      }
-    } catch (e) {
-      debugPrint('Error getMessageContacts: $e');
-    }
-    return null;
-  }
+  // ==========================================================
+  // 6. RESERVAS (BOOKINGS)
+  // ==========================================================
 
   Future<bool> submitBooking({
     required String artistId,
@@ -513,56 +349,47 @@ class AuthService {
 
     final url = Uri.parse('$baseUrl/bookings/me');
     try {
-      final response = await http.get(
-        url,
-        headers: {'Authorization': 'Bearer $token'},
-      );
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      }
+      final response = await http.get(url, headers: {'Authorization': 'Bearer $token'});
+      if (response.statusCode == 200) return jsonDecode(response.body);
     } catch (e) {
       debugPrint('Error getMyBookings: $e');
     }
     return null;
   }
 
-  Future<bool> updateBooking(String bookingId, Map<String, dynamic> updates) async {
-    final token = await getToken();
-    if (token == null) return false;
+  // ==========================================================
+  // 7. MÉTODOS DE APOYO (Tokens y Perfiles Públicos)
+  // ==========================================================
 
-    final url = Uri.parse('$baseUrl/bookings/$bookingId');
+  Future<List<dynamic>?> getArtistPortfolio(String artistId) async {
+    final url = Uri.parse('$baseUrl/artists/$artistId/posts');
     try {
-      final response = await http.patch(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(updates),
-      );
-      return response.statusCode == 200;
+      final response = await http.get(url);
+      if (response.statusCode == 200) return jsonDecode(response.body);
     } catch (e) {
-      debugPrint('Error updateBooking: $e');
-      return false;
-    }
-  }
-
-  Future<Map<String, dynamic>?> getUserById(String userId) async {
-    final token = await getToken();
-    if (token == null) return null;
-
-    final url = Uri.parse('$baseUrl/users/$userId');
-    try {
-      final response = await http.get(
-        url,
-        headers: {'Authorization': 'Bearer $token'},
-      );
-      if (response.statusCode == 200) {
-        return jsonDecode(utf8.decode(response.bodyBytes));
-      }
-    } catch (e) {
-      debugPrint('Error getUserById: $e');
+      debugPrint('Error getArtistPortfolio: $e');
     }
     return null;
+  }
+
+  Future<Map<String, dynamic>?> getArtistById(String artistId) async {
+    final url = Uri.parse('$baseUrl/artists/$artistId');
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) return jsonDecode(utf8.decode(response.bodyBytes));
+    } catch (e) {
+      debugPrint('Error getArtistById: $e');
+    }
+    return null;
+  }
+
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('jwt_token');
+  }
+
+  Future<void> _saveToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('jwt_token', token);
   }
 }
