@@ -1129,17 +1129,10 @@ packages:
     dependency: transitive
     description:
       name: webview_flutter_android
-<<<<<<< HEAD
       sha256: "2a03df01df2fd30b075d1e7f24c28aee593f2e5d5ac4c3c4283c5eda63717b24"
       url: "https://pub.dev"
     source: hosted
     version: "4.10.13"
-=======
-      sha256: eeeb3fcd5f0ff9f8446c9f4bbc18a99b809e40297528a3395597d03aafb9f510
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.10.11"
->>>>>>> 5b2600fe0b427da192eb79d0c69dfc250901d7ed
   webview_flutter_platform_interface:
     dependency: transitive
     description:
@@ -1160,17 +1153,10 @@ packages:
     dependency: transitive
     description:
       name: webview_flutter_wkwebview
-<<<<<<< HEAD
-      sha256: "2df8fd9ada04d699b9db8e79aa783a16e5d89b69e5b74009b87e16b59912cf98"
+      sha256: "0d85e8bc5db9a7c49f6ff57cbeafc6cd8216ad9c9ebc70b2c4579d955698933a"
       url: "https://pub.dev"
     source: hosted
-    version: "3.24.0"
-=======
-      sha256: e49f378ed066efb13fc36186bbe0bd2425630d4ea0dbc71a18fdd0e4d8ed8ebc
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.23.5"
->>>>>>> 5b2600fe0b427da192eb79d0c69dfc250901d7ed
+    version: "3.24.1"
   wkt_parser:
     dependency: transitive
     description:

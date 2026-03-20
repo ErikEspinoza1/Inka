@@ -21,13 +21,10 @@ dependencies:
   geocoding: ^3.0.0
   geolocator: ^13.0.0
   flutter_dotenv: ^6.0.0
-<<<<<<< HEAD
   carousel_slider: ^5.0.0
   google_generative_ai: ^0.4.7
-=======
->>>>>>> 5b2600fe0b427da192eb79d0c69dfc250901d7ed
   flutter_unity_widget: ^2022.2.1
-  
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -35,7 +32,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
+
   assets:
-    - assets/images/ # <--- IMPORTANTE: Crea esta carpeta y pon ahí un 'tattoo.png'
+    - assets/images/
     - .env
