@@ -20,16 +20,26 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
 
 @router.post("/login", response_model=schemas.Token)
 def login(
-    user_credentials: schemas.UserLogin, # Ahora usamos tu esquema JSON
+    user_credentials: schemas.UserLogin, 
     db: Session = Depends(database.get_db)
 ):
-    # Buscamos al usuario por el email que viene en el JSON
+    # 1. Buscar usuario
     user = db.query(models.Profile).filter(models.Profile.email == user_credentials.email).first()
     
+    # 2. Verificar existencia y contraseña
     if not user or not auth.verify_password(user_credentials.password, user.password):
         raise HTTPException(status_code=403, detail="Invalid credentials")
     
-    # Creamos el token (asegúrate de que user.role existe en tu modelo)
-    access_token = auth.create_access_token(data={"sub": user.email, "role": user.role.value if hasattr(user.role, 'value') else user.role})
+    # 3. EXTRAER ROL DE FORMA SEGURA (Aquí es donde daba el 500)
+    # Si user.role tiene .value (es un Enum), lo usamos. Si no, lo pasamos a string.
+    try:
+        role_name = user.role.value if hasattr(user.role, 'value') else str(user.role or "client")
+    except:
+        role_name = "client"
+
+    # 4. Generar Token
+    access_token = auth.create_access_token(
+        data={"sub": user.email, "role": role_name}
+    )
     
     return {"access_token": access_token, "token_type": "bearer"}
