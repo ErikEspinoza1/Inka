@@ -1,14 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-# ### 1. IMPORTANTE: Importar OAuth2PasswordRequestForm
-from fastapi.security import OAuth2PasswordRequestForm 
 import database, models, schemas, auth
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 @router.post("/register", response_model=schemas.UserResponse)
 def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
-    # Check if exists
+    # Comprobar si el usuario ya existe
     db_user = db.query(models.Profile).filter(models.Profile.email == user.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -22,15 +20,16 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
 
 @router.post("/login", response_model=schemas.Token)
 def login(
-    # ### 2. CAMBIO: Usar OAuth2PasswordRequestForm en lugar de schemas.UserLogin
-    form_data: OAuth2PasswordRequestForm = Depends(), 
+    user_credentials: schemas.UserLogin, # Ahora usamos tu esquema JSON
     db: Session = Depends(database.get_db)
 ):
-    # ### 3. CAMBIO: Usar form_data.username (que contiene el email) y form_data.password
-    user = db.query(models.Profile).filter(models.Profile.email == form_data.username).first()
+    # Buscamos al usuario por el email que viene en el JSON
+    user = db.query(models.Profile).filter(models.Profile.email == user_credentials.email).first()
     
-    if not user or not auth.verify_password(form_data.password, user.password):
+    if not user or not auth.verify_password(user_credentials.password, user.password):
         raise HTTPException(status_code=403, detail="Invalid credentials")
     
-    access_token = auth.create_access_token(data={"sub": user.email, "role": user.role.value})
+    # Creamos el token (asegúrate de que user.role existe en tu modelo)
+    access_token = auth.create_access_token(data={"sub": user.email, "role": user.role.value if hasattr(user.role, 'value') else user.role})
+    
     return {"access_token": access_token, "token_type": "bearer"}
