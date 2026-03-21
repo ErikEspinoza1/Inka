@@ -10,88 +10,90 @@ class MenuInicio extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 60),
-              // Título principal
-              const Text(
-                'Welcome to Inka',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+        child: SingleChildScrollView( // <--- AÑADIDO ESTO AQUÍ
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              children: [
+                const SizedBox(height: 60),
+                // Título principal
+                const Text(
+                  'Welcome to Inka',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12), 
-              // Subtítulo
-              const Text(
-                'Choose how you want to continue',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
+                const SizedBox(height: 12), 
+                // Subtítulo
+                const Text(
+                  'Choose how you want to continue',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 50),
-              // Primera tarjeta - Buscar tatuajes
-              _buildOptionCard(
-                context,
-                icon: Icons.search,
-                iconColor: const Color(0xFF4A9DFF),
-                title: 'Looking to Get Tattooed?',
-                subtitle: 'Discover artists, save inspiration, and book\nyour next piece',
-                onTap: () {
-                  // Navegar a pantalla de mapa directamente (Bypass Login)
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AuthScreen()),
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
-              // Segunda tarjeta - Soy artista
-              _buildOptionCard(
-                context,
-                icon: Icons.palette,
-                iconColor: const Color(0xFF4A9DFF),
-                title: 'Are You a Tattoo Artist?',
-                subtitle: 'Showcase your portfolio and manage\nclient requests',
-                onTap: () {
-                  // Navegar a pantalla de registro de artista
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ArtistAuthScreen()),
-                  );
-                },
-              ),
-              const Spacer(),
-              // Link inferior
-              TextButton(
-                onPressed: () {
-                  // Navegar a ver componentes
-                },
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Text(
-                      'View New Components',
-                      style: TextStyle(
-                        color: Color(0xFF4A9DFF),
-                        fontSize: 14,
+                const SizedBox(height: 50),
+                // Primera tarjeta - Buscar tatuajes
+                _buildOptionCard(
+                  context,
+                  icon: Icons.search,
+                  iconColor: const Color(0xFF4A9DFF),
+                  title: 'Looking to Get Tattooed?',
+                  subtitle: 'Discover artists, save inspiration, and book\nyour next piece',
+                  onTap: () {
+                    // Navegar a pantalla de mapa directamente (Bypass Login)
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const AuthScreen()),
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+                // Segunda tarjeta - Soy artista
+                _buildOptionCard(
+                  context,
+                  icon: Icons.palette,
+                  iconColor: const Color(0xFF4A9DFF),
+                  title: 'Are You a Tattoo Artist?',
+                  subtitle: 'Showcase your portfolio and manage\nclient requests',
+                  onTap: () {
+                    // Navegar a pantalla de registro de artista
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ArtistAuthScreen()),
+                    );
+                  },
+                ),
+                const SizedBox(height: 40), // He cambiado Spacer() por SizedBox porque Spacer() no funciona bien dentro de un Scroll
+                // Link inferior
+                TextButton(
+                  onPressed: () {
+                    // Navegar a ver componentes
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Text(
+                        'View New Components',
+                        style: TextStyle(
+                          color: Color(0xFF4A9DFF),
+                          fontSize: 14,
+                        ),
                       ),
-                    ),
-                    SizedBox(width: 4),
-                    Icon(
-                      Icons.arrow_forward,
-                      color: Color(0xFF4A9DFF),
-                      size: 16,
-                    ),
-                  ],
+                      SizedBox(width: 4),
+                      Icon(
+                        Icons.arrow_forward,
+                        color: Color(0xFF4A9DFF),
+                        size: 16,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 30),
-            ],
+                const SizedBox(height: 30),
+              ],
+            ),
           ),
         ),
       ),
