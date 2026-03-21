@@ -149,3 +149,18 @@ class MessageResponse(BaseModel):
     created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
+
+# --- DISEÑOS DE IA (Añadir esto a api/schemas.py) ---
+
+class AIDesignCreate(BaseModel):
+    prompt_text: str
+    image_url: str
+    style_tag: Optional[str] = None
+
+class AIDesignResponse(BaseModel):
+    id: UUID
+    prompt_text: str
+    image_url: str
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
