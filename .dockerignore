@@ -1,19 +1,16 @@
-# BLOQUEAR CARPETAS DE MÓVIL (Esto quita ~8GB de peso)
-android/
-ios/
-windows/
-linux/
-macos/
-web/
+# Ignorar las carpetas pesadas de Flutter y copias
+inka_flutter/
+inka_final/
 
-# BLOQUEAR CACHÉ Y BUILDS
-build/
-.dart_tool/
-.gradle/
-.idea/
+# Ignorar archivos sueltos que no necesita la API
+inka.sql
 .vscode/
+.git/
 
-# BLOQUEAR BASURA DE PYTHON
-**/__pycache__/
+# Por si acaso hay restos de compilación dentro de alguna subcarpeta
+**/build/
+**/.gradle/
+**/.dart_tool/
+**/.env
 **/venv/
-.env
+**/__pycache__/
