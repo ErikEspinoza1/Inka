@@ -6,7 +6,7 @@ class AiExploreService {
   // ATENCIÓN: La URL de tu servidor FastAPI
   // Si pruebas en el navegador web (Chrome/Edge): usa 127.0.0.1
   // Si pruebas en un móvil físico o emulador: usa la IP de tu PC (ej: 192.168.1.55)
-  final String _baseUrl = 'http://127.0.0.1:8000'; 
+  final String _baseUrl = 'https://inka-production.up.railway.app'; 
 
   Future<List<Map<String, dynamic>>> buscarTatuajesPorIdea(String idea) async {
     try {
