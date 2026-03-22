@@ -5,6 +5,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 from database import Base
+from pgvector.sqlalchemy import Vector
 
 class UserRole(str, enum.Enum):
     cliente = "cliente"
@@ -63,6 +64,10 @@ class Post(Base):
     image_url = Column(String, nullable=False)
     description = Column(Text)
     style_tag = Column(String)
+    
+    # 👇 AÑADE ESTA LÍNEA 👇
+    embedding = Column(Vector(768), nullable=True)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     # ── Campos AR ──────────────────────────────────────────────────────────
     clean_image_url = Column(String, nullable=True)  # PNG sin fondo (rembg)

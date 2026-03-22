@@ -217,25 +217,62 @@ async def create_post(
     if not artist:
         raise HTTPException(status_code=404, detail="Artist profile not found")
     
-    # Generar nombre único
+    # 1. Generar nombre único y leer archivo
     clean_shop_name = artist.shop_name.replace(" ", "_")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"portfolio_{clean_shop_name}_{current_user.id}_{timestamp}.jpg"
-    
-    # Leer archivo
     file_bytes = await file.read()
     
-    # Subir a Supabase
+    # 2. Subir a Supabase
     public_url = upload_file_to_supabase(file_bytes, filename, folder="portfolio-artistas")
     if not public_url:
         raise HTTPException(status_code=500, detail="Failed to upload image")
     
-    # Crear post
+    # =======================================================
+    # 3. EL TRUCO INVISIBLE: CALCULAR EL EMBEDDING CON IA
+    # =======================================================
+    import os
+    from dotenv import load_dotenv
+    import requests
+    
+    load_dotenv() # Cargar el .env
+    
+    vector_ia = None
+    texto_para_ia = f"{style_tag} {description}"
+    
+    if texto_para_ia.strip():
+        try:
+            print(f"🤖 Calculando IA para el nuevo post: {texto_para_ia}")
+            
+            api_key = os.getenv("GEMINI_API_KEY")
+            if not api_key:
+                raise Exception("🚨 No se encontró la GEMINI_API_KEY en el .env")
+
+            url_embed = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key={api_key}"
+            
+            payload = {
+                "model": "models/gemini-embedding-001",
+                "content": {"parts": [{"text": texto_para_ia}]}
+            }
+            respuesta = requests.post(url_embed, json=payload)
+            
+            if respuesta.status_code == 200:
+                vector_ia = respuesta.json()['embedding']['values'][:768]
+                print("✅ IA calculada y lista para guardar.")
+            else:
+                 print(f"⚠️ Error de Gemini: {respuesta.text}")
+        except Exception as e:
+            print(f"⚠️ Aviso: Falló la IA al crear el post. Error: {e}")
+
+    # =======================================================
+    # 4. Crear post en Base de Datos (Guardando el Vector)
+    # =======================================================
     new_post = models.Post(
         artist_id=current_user.id,
         image_url=public_url,
         description=description,
-        style_tag=style_tag
+        style_tag=style_tag,
+        embedding=vector_ia  # <--- ¡AQUÍ ESTÁ LA MAGIA!
     )
     
     db.add(new_post)
@@ -243,7 +280,6 @@ async def create_post(
     db.refresh(new_post)
     
     return new_post
-
 @router.delete("/me/posts/{post_id}")
 def delete_post(
     post_id: str,
