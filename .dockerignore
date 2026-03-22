@@ -1,4 +1,4 @@
-# Esto le dice a Railway: "Ignora estas carpetas, solo me interesan para el móvil"
+# BLOQUEAR CARPETAS DE MÓVIL (Esto quita ~8GB de peso)
 android/
 ios/
 windows/
@@ -6,7 +6,14 @@ linux/
 macos/
 web/
 
-# Ignora también los restos de compilación de Flutter que ocupan espacio
+# BLOQUEAR CACHÉ Y BUILDS
 build/
 .dart_tool/
 .gradle/
+.idea/
+.vscode/
+
+# BLOQUEAR BASURA DE PYTHON
+**/__pycache__/
+**/venv/
+.env
