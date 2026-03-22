@@ -1,0 +1,12 @@
+# Esto le dice a Railway: "Ignora estas carpetas, solo me interesan para el móvil"
+android/
+ios/
+windows/
+linux/
+macos/
+web/
+
+# Ignora también los restos de compilación de Flutter que ocupan espacio
+build/
+.dart_tool/
+.gradle/
