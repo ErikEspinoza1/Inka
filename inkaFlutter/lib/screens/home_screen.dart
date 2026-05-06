@@ -42,7 +42,6 @@ class HomeScreen extends StatelessWidget {
               icon: const Icon(Icons.camera),
               label: const Text("PROBAR TATUAJE (AR)"),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
                 padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
               ),
               onPressed: () {
@@ -60,7 +59,8 @@ class HomeScreen extends StatelessWidget {
               icon: const Icon(Icons.cloud_upload),
               label: const Text("TEST SUBIDA (PERSONA 3)"),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
+                backgroundColor: Theme.of(context).colorScheme.secondary,
+                foregroundColor: Theme.of(context).colorScheme.onSecondary,
                 padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
               ),
               onPressed: () {

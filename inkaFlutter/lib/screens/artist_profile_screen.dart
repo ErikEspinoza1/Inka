@@ -136,12 +136,12 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Perfil actualizado correctamente ✅'), backgroundColor: Colors.green),
+        SnackBar(content: const Text('Perfil actualizado correctamente ✅'), backgroundColor: Colors.green),
       );
       Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al guardar'), backgroundColor: Colors.red),
+        SnackBar(content: const Text('Error al guardar'), backgroundColor: Theme.of(context).colorScheme.error),
       );
     }
   }
@@ -175,13 +175,13 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Resultado IA: $analysisText"),
-            backgroundColor: verified ? Colors.green : Colors.orange,
+            backgroundColor: verified ? Colors.green : Theme.of(context).colorScheme.secondary,
           ),
         );
       } else {
         _certificateStatus = "❌ Error al subir";
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Error al subir imagen"), backgroundColor: Colors.red),
+          SnackBar(content: const Text("Error al subir imagen"), backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     });
@@ -190,13 +190,11 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text("Editar Perfil Artista"),
-        backgroundColor: Colors.transparent,
         actions: [
           IconButton(
-            icon: const Icon(Icons.save, color: Colors.purpleAccent),
+            icon: Icon(Icons.save, color: Theme.of(context).colorScheme.primary),
             onPressed: _saveProfile,
           )
         ],
@@ -217,13 +215,12 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                 _sectionTitle("Ubicación & Tipo"),
                 
                 SwitchListTile(
-                  title: const Text("¿Tienes un local físico fijo?", style: TextStyle(color: Colors.white)),
+                  title: const Text("¿Tienes un local físico fijo?"),
                   subtitle: Text(
                     _hasPhysicalShop ? "La dirección exacta será pública" : "Modo Viajero/Privado (Solo se muestra ciudad)",
-                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
                   ),
                   value: _hasPhysicalShop,
-                  activeColor: Colors.purpleAccent,
+                  activeColor: Theme.of(context).colorScheme.primary,
                   onChanged: (val) => setState(() => _hasPhysicalShop = val),
                 ),
                 
@@ -258,12 +255,12 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.warning_amber, color: Colors.redAccent, size: 30),
+                      Icon(Icons.warning_amber, color: Theme.of(context).colorScheme.error, size: 30),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           "IMPORTANTE: Al subir tu certificado, declaras bajo juramento que es original y vigente. La falsificación conlleva expulsión inmediata. La IA validará el documento automáticamente.",
-                          style: TextStyle(color: Colors.red[100], fontSize: 11),
+                          style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 11),
                         ),
                       ),
                     ],
@@ -277,10 +274,10 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                   width: double.infinity,
                   height: 180, 
                   decoration: BoxDecoration(
-                    color: Colors.white10,
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: _certificateStatus.contains("✅") ? Colors.greenAccent : Colors.white24, 
+                        color: _certificateStatus.contains("✅") ? Colors.green : Theme.of(context).colorScheme.primary.withOpacity(0.5), 
                         style: BorderStyle.solid),
                   ),
                   child: Column(
@@ -295,14 +292,14 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                           ),
                         )
                       else
-                        const Icon(Icons.document_scanner, color: Colors.white54, size: 40),
+                        Icon(Icons.document_scanner, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5), size: 40),
                       
                       const SizedBox(height: 8),
                       
                       TextButton.icon(
                         onPressed: _pickAndUploadCertificate,
-                        icon: const Icon(Icons.upload_file, color: Colors.purpleAccent),
-                        label: const Text("Subir y Verificar con IA", style: TextStyle(color: Colors.purpleAccent)),
+                        icon: Icon(Icons.upload_file, color: Theme.of(context).colorScheme.primary),
+                        label: Text("Subir y Verificar con IA", style: TextStyle(color: Theme.of(context).colorScheme.primary)),
                       ),
                       
                       Padding(
@@ -310,7 +307,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                         child: Text(
                           "Estado: $_certificateStatus",
                           style: TextStyle(
-                            color: _certificateStatus.contains("✅") ? Colors.green : Colors.white70,
+                            color: _certificateStatus.contains("✅") ? Colors.green : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                             fontWeight: FontWeight.bold
                           ),
                           textAlign: TextAlign.center,
@@ -330,7 +327,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
   Widget _sectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Text(title, style: const TextStyle(color: Colors.tealAccent, fontSize: 16, fontWeight: FontWeight.bold)),
+      child: Text(title, style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 16, fontWeight: FontWeight.bold)),
     );
   }
 
@@ -340,14 +337,9 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
       child: TextField(
         controller: ctrl,
         maxLines: maxLines,
-        style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon, color: Colors.white54),
-          labelStyle: const TextStyle(color: Colors.white54),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.05),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          prefixIcon: Icon(icon),
         ),
       ),
     );

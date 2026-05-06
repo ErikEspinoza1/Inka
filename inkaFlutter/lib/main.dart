@@ -4,8 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // Importar
 
 // Importamos la pantalla de Login y Splash
-import 'screens/menu_inicio.dart';
 import 'screens/splash_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Tattoo AR',
-      theme: ThemeData.dark(),
+      theme: AppTheme.darkTheme,
       // Pantalla principal: Splash Screen (gestiona sesión)
       home: const SplashScreen(),
     );

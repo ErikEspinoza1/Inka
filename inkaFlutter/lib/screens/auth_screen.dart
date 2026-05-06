@@ -90,28 +90,24 @@ class _AuthScreenState extends State<AuthScreen> {
   void _showError(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.red),
+      SnackBar(content: Text(msg), backgroundColor: Theme.of(context).colorScheme.error),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black87,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.fingerprint, size: 80, color: Colors.tealAccent),
+              Icon(Icons.fingerprint, size: 80, color: Theme.of(context).colorScheme.primary),
               const SizedBox(height: 20),
               Text(
                 _isLogin ? 'INKA LOGIN' : 'CREAR CUENTA',
-                style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white),
+                style: Theme.of(context).textTheme.displaySmall,
               ),
               const SizedBox(height: 40),
 
@@ -119,16 +115,14 @@ class _AuthScreenState extends State<AuthScreen> {
               if (!_isLogin)
                 TextField(
                   controller: _nameCtrl,
-                  decoration: _inputDeco('Nombre Completo', Icons.person),
-                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(labelText: 'Nombre Completo', prefixIcon: const Icon(Icons.person)),
                 ),
               if (!_isLogin) const SizedBox(height: 16),
 
               // Campo Email
               TextField(
                 controller: _emailCtrl,
-                decoration: _inputDeco('Email', Icons.email),
-                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(labelText: 'Email', prefixIcon: const Icon(Icons.email)),
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
@@ -136,30 +130,19 @@ class _AuthScreenState extends State<AuthScreen> {
               // Campo Password
               TextField(
                 controller: _passCtrl,
-                decoration: _inputDeco('Contraseña', Icons.lock),
-                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(labelText: 'Contraseña', prefixIcon: const Icon(Icons.lock)),
                 obscureText: true,
               ),
               const SizedBox(height: 30),
 
               // Botón Acción
               _isLoading
-                  ? const CircularProgressIndicator(color: Colors.tealAccent)
+                  ? const CircularProgressIndicator()
                   : SizedBox(
                       width: double.infinity,
-                      height: 50,
                       child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.teal,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
                         onPressed: _submit,
-                        child: Text(
-                          _isLogin ? 'ENTRAR' : 'REGISTRARSE',
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
+                        child: Text(_isLogin ? 'ENTRAR' : 'REGISTRARSE'),
                       ),
                     ),
 
@@ -171,31 +154,12 @@ class _AuthScreenState extends State<AuthScreen> {
                   _isLogin
                       ? '¿No tienes cuenta? Regístrate aquí'
                       : '¿Ya tienes cuenta? Inicia sesión',
-                  style: const TextStyle(color: Colors.tealAccent),
                 ),
               )
             ],
           ),
         ),
       ),
-    );
-  }
-
-  InputDecoration _inputDeco(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, color: Colors.white70),
-      labelStyle: const TextStyle(color: Colors.white70),
-      enabledBorder: OutlineInputBorder(
-        borderSide: const BorderSide(color: Colors.white24),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderSide: const BorderSide(color: Colors.tealAccent),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      filled: true,
-      fillColor: Colors.white10,
     );
   }
 }

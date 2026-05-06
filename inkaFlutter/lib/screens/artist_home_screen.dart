@@ -51,9 +51,6 @@ class _ArtistHomeScreenState extends State<ArtistHomeScreen> {
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.purpleAccent,
-        unselectedItemColor: Colors.grey,
-        backgroundColor: Colors.black,
         onTap: _onItemTapped,
       ),
     );

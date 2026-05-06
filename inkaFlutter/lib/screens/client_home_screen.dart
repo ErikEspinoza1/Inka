@@ -54,9 +54,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.tealAccent,
-        unselectedItemColor: Colors.grey,
-        backgroundColor: Colors.black,
         onTap: _onItemTapped,
       ),
     );

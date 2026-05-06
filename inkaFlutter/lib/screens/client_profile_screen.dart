@@ -50,11 +50,11 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       setState(() => _isEditing = false);
       _loadProfile(); // Recargar datos
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Perfil actualizado correctamente'), backgroundColor: Colors.green),
+        SnackBar(content: const Text('Perfil actualizado correctamente'), backgroundColor: Colors.green),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al actualizar perfil'), backgroundColor: Colors.red),
+        SnackBar(content: const Text('Error al actualizar perfil'), backgroundColor: Theme.of(context).colorScheme.error),
       );
     }
   }
@@ -73,19 +73,17 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text('Mi Perfil'),
-        backgroundColor: Colors.transparent,
         actions: [
           if (!_isEditing)
             IconButton(
-              icon: const Icon(Icons.edit, color: Colors.tealAccent),
+              icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
               onPressed: () => setState(() => _isEditing = true),
             )
           else
             IconButton(
-              icon: const Icon(Icons.save, color: Colors.green),
+              icon: Icon(Icons.save, color: Colors.green),
               onPressed: _saveProfile,
             ),
         ],
@@ -107,24 +105,22 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                           children: [
                             CircleAvatar(
                               radius: 50,
-                              backgroundColor: Colors.tealAccent,
+                              backgroundColor: Theme.of(context).colorScheme.primary,
                               child: Text(
                                 _profileData!['full_name']?.substring(0, 1).toUpperCase() ?? 'U',
-                                style: const TextStyle(fontSize: 40, color: Colors.white),
+                                style: TextStyle(fontSize: 40, color: Theme.of(context).colorScheme.onPrimary),
                               ),
                             ),
                             const SizedBox(height: 16),
                             Text(
                               _profileData!['full_name'] ?? 'Usuario',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: Theme.of(context).textTheme.headlineMedium,
                             ),
                             Text(
                               _profileData!['role'] ?? 'Cliente',
-                              style: const TextStyle(color: Colors.grey, fontSize: 16),
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                              ),
                             ),
                           ],
                         ),
@@ -145,8 +141,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                           icon: const Icon(Icons.logout),
                           label: const Text('Cerrar Sesión'),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.red),
-                            foregroundColor: Colors.red,
+                            side: BorderSide(color: Theme.of(context).colorScheme.error),
+                            foregroundColor: Theme.of(context).colorScheme.error,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
                         ),
@@ -158,23 +154,20 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
   }
 
   Widget _buildProfileSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white10,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Información Personal',
-            style: TextStyle(
-              color: Colors.tealAccent,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Información Personal',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
           const SizedBox(height: 16),
           _buildTextField('Nombre completo', _nameCtrl, Icons.person, _isEditing),
           const SizedBox(height: 16),
@@ -184,6 +177,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
           _buildInfoTile('Fecha de registro', _formatDate(_profileData!['created_at'])),
         ],
       ),
+    ),
     );
   }
 
@@ -191,25 +185,9 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     return TextField(
       controller: controller,
       enabled: enabled,
-      style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: enabled ? Colors.tealAccent : Colors.grey),
-        labelStyle: TextStyle(color: enabled ? Colors.white70 : Colors.grey),
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.05),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: enabled ? Colors.tealAccent : Colors.grey),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Colors.tealAccent),
-        ),
-        disabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Colors.grey),
-        ),
+        prefixIcon: Icon(icon),
       ),
     );
   }
@@ -222,14 +200,14 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         children: [
           Text(
             label,
-            style: const TextStyle(color: Colors.tealAccent, fontSize: 14, fontWeight: FontWeight.bold),
+            style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 14, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(color: Colors.white, fontSize: 16),
+            style: Theme.of(context).textTheme.bodyLarge,
           ),
-          const Divider(color: Colors.white24),
+          const Divider(),
         ],
       ),
     );

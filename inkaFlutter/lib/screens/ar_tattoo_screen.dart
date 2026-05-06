@@ -185,7 +185,7 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
   @override
   Widget build(BuildContext context) {
     if (!_isCameraInitialized || _controller == null) {
-      return const Scaffold(backgroundColor: Colors.black, body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     
     final (_, _, rotationOffset) = _getZoneConfig();
@@ -220,9 +220,9 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
             bottom: 0, left: 0, right: 0,
             child: Container(
               padding: const EdgeInsets.only(top: 15, bottom: 20, left: 20, right: 20),
-              decoration: const BoxDecoration(
-                color: Colors.black87,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface.withOpacity(0.9),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -244,7 +244,7 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
                     children: [
                       Text(
                         _getSliderLabel(), 
-                        style: const TextStyle(color: Colors.tealAccent, fontWeight: FontWeight.bold)
+                        style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)
                       ),
                       Expanded(child: _buildActiveSlider()),
                     ],
@@ -275,9 +275,9 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
           Positioned(
             top: 50, left: 20,
             child: CircleAvatar(
-              backgroundColor: Colors.black54,
+              backgroundColor: Theme.of(context).colorScheme.surface.withOpacity(0.5),
               child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.onSurface),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
@@ -291,16 +291,16 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
   Widget _buildActiveSlider() {
     switch (_activeControl) {
       case ControlMode.size:
-        return Slider(value: _sizeValue, min: 0.1, max: 1.5, activeColor: Colors.tealAccent,
+        return Slider(value: _sizeValue, min: 0.1, max: 1.5, activeColor: Theme.of(context).colorScheme.primary,
           onChanged: (v) => setState(() => _sizeValue = v));
       case ControlMode.position:
-        return Slider(value: _posValue, min: 0.0, max: 1.0, activeColor: Colors.orangeAccent,
+        return Slider(value: _posValue, min: 0.0, max: 1.0, activeColor: Theme.of(context).colorScheme.secondary,
           onChanged: (v) => setState(() => _posValue = v));
       case ControlMode.rotation:
-        return Slider(value: _rotValue, min: -3.14, max: 3.14, activeColor: Colors.purpleAccent,
+        return Slider(value: _rotValue, min: -3.14, max: 3.14, activeColor: Theme.of(context).colorScheme.primary.withOpacity(0.7),
           onChanged: (v) => setState(() => _rotValue = v));
       case ControlMode.opacity:
-        return Slider(value: _opacityValue, min: 0.1, max: 1.0, activeColor: Colors.blueAccent,
+        return Slider(value: _opacityValue, min: 0.1, max: 1.0, activeColor: Theme.of(context).colorScheme.secondary.withOpacity(0.7),
           onChanged: (v) => setState(() => _opacityValue = v));
     }
   }
@@ -320,9 +320,9 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
       onTap: () => setState(() => _activeControl = mode),
       child: Column(
         children: [
-          Icon(icon, color: isSelected ? Colors.tealAccent : Colors.white54, size: 28),
+          Icon(icon, color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface.withOpacity(0.5), size: 28),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(color: isSelected ? Colors.tealAccent : Colors.white54, fontSize: 10)),
+          Text(label, style: TextStyle(color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface.withOpacity(0.5), fontSize: 10)),
         ],
       ),
     );
@@ -332,8 +332,8 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
     final isSelected = _selectedZone == zone;
     return ElevatedButton.icon(
       style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected ? Colors.tealAccent : Colors.grey[800],
-        foregroundColor: isSelected ? Colors.black : Colors.white,
+        backgroundColor: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surfaceVariant,
+        foregroundColor: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurfaceVariant,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
       onPressed: () => _changeZone(zone),

@@ -43,51 +43,40 @@ class _ExploreScreenState extends State<ExploreScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100], // Fondo clarito
       appBar: AppBar(
-        title: const Text('Explorar Ideas', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
+        title: const Text('Explorar Ideas'),
       ),
       body: Column(
         children: [
           // --- BARRA DE BÚSQUEDA ---
           Container(
             padding: const EdgeInsets.all(16.0),
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.background,
             child: TextField(
               controller: _searchController,
-              style: const TextStyle(color: Colors.black),
               decoration: InputDecoration(
                 hintText: 'Ej: "Algo que represente libertad y el mar"',
-                prefixIcon: const Icon(Icons.auto_awesome, color: Colors.purple), // Icono de IA
+                prefixIcon: Icon(Icons.auto_awesome, color: Theme.of(context).colorScheme.secondary), // Icono de IA
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.search),
                   onPressed: _buscarConIA,
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                filled: true,
-                fillColor: Colors.grey[200],
               ),
               onSubmitted: (_) => _buscarConIA(), // Buscar al darle al "Intro" en el teclado
             ),
           ),
 
-          // --- ZONA DE RESULTADOS ---
           Expanded(
             child: _isLoading
                 ? const Center(
-                    child: CircularProgressIndicator(color: Colors.purple), // Cargando...
+                    child: CircularProgressIndicator(), // Cargando...
                   )
                 : _resultados.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
                           'Escribe una idea y la IA buscará los mejores tatuajes para ti.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7), fontSize: 16),
                         ),
                       )
                     : GridView.builder(

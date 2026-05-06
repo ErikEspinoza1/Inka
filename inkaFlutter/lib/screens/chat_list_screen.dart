@@ -52,7 +52,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       body: SafeArea(
         child: Column(
           children: [
@@ -61,17 +60,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
               child: TextField(
                 controller: _searchCtrl,
                 onChanged: (_) => setState(() {}),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: 'Buscar artista...',
-                  hintStyle: const TextStyle(color: Colors.white38),
-                  prefixIcon: const Icon(Icons.search, color: Colors.white38),
-                  filled: true,
-                  fillColor: Colors.white12,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
+                  prefixIcon: Icon(Icons.search),
                 ),
               ),
             ),
@@ -100,25 +91,18 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             final unreadCount = contact['unread_count'] ?? 0;
 
                             return Card(
-                              color: const Color(0xFF1A1A1A),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              margin: const EdgeInsets.symmetric(vertical: 8),
                               child: ListTile(
                                 contentPadding:
                                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                 title: Text(
                                   name,
                                   style: TextStyle(
-                                      color: Colors.white, 
                                       fontWeight: unreadCount > 0 ? FontWeight.w900 : FontWeight.bold),
                                 ),
                                 subtitle: isArtist && specialty.isNotEmpty
                                     ? Text(
                                         specialty,
                                         style: TextStyle(
-                                          color: unreadCount > 0 ? Colors.white : Colors.white70,
                                           fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal
                                         ),
                                         maxLines: 1,
@@ -128,20 +112,20 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                 trailing: unreadCount > 0
                                     ? Container(
                                         padding: const EdgeInsets.all(8),
-                                        decoration: const BoxDecoration(
-                                          color: Colors.red,
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).colorScheme.primary,
                                           shape: BoxShape.circle,
                                         ),
                                         child: Text(
                                           unreadCount.toString(),
-                                          style: const TextStyle(
-                                            color: Colors.white,
+                                          style: TextStyle(
+                                            color: Theme.of(context).colorScheme.onPrimary,
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                       )
-                                    : const Icon(Icons.chat, color: Colors.tealAccent),
+                                    : Icon(Icons.chat, color: Theme.of(context).colorScheme.primary),
                                 onTap: () async {
                                   await Navigator.push(
                                     context,

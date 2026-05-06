@@ -8,7 +8,6 @@ class MenuInicio extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D0D),
       body: SafeArea(
         child: SingleChildScrollView( // <--- AÑADIDO ESTO AQUÍ
           child: Padding(
@@ -17,21 +16,16 @@ class MenuInicio extends StatelessWidget {
               children: [
                 const SizedBox(height: 60),
                 // Título principal
-                const Text(
+                Text(
                   'Welcome to Inka',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                  style: Theme.of(context).textTheme.displaySmall,
                 ),
                 const SizedBox(height: 12), 
                 // Subtítulo
-                const Text(
+                Text(
                   'Choose how you want to continue',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                   ),
                 ),
                 const SizedBox(height: 50),
@@ -39,7 +33,6 @@ class MenuInicio extends StatelessWidget {
                 _buildOptionCard(
                   context,
                   icon: Icons.search,
-                  iconColor: const Color(0xFF4A9DFF),
                   title: 'Looking to Get Tattooed?',
                   subtitle: 'Discover artists, save inspiration, and book\nyour next piece',
                   onTap: () {
@@ -55,7 +48,6 @@ class MenuInicio extends StatelessWidget {
                 _buildOptionCard(
                   context,
                   icon: Icons.palette,
-                  iconColor: const Color(0xFF4A9DFF),
                   title: 'Are You a Tattoo Artist?',
                   subtitle: 'Showcase your portfolio and manage\nclient requests',
                   onTap: () {
@@ -69,23 +61,20 @@ class MenuInicio extends StatelessWidget {
                 const SizedBox(height: 40), // He cambiado Spacer() por SizedBox porque Spacer() no funciona bien dentro de un Scroll
                 // Link inferior
                 TextButton(
-                  onPressed: () {
-                    // Navegar a ver componentes
-                  },
+                  onPressed: () {},
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
+                    children: [
                       Text(
                         'View New Components',
                         style: TextStyle(
-                          color: Color(0xFF4A9DFF),
-                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
-                      SizedBox(width: 4),
+                      const SizedBox(width: 4),
                       Icon(
                         Icons.arrow_forward,
-                        color: Color(0xFF4A9DFF),
+                        color: Theme.of(context).colorScheme.primary,
                         size: 16,
                       ),
                     ],
@@ -103,63 +92,53 @@ class MenuInicio extends StatelessWidget {
   Widget _buildOptionCard(
     BuildContext context, {
     required IconData icon,
-    required Color iconColor,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFF2A2A2A),
-            width: 1,
+    final theme = Theme.of(context);
+    
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+          child: Column(
+            children: [
+              // Icono circular
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  color: theme.colorScheme.primary,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Título de la tarjeta
+              Text(
+                title,
+                style: theme.textTheme.titleLarge,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              // Subtítulo de la tarjeta
+              Text(
+                subtitle,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-        ),
-        child: Column(
-          children: [
-            // Icono circular
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                color: iconColor,
-                size: 28,
-              ),
-            ),
-            const SizedBox(height: 20),
-            // Título de la tarjeta
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-            // Subtítulo de la tarjeta
-            Text(
-              subtitle,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-                height: 1.4,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
         ),
       ),
     );

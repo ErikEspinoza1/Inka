@@ -32,7 +32,7 @@ class _MapScreenState extends State<MapScreen> {
   // Estado de los datos
   List<TattooArtist> _allArtists = []; // Lista vacía al inicio
   List<TattooArtist> _filteredArtists = [];
-  bool _isLoading = true; // Para mostrar carga al inicio
+  // bool _isLoading = true; // Para mostrar carga al inicio (Removing as it's unused)
 
   final TextEditingController _searchCtrl = TextEditingController();
   TattooArtist? _selectedArtist;
@@ -72,16 +72,16 @@ class _MapScreenState extends State<MapScreen> {
           setState(() {
             _allArtists = loadedArtists;
             _filteredArtists = loadedArtists; // Al principio mostramos todos
-            _isLoading = false;
+            // _isLoading = false;
           });
         }
       } else {
         debugPrint("Error API: ${response.statusCode}");
-        setState(() => _isLoading = false);
+        // setState(() => _isLoading = false);
       }
     } catch (e) {
       debugPrint("Error conexión: $e");
-      setState(() => _isLoading = false);
+      // setState(() => _isLoading = false);
     }
   }
 
@@ -122,9 +122,9 @@ class _MapScreenState extends State<MapScreen> {
           maxChildSize: 0.85,
           builder: (context, scrollController) {
             return Container(
-              decoration: const BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
               ),
               child: SafeArea(
                 top: false,
@@ -153,21 +153,21 @@ class _MapScreenState extends State<MapScreen> {
                               children: [
                                 Text(
                                   artist.name,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
+                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   artist.specialty,
-                                  style: const TextStyle(color: Colors.grey),
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                          const Icon(Icons.verified, color: Colors.green),
+                          Icon(Icons.verified, color: Theme.of(context).colorScheme.secondary),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -214,8 +214,8 @@ class _MapScreenState extends State<MapScreen> {
                                 );
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.tealAccent,
-                                foregroundColor: Colors.black,
+                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                foregroundColor: Theme.of(context).colorScheme.onPrimary,
                               ),
                               child: const Text('Ver perfil'),
                             ),
@@ -235,7 +235,7 @@ class _MapScreenState extends State<MapScreen> {
                                 );
                               },
                               style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Colors.tealAccent),
+                                side: BorderSide(color: Theme.of(context).colorScheme.primary),
                               ),
                               child: const Text('Reservar'),
                             ),
@@ -257,10 +257,10 @@ class _MapScreenState extends State<MapScreen> {
                               ),
                             );
                           },
-                          icon: const Icon(Icons.message, color: Colors.tealAccent),
-                          label: const Text('Chatear con el artista', style: TextStyle(color: Colors.tealAccent)),
+                          icon: Icon(Icons.message, color: Theme.of(context).colorScheme.primary),
+                          label: Text('Chatear con el artista', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.tealAccent),
+                            side: BorderSide(color: Theme.of(context).colorScheme.primary),
                           ),
                         ),
                       ),
@@ -321,7 +321,6 @@ class _MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D0D),
       body: Stack(
         children: [
           // 1. EL MAPA
@@ -369,8 +368,8 @@ class _MapScreenState extends State<MapScreen> {
                                 color: const Color(0xFF1A1A1A),
                                 border: Border.all(
                                   color: isSelected
-                                      ? const Color(0xFF4A9DFF)
-                                      : Colors.white,
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.onSurface,
                                   width: isSelected ? 3 : 2,
                                 ),
                                 boxShadow: [
@@ -408,8 +407,8 @@ class _MapScreenState extends State<MapScreen> {
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: isSelected
-                                      ? const Color(0xFF4A9DFF)
-                                      : Colors.white,
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.onSurface,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -456,31 +455,24 @@ class _MapScreenState extends State<MapScreen> {
                       onPressed: () => Navigator.pop(context),
                       icon:
                           const Icon(Icons.arrow_back, color: Colors.white54)),
-                  Expanded(
-                    child: TextField(
-                      controller: _searchCtrl,
-                      onChanged: _filterArtists,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        hintText: "Buscar por nombre o estilo...",
-                        hintStyle: TextStyle(color: Colors.white38),
-                        border: InputBorder.none,
+                    Expanded(
+                      child: TextField(
+                        controller: _searchCtrl,
+                        onChanged: _filterArtists,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(
+                          hintText: "Buscar por nombre o estilo...",
+                          hintStyle: TextStyle(color: Colors.white38),
+                          border: InputBorder.none,
+                        ),
                       ),
                     ),
-                  ),
-                  _isLoading
-                      ? const Padding(
-                          padding: EdgeInsets.all(8.0),
-                          child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2)))
-                      : const Icon(Icons.search, color: Color(0xFF4A9DFF)),
-                  const SizedBox(width: 16),
-                ],
+                    Icon(Icons.search, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 16),
+                  ],
+                ),
               ),
             ),
-          ),
 
           // 3. BOTÓN GPS
           Positioned(
@@ -490,7 +482,7 @@ class _MapScreenState extends State<MapScreen> {
               onTap: _centerOnUser,
               child: _glassContainer(
                 padding: const EdgeInsets.all(12),
-                child: const Icon(Icons.my_location, color: Color(0xFF4A9DFF)),
+                child: Icon(Icons.my_location, color: Theme.of(context).colorScheme.primary),
               ),
             ),
           ),
@@ -551,7 +543,7 @@ class TattooArtist {
       Colors.redAccent,
       Colors.blueAccent
     ];
-    final colorIndex = (json['shop_name'] ?? "").length % colors.length;
+    // final colorIndex = (json['shop_name'] ?? "").length % colors.length;
 
     return TattooArtist(
       id: json['id'].toString(),
@@ -562,7 +554,7 @@ class TattooArtist {
         (json['latitude'] as num).toDouble(),
         (json['longitude'] as num).toDouble(),
       ),
-      imageColor: colors[colorIndex],
+      imageColor: Colors.purpleAccent, // Usamos color por defecto ya que no hay context en factory
     );
   }
 }
