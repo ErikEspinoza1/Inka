@@ -97,6 +97,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                 : contact['full_name'] ?? 'Usuario';
                             final styles = (contact['styles'] as List?) ?? [];
                             final specialty = styles.isNotEmpty ? styles.join(' • ') : '';
+                            final unreadCount = contact['unread_count'] ?? 0;
+
                             return Card(
                               color: const Color(0xFF1A1A1A),
                               shape: RoundedRectangleBorder(
@@ -108,20 +110,40 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                 title: Text(
                                   name,
-                                  style: const TextStyle(
-                                      color: Colors.white, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                      color: Colors.white, 
+                                      fontWeight: unreadCount > 0 ? FontWeight.w900 : FontWeight.bold),
                                 ),
                                 subtitle: isArtist && specialty.isNotEmpty
                                     ? Text(
                                         specialty,
-                                        style: const TextStyle(color: Colors.white70),
+                                        style: TextStyle(
+                                          color: unreadCount > 0 ? Colors.white : Colors.white70,
+                                          fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal
+                                        ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       )
                                     : null,
-                                trailing: const Icon(Icons.chat, color: Colors.tealAccent),
-                                onTap: () {
-                                  Navigator.push(
+                                trailing: unreadCount > 0
+                                    ? Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Text(
+                                          unreadCount.toString(),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      )
+                                    : const Icon(Icons.chat, color: Colors.tealAccent),
+                                onTap: () async {
+                                  await Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) => ChatScreen(
@@ -130,6 +152,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                       ),
                                     ),
                                   );
+                                  // Recargar al volver para quitar el globo rojo si se han leído
+                                  _loadArtists();
                                 },
                               ),
                             );

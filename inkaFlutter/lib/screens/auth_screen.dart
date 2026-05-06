@@ -80,9 +80,10 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   void _goToHome() {
-    Navigator.pushReplacement(
+    Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const ClientHomeScreen()),
+      (route) => false,
     );
   }
 

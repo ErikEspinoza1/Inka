@@ -414,6 +414,29 @@ class AuthService {
     }
   }
 
+  Future<String?> uploadChatImage(String imagePath) async {
+    final token = await getToken();
+    if (token == null) return null;
+
+    final url = Uri.parse('$baseUrl/messages/upload_image');
+    
+    var request = http.MultipartRequest('POST', url);
+    request.headers['Authorization'] = 'Bearer $token';
+    request.files.add(await http.MultipartFile.fromPath('file', imagePath));
+
+    try {
+      final response = await request.send();
+      if (response.statusCode == 200) {
+        final respStr = await response.stream.bytesToString();
+        final jsonMap = jsonDecode(respStr);
+        return jsonMap['url'];
+      }
+    } catch (e) {
+      print('Error uploadChatImage: $e');
+    }
+    return null;
+  }
+
   Future<Map<String, dynamic>?> getCurrentUserProfile() async {
     final token = await getToken();
     if (token == null) return null;

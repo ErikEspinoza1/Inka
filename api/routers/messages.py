@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from sqlalchemy.orm import Session
 from typing import List, Set
 import database, models, schemas, auth
@@ -15,20 +15,23 @@ def get_message_contacts(
         (models.Message.sender_id == current_user.id) | (models.Message.receiver_id == current_user.id)
     ).all()
     
-    # Extraer IDs únicos de contactos
-    contact_ids: Set = set()
+    # Extraer IDs únicos de contactos y la fecha de su último mensaje
+    contact_latest_time = {}
+    contact_unread_count = {}
     for msg in messages:
-        if msg.sender_id == current_user.id:
-            contact_ids.add(msg.receiver_id)
-        else:
-            contact_ids.add(msg.sender_id)
-    
-    if not contact_ids:
+        contact_id = msg.receiver_id if msg.sender_id == current_user.id else msg.sender_id
+        if contact_id not in contact_latest_time or msg.created_at > contact_latest_time[contact_id]:
+            contact_latest_time[contact_id] = msg.created_at
+            
+        if msg.receiver_id == current_user.id and not msg.is_read:
+            contact_unread_count[contact_id] = contact_unread_count.get(contact_id, 0) + 1
+            
+    if not contact_latest_time:
         return []
     
     # Obtener los perfiles de los contactos
     contacts = db.query(models.Profile).filter(
-        models.Profile.id.in_(list(contact_ids))
+        models.Profile.id.in_(list(contact_latest_time.keys()))
     ).all()
     
     result = []
@@ -39,6 +42,8 @@ def get_message_contacts(
             "full_name": profile.full_name,
             "avatar_url": profile.avatar_url,
             "role": profile.role.value,
+            "latest_message_time": contact_latest_time[profile.id].isoformat() if contact_latest_time.get(profile.id) else None,
+            "unread_count": contact_unread_count.get(profile.id, 0)
         }
         
         # Si es artista, agregar datos adicionales
@@ -50,6 +55,9 @@ def get_message_contacts(
             })
         
         result.append(contact_dict)
+    
+    # Ordenar result por latest_message_time descendente
+    result.sort(key=lambda x: x.get("latest_message_time", ""), reverse=True)
     
     return result
 
@@ -79,6 +87,14 @@ def get_messages_with_artist(
             models.Message.booking_id.in_(booking_ids) if booking_ids else False
         )
     ).order_by(models.Message.created_at.asc()).all()
+    
+    # Marcar los mensajes entrantes como leídos
+    unread_messages = [m for m in messages if m.receiver_id == current_user.id and not m.is_read]
+    if unread_messages:
+        for m in unread_messages:
+            m.is_read = True
+        db.commit()
+        
     return messages
 
 @router.post("/", response_model=schemas.MessageResponse)
@@ -102,3 +118,29 @@ def send_message(
     db.commit()
     db.refresh(new_message)
     return new_message
+
+@router.post("/upload_image")
+async def upload_chat_image(
+    file: UploadFile = File(...),
+    current_user: models.Profile = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    import uuid
+    from utils.storage import upload_file_to_supabase
+    
+    file_bytes = await file.read()
+    file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+    new_filename = f"chat_{current_user.id}_{uuid.uuid4()}.{file_extension}"
+    
+    public_url = upload_file_to_supabase(
+        file_bytes, 
+        new_filename, 
+        bucket="app-images", 
+        folder="chat-images"
+    )
+    
+    if not public_url:
+        raise HTTPException(status_code=500, detail="Failed to upload image")
+        
+    return {"url": public_url}
+

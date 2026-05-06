@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -24,6 +25,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   List<Map<String, dynamic>> _messages = [];
   bool _isLoading = true;
+  bool _isUploadingImage = false;
   bool _isArtist = false;
   
   // Controladores dinámicos para los campos en las tarjetas de oferta
@@ -68,6 +70,7 @@ class _ChatScreenState extends State<ChatScreen> {
             'sender_id': m['sender_id'],
             'created_at': DateTime.parse(m['created_at']),
             'is_mine': m['sender_id'] == currentUserId,
+            'is_read': m['is_read'],
           };
         }).toList();
       });
@@ -101,6 +104,74 @@ class _ChatScreenState extends State<ChatScreen> {
     if (!success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Error enviando mensaje'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.grey[900],
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera, color: Colors.tealAccent),
+              title: const Text('Cámara', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndUploadImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Colors.tealAccent),
+              title: const Text('Galería', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndUploadImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: source);
+    
+    if (pickedFile == null) return;
+    
+    setState(() => _isUploadingImage = true);
+    
+    final imageUrl = await _authService.uploadChatImage(pickedFile.path);
+    
+    setState(() => _isUploadingImage = false);
+    
+    if (imageUrl != null) {
+      final jsonMsg = jsonEncode({"type": "chat_image", "url": imageUrl});
+      
+      setState(() {
+        _messages.add({
+          'id': DateTime.now().millisecondsSinceEpoch.toString(),
+          'content': jsonMsg,
+          'sender_id': 'me',
+          'created_at': DateTime.now(),
+          'is_mine': true,
+        });
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+      
+      final success = await _authService.sendMessageToArtist(widget.artistId, jsonMsg);
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error enviando imagen'), backgroundColor: Colors.red),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error subiendo imagen'), backgroundColor: Colors.red),
       );
     }
   }
@@ -215,6 +286,19 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               child: Row(
                 children: [
+                  IconButton(
+                    icon: const Icon(Icons.attach_file, color: Colors.tealAccent),
+                    onPressed: _isUploadingImage ? null : _showImageSourceDialog,
+                  ),
+                  if (_isUploadingImage)
+                    const Padding(
+                      padding: EdgeInsets.only(right: 8.0),
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.tealAccent),
+                      ),
+                    ),
                    Expanded(
                     child: TextField(
                       controller: _messageCtrl,
@@ -267,14 +351,20 @@ class _ChatScreenState extends State<ChatScreen> {
     final content = message['content'] as String;
     final timestamp = message['created_at'] as DateTime;
     final msgId = message['id'] as String;
+    final isRead = message['is_read'] as bool? ?? false;
 
-    // Verificar si es un mensaje de sistema (JSON de oferta)
+    // Verificar si es un mensaje de sistema (JSON de oferta o imagen)
     bool isSystemJson = false;
+    bool isChatImage = false;
     Map<String, dynamic>? jsonData;
     try {
        jsonData = jsonDecode(content);
-       if (jsonData != null && jsonData['type'] == 'booking_update') {
-          isSystemJson = true;
+       if (jsonData != null) {
+         if (jsonData['type'] == 'booking_update') {
+            isSystemJson = true;
+         } else if (jsonData['type'] == 'chat_image') {
+            isChatImage = true;
+         }
        }
     } catch (_) {
        // No es JSON, continuamos
@@ -305,20 +395,47 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              content,
-              style: TextStyle(
-                color: isMine ? Colors.black : Colors.white,
-                fontSize: 16,
+            if (isChatImage && jsonData != null)
+              GestureDetector(
+                onTap: () => _showFullScreenImage(jsonData!['url']),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    jsonData['url'],
+                    width: 200,
+                    height: 200,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              )
+            else
+              Text(
+                content,
+                style: TextStyle(
+                  color: isMine ? Colors.black : Colors.white,
+                  fontSize: 16,
+                ),
               ),
-            ),
             const SizedBox(height: 4),
-            Text(
-               _formatTime(timestamp),
-              style: TextStyle(
-                color: isMine ? Colors.black54 : Colors.white54,
-                fontSize: 12,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                   _formatTime(timestamp),
+                  style: TextStyle(
+                    color: isMine ? Colors.black54 : Colors.white54,
+                    fontSize: 12,
+                  ),
+                ),
+                if (isMine) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.done_all,
+                    size: 14,
+                    color: isRead ? Colors.blue[700] : Colors.black38,
+                  ),
+                ]
+              ],
             ),
           ],
         ),
@@ -516,5 +633,25 @@ class _ChatScreenState extends State<ChatScreen> {
     } else {
       return 'Ahora';
     }
+  }
+
+  void _showFullScreenImage(String imageUrl) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (ctx) => Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        body: Center(
+          child: InteractiveViewer(
+            panEnabled: true,
+            minScale: 0.5,
+            maxScale: 4,
+            child: Image.network(imageUrl),
+          ),
+        ),
+      ),
+    ));
   }
 }

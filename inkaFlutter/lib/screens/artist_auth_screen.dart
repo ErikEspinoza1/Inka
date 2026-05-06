@@ -108,15 +108,17 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
     final data = await _authService.getArtistProfile();
     if (data != null && data['is_verified'] == true) {
       // Verificado: ir a pantalla principal
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const ArtistHomeScreen()),
+        (route) => false,
       );
     } else {
       // No verificado: ir a editar perfil para subir certificado
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const ArtistProfileScreen()),
+        (route) => false,
       );
     }
   }
