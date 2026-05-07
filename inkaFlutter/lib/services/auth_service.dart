@@ -18,7 +18,7 @@ class AuthService {
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'email': email,
+          'email': email.trim(),
           'password': password,
           'full_name': fullName,
         }),
@@ -95,15 +95,22 @@ class AuthService {
   }
 
   // ==========================================================
-  // 3. LOGIN & TOKENS
+  // 3. LOGIN & TOKENS (CORREGIDO PARA JSON)
   // ==========================================================
   Future<String?> login(String email, String password) async {
     final url = Uri.parse('$baseUrl/auth/login');
     try {
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: {'username': email, 'password': password},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        // Enviamos 'email' en lugar de 'username' y usamos jsonEncode
+        body: jsonEncode({
+          'email': email.trim(), 
+          'password': password
+        }),
       );
 
       if (response.statusCode == 200) {
@@ -112,9 +119,10 @@ class AuthService {
         await _saveToken(token);
         return token;
       }
+      debugPrint('Error login: ${response.statusCode} - ${response.body}');
       return null;
     } catch (e) {
-      debugPrint('Error login: $e');
+      debugPrint('Error login conexión: $e');
       return null;
     }
   }
@@ -134,7 +142,7 @@ class AuthService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
         return data['role']; 
       }
     } catch (e) {
@@ -186,7 +194,6 @@ class AuthService {
   // 4. GESTIÓN DEL PERFIL DE ARTISTA
   // ==========================================================
   
-  // Actualizar datos (PATCH)
   Future<bool> updateArtistProfile(Map<String, dynamic> data) async {
     final token = await getToken();
     if (token == null) return false;
@@ -208,7 +215,6 @@ class AuthService {
     }
   }
 
-  // Obtener mis datos (GET)
   Future<Map<String, dynamic>?> getArtistProfile() async {
     final token = await getToken();
     if (token == null) return null;
@@ -224,7 +230,6 @@ class AuthService {
       );
 
       if (response.statusCode == 200) {
-        // Decodificamos UTF-8 para evitar problemas con tildes
         return jsonDecode(utf8.decode(response.bodyBytes));
       }
     } catch (e) {
@@ -233,8 +238,6 @@ class AuthService {
     return null;
   }
 
-  // Subir Certificado (POST Multipart)
-  // Devuelve el JSON completo con el análisis de la IA
   Future<Map<String, dynamic>?> uploadCertificate(String filePath) async {
     final token = await getToken();
     if (token == null) return null;
@@ -243,19 +246,13 @@ class AuthService {
     
     try {
       var request = http.MultipartRequest('POST', url);
-      
-      // Headers
       request.headers['Authorization'] = 'Bearer $token';
-      
-      // Archivo
       request.files.add(await http.MultipartFile.fromPath('file', filePath));
 
-      // Enviar
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
-        // Devolvemos todo el JSON (status, ai_analysis, url...)
         return jsonDecode(utf8.decode(response.bodyBytes)); 
       } else {
         print("Error subida: ${response.body}");
@@ -299,7 +296,6 @@ class AuthService {
     request.headers['Authorization'] = 'Bearer $token';
     request.fields['description'] = description;
     request.fields['style_tag'] = styleTag;
-    
     request.files.add(await http.MultipartFile.fromPath('file', imagePath));
 
     try {
@@ -350,7 +346,7 @@ class AuthService {
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        return jsonDecode(utf8.decode(response.bodyBytes));
       }
     } catch (e) {
       print('Error getVerifiedArtists: $e');

@@ -2,12 +2,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import database, models, schemas, auth
-import easyocr
 import shutil
 from datetime import datetime
 from utils.storage import upload_file_to_supabase
 
-reader = easyocr.Reader(['es'], gpu=False)
+try:
+    import easyocr
+    reader = easyocr.Reader(['es'], gpu=False)
+    EASYOCR_AVAILABLE = True
+except ImportError:
+    reader = None
+    EASYOCR_AVAILABLE = False
 
 router = APIRouter(prefix="/artists", tags=["Artists"])
 
@@ -128,25 +133,28 @@ async def upload_certificate(
     # 🤖 EL BOT: VERIFICACIÓN CON IA (EasyOCR)
     # ====================================================
     print("🤖 IA Analizando documento...")
-    try:
-        # EasyOCR lee directamente los bytes
-        result = reader.readtext(file_bytes, detail=0) # detail=0 devuelve solo el texto
-        full_text = " ".join(result).upper() # Convertimos todo a mayúsculas
-        print(f"Texto detectado: {full_text[:100]}...") # Log para ver qué lee
+    if not EASYOCR_AVAILABLE or reader is None:
+        is_ai_verified = False
+        verification_status = "Pendiente Revisión Manual"
+    else:
+        try:
+            result = reader.readtext(file_bytes, detail=0)
+            full_text = " ".join(result).upper() # Convertimos todo a mayúsculas
+            print(f"Texto detectado: {full_text[:100]}...") # Log para ver qué lee
 
-        # PALABRAS CLAVE PARA APROBAR
-        keywords = ["CERTIFICADO", "HIGIENICO", "SANITARIO", "APTO", "CURSO", "TITULO"]
-        
-        # Lógica: Si encuentra al menos 2 palabras clave, lo damos por válido
-        matches = sum(1 for word in keywords if word in full_text)
-        is_ai_verified = matches >= 1 
-        
-        verification_status = "Verificado (IA)" if is_ai_verified else "Pendiente Revisión"
-        
-    except Exception as e:
-        print(f"Error IA: {e}")
-        is_ai_verified = False # Si falla la IA, no bloqueamos, solo lo dejamos pendiente
-        verification_status = "Error IA - Pendiente"
+            # PALABRAS CLAVE PARA APROBAR
+            keywords = ["CERTIFICADO", "HIGIENICO", "SANITARIO", "APTO", "CURSO", "TITULO"]
+            
+            # Lógica: Si encuentra al menos 2 palabras clave, lo damos por válido
+            matches = sum(1 for word in keywords if word in full_text)
+            is_ai_verified = matches >= 1 
+            
+            verification_status = "Verificado (IA)" if is_ai_verified else "Pendiente Revisión"
+            
+        except Exception as e:
+            print(f"Error IA: {e}")
+            is_ai_verified = False # Si falla la IA, no bloqueamos, solo lo dejamos pendiente
+            verification_status = "Error IA - Pendiente"
 
     # ====================================================
     # 4. SUBIR A SUPABASE
