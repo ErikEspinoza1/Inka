@@ -1,9 +1,20 @@
+import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Cambia esto por tu URL de PostgreSQL
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres.unqfkfunxnlxyatjnyqd:TatuajeBarato@aws-1-eu-west-1.pooler.supabase.com:6543/postgres"
+# Cargamos las variables del .env
+load_dotenv()
+
+# La URL de la base de datos se lee del .env, NUNCA hardcodeada
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not SQLALCHEMY_DATABASE_URL:
+    raise RuntimeError(
+        "🚨 Falta DATABASE_URL en el archivo .env. "
+        "Asegúrate de tener la variable definida."
+    )
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

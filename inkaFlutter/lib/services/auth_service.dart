@@ -288,9 +288,9 @@ class AuthService {
     return null;
   }
 
-  Future<bool> uploadPortfolioImage(String imagePath, {String description = '', String styleTag = ''}) async {
+  Future<Map<String, dynamic>> uploadPortfolioImage(String imagePath, {String description = '', String styleTag = ''}) async {
     final token = await getToken();
-    if (token == null) return false;
+    if (token == null) return {'success': false, 'error': 'No se encontró sesión activa'};
 
     final url = Uri.parse('$baseUrl/artists/me/posts');
     
@@ -302,11 +302,23 @@ class AuthService {
     request.files.add(await http.MultipartFile.fromPath('file', imagePath));
 
     try {
-      final response = await request.send();
-      return response.statusCode == 200;
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      
+      if (response.statusCode == 200) {
+        return {'success': true};
+      } else {
+        // Extraer el mensaje de error del backend (ej: "Imagen rechazada por IA")
+        String errorMsg = 'Error al subir imagen';
+        try {
+          final body = jsonDecode(utf8.decode(response.bodyBytes));
+          errorMsg = body['detail'] ?? errorMsg;
+        } catch (_) {}
+        return {'success': false, 'error': errorMsg};
+      }
     } catch (e) {
       print('Error uploadPortfolioImage: $e');
-      return false;
+      return {'success': false, 'error': 'Error de conexión. Inténtalo de nuevo.'};
     }
   }
 

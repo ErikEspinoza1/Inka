@@ -40,18 +40,22 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
     setState(() => _isLoading = true);
 
-    final success = await _authService.uploadPortfolioImage(image.path);
+    final result = await _authService.uploadPortfolioImage(image.path);
     
     setState(() => _isLoading = false);
 
-    if (success) {
+    if (result['success'] == true) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Imagen subida al portfolio'), backgroundColor: Colors.green),
       );
       _loadPortfolio(); // Recargar lista
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al subir imagen'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(result['error'] ?? 'Error al subir imagen'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
       );
     }
   }

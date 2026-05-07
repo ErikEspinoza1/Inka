@@ -6,6 +6,13 @@ import easyocr
 import shutil
 from datetime import datetime
 from utils.storage import upload_file_to_supabase
+import google.generativeai as genai
+from PIL import Image
+import io
+import os
+from dotenv import load_dotenv
+import base64
+import requests
 
 reader = easyocr.Reader(['es'], gpu=False)
 
@@ -209,34 +216,84 @@ async def create_post(
     if not artist:
         raise HTTPException(status_code=404, detail="Artist profile not found")
     
-    # 1. Generar nombre único y leer archivo
+    # 1. Generar nombre único y leer archivo de la memoria (aún no se sube)
     clean_shop_name = artist.shop_name.replace(" ", "_")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"portfolio_{clean_shop_name}_{current_user.id}_{timestamp}.jpg"
     file_bytes = await file.read()
     
-    # 2. Subir a Supabase
+    # =======================================================
+    # 🕵️ 1.5. EL FILTRO ANTI-BASURA (Versión Blindada 100%)
+    # =======================================================
+    api_key = os.getenv("GEMINI_API_KEY")
+    if api_key:
+        print("🔍 Pasando filtro Anti-Basura de Gemini (API Directa)...")
+        try:
+            # 1. Convertimos la imagen a Base64
+            base64_image = base64.b64encode(file_bytes).decode('utf-8')
+            # Flutter a veces envía 'application/octet-stream' — Gemini lo rechaza
+            mime_type = file.content_type if file.content_type and file.content_type.startswith("image/") else "image/jpeg"
+            
+            # 2. URL con el modelo Gemini 2.5 Flash (el 1.5 fue retirado)
+            url_vision = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+            
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {"text": "Eres un moderador estricto. Analiza esta imagen. ¿Es un tatuaje real, un diseño de tatuaje o un boceto artístico? Responde SOLO con la palabra SI o con la palabra NO."},
+                        {
+                            "inline_data": {
+                                "mime_type": mime_type,
+                                "data": base64_image
+                            }
+                        }
+                    ]
+                }]
+            }
+            
+            # 3. Disparamos la petición
+            respuesta = requests.post(url_vision, json=payload)
+            
+            if respuesta.status_code == 200:
+                datos = respuesta.json()
+                resultado = datos['candidates'][0]['content']['parts'][0]['text'].strip().upper()
+                print(f"🕵️ Filtro IA detectó: {resultado}")
+                
+                if "NO" in resultado:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail="Imagen rechazada: Nuestra IA ha detectado que no es un tatuaje."
+                    )
+            else:
+                # ¡NUEVO! Si Google falla, rompemos el proceso para que NO suba la foto
+                print(f"⚠️ Error en la API de Gemini: {respuesta.text}")
+                raise HTTPException(
+                    status_code=500, 
+                    detail="Error temporal en el sistema de validación. Inténtalo de nuevo."
+                )
+                
+        except HTTPException:
+            raise # Lanza el error exacto al móvil (400 o 500)
+        except Exception as e:
+            print(f"⚠️ Error general en el filtro: {e}")
+            # Si hay un error raro de código, también bloqueamos por seguridad
+            raise HTTPException(status_code=500, detail="Error validando la imagen.")
+    # =======================================================
+    # 2. Subir a Supabase (SÓLO LLEGA AQUÍ SI ES UN TATUAJE REAL)
+    # =======================================================
     public_url = upload_file_to_supabase(file_bytes, filename, folder="portfolio-artistas")
     if not public_url:
         raise HTTPException(status_code=500, detail="Failed to upload image")
     
     # =======================================================
-    # 3. EL TRUCO INVISIBLE: CALCULAR EL EMBEDDING CON IA
+    # 3. CALCULAR EL EMBEDDING CON IA (Tu código original)
     # =======================================================
-    import os
-    from dotenv import load_dotenv
-    import requests
-    
-    load_dotenv() # Cargar el .env
-    
     vector_ia = None
     texto_para_ia = f"{style_tag} {description}"
     
     if texto_para_ia.strip():
         try:
             print(f"🤖 Calculando IA para el nuevo post: {texto_para_ia}")
-            
-            api_key = os.getenv("GEMINI_API_KEY")
             if not api_key:
                 raise Exception("🚨 No se encontró la GEMINI_API_KEY en el .env")
 
@@ -257,14 +314,14 @@ async def create_post(
             print(f"⚠️ Aviso: Falló la IA al crear el post. Error: {e}")
 
     # =======================================================
-    # 4. Crear post en Base de Datos (Guardando el Vector)
+    # 4. Crear post en Base de Datos
     # =======================================================
     new_post = models.Post(
         artist_id=current_user.id,
         image_url=public_url,
         description=description,
         style_tag=style_tag,
-        embedding=vector_ia  # <--- ¡AQUÍ ESTÁ LA MAGIA!
+        embedding=vector_ia 
     )
     
     db.add(new_post)

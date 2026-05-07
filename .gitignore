@@ -1,3 +1,4 @@
 api/venv/
 api/.env
 inkaFlutter/.env
+**/__pycache__/

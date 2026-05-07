@@ -1,13 +1,20 @@
 # api/utils/storage.py
 import os
+from dotenv import load_dotenv
 from supabase import create_client, Client
 
-# Poned esto en vuestro .env idealmente
-SUPABASE_URL = "https://unqfkfunxnlxyatjnyqd.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVucWZrZnVueG5seHlhdGpueXFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3ODM5NTIsImV4cCI6MjA4MTM1OTk1Mn0.Mfe5ykSKG9gds8FNIjnaFuN63VsLZ_89-LZU0KGj8mI" # O Service Role Key si tienes problemas de permisos
+# Cargamos las variables del .env (por si este módulo se importa antes que main.py)
+load_dotenv()
 
-#ACCES KEI ID: b1088ff48be9224ef7374f8cb1a06c47
-#SECRET ACCESS KEY: 1db4fc8c68ecfcd8e4b183a6f2a6e75b61051dc5deb34802a915439aa3b400e6
+# Las claves ahora se leen del archivo .env, NUNCA hardcodeadas
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise RuntimeError(
+        "🚨 Faltan SUPABASE_URL o SUPABASE_KEY en el archivo .env. "
+        "Asegúrate de tener ambas variables definidas."
+    )
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
