@@ -42,25 +42,21 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        backgroundColor: Colors.black,
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_artistData == null) {
       return const Scaffold(
-        backgroundColor: Colors.black,
         body: Center(
-          child: Text('Error al cargar el perfil', style: TextStyle(color: Colors.white)),
+          child: Text('Error al cargar el perfil'),
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
         title: Text(_artistData!['shop_name'] ?? 'Perfil Artista'),
-        backgroundColor: Colors.transparent,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -74,10 +70,10 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
 
             // Portfolio slider
             if (_portfolioImages.isNotEmpty) ...[
-              const Text(
+              Text(
                 'Portfolio',
                 style: TextStyle(
-                  color: Colors.tealAccent,
+                  color: Theme.of(context).colorScheme.primary,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -85,9 +81,9 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
               const SizedBox(height: 10),
               _buildPortfolioSlider(),
             ] else ...[
-              const Text(
+              Text(
                 'Este artista aún no tiene fotos en su portfolio',
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
               ),
             ],
 
@@ -105,7 +101,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white10,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -115,10 +111,10 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             children: [
               CircleAvatar(
                 radius: 30,
-                backgroundColor: Colors.purpleAccent,
+                backgroundColor: Theme.of(context).colorScheme.primary,
                 child: Text(
                   _artistData!['shop_name']?.substring(0, 1).toUpperCase() ?? 'A',
-                  style: const TextStyle(fontSize: 24, color: Colors.white),
+                  style: TextStyle(fontSize: 24, color: Theme.of(context).colorScheme.onPrimary),
                 ),
               ),
               const SizedBox(width: 16),
@@ -128,29 +124,27 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
                   children: [
                     Text(
                       _artistData!['shop_name'] ?? 'Sin nombre',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     Text(
                       _artistData!['styles']?.join(' • ') ?? 'Sin especialidad',
-                      style: const TextStyle(color: Colors.grey, fontSize: 14),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                      ),
                     ),
                   ],
                 ),
               ),
               if (_artistData!['is_verified'] == true)
-                const Icon(Icons.verified, color: Colors.green, size: 24),
+                Icon(Icons.verified, color: Theme.of(context).colorScheme.secondary, size: 24),
             ],
           ),
           const SizedBox(height: 16),
           if (_artistData!['bio'] != null && _artistData!['bio'].isNotEmpty) ...[
-            const Text(
+            Text(
               'Sobre mí',
               style: TextStyle(
-                color: Colors.tealAccent,
+                color: Theme.of(context).colorScheme.primary,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
@@ -158,7 +152,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             const SizedBox(height: 8),
             Text(
               _artistData!['bio'],
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
           ],
@@ -175,11 +169,10 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
         if (_artistData!['instagram_handle'] != null) ...[
           Row(
             children: [
-              const Icon(Icons.camera_alt, color: Colors.purpleAccent, size: 20),
+              Icon(Icons.camera_alt, color: Theme.of(context).colorScheme.primary, size: 20),
               const SizedBox(width: 8),
               Text(
                 '@${_artistData!['instagram_handle']}',
-                style: const TextStyle(color: Colors.white, fontSize: 14),
               ),
             ],
           ),
@@ -188,12 +181,11 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
         if (_artistData!['address'] != null) ...[
           Row(
             children: [
-              const Icon(Icons.location_on, color: Colors.purpleAccent, size: 20),
+              Icon(Icons.location_on, color: Theme.of(context).colorScheme.primary, size: 20),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   _artistData!['address'],
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
                 ),
               ),
             ],
@@ -280,8 +272,6 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             icon: const Icon(Icons.message),
             label: const Text('Contactar Artista'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.tealAccent,
-              foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
           ),
@@ -304,8 +294,8 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             icon: const Icon(Icons.calendar_today),
             label: const Text('Reservar Cita'),
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Colors.tealAccent),
-              foregroundColor: Colors.tealAccent,
+              side: BorderSide(color: Theme.of(context).colorScheme.primary),
+              foregroundColor: Theme.of(context).colorScheme.primary,
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
           ),

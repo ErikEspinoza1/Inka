@@ -43,10 +43,8 @@ class _ArtistProfilePanelScreenState extends State<ArtistProfilePanelScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text('Mi Perfil'),
-        backgroundColor: Colors.transparent,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -61,10 +59,10 @@ class _ArtistProfilePanelScreenState extends State<ArtistProfilePanelScreen> {
                       Center(
                         child: CircleAvatar(
                           radius: 50,
-                          backgroundColor: Colors.purpleAccent,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
                           child: Text(
                             _profileData!['shop_name']?.substring(0, 1).toUpperCase() ?? 'A',
-                            style: const TextStyle(fontSize: 40, color: Colors.white),
+                            style: TextStyle(fontSize: 40, color: Theme.of(context).colorScheme.onPrimary),
                           ),
                         ),
                       ),
@@ -91,8 +89,6 @@ class _ArtistProfilePanelScreenState extends State<ArtistProfilePanelScreen> {
                           icon: const Icon(Icons.edit),
                           label: const Text('Editar Perfil'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.purple,
-                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
                         ),
@@ -105,8 +101,8 @@ class _ArtistProfilePanelScreenState extends State<ArtistProfilePanelScreen> {
                           icon: const Icon(Icons.logout),
                           label: const Text('Cerrar Sesión'),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.red),
-                            foregroundColor: Colors.red,
+                            side: BorderSide(color: Theme.of(context).colorScheme.error),
+                            foregroundColor: Theme.of(context).colorScheme.error,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
                         ),
@@ -125,14 +121,14 @@ class _ArtistProfilePanelScreenState extends State<ArtistProfilePanelScreen> {
         children: [
           Text(
             label,
-            style: const TextStyle(color: Colors.tealAccent, fontSize: 14, fontWeight: FontWeight.bold),
+            style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 14, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(color: Colors.white, fontSize: 16),
+            style: Theme.of(context).textTheme.bodyLarge,
           ),
-          const Divider(color: Colors.white24),
+          const Divider(),
         ],
       ),
     );

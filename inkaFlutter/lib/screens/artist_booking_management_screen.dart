@@ -59,7 +59,7 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
           booking['status'] = 'contactado';
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cliente contactado'), backgroundColor: Colors.green),
+          SnackBar(content: const Text('Cliente contactado'), backgroundColor: Colors.green),
         );
       }
     }
@@ -82,19 +82,17 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text('Gestión de Reservas'),
-        backgroundColor: Colors.transparent,
       ),
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _bookings.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
                       'No tienes reservas pendientes',
-                      style: TextStyle(color: Colors.white70),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
                     ),
                   )
                 : ListView.builder(
@@ -107,7 +105,7 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
                       final artistAccepted = booking['artist_accepted'] as bool;
 
                       return Card(
-                        color: const Color(0xFF1A1A1A),
+                        color: Theme.of(context).colorScheme.surface,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
@@ -136,35 +134,31 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
                               const SizedBox(height: 12),
 
                               // Información del cliente
-                              Text(
-                                'Cliente: ${_clientNames[booking['client_id']] ?? 'Cargando...'}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                                Text(
+                                  'Cliente: ${_clientNames[booking['client_id']] ?? 'Cargando...'}',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                                 ),
-                              ),
                               const SizedBox(height: 8),
 
                               // Detalles del tatuaje
-                              Text(
-                                'Idea: ${booking['idea_description']}',
-                                style: const TextStyle(color: Colors.white70),
-                              ),
-                              Text(
-                                'Parte del cuerpo: ${booking['body_part']}',
-                                style: const TextStyle(color: Colors.white70),
-                              ),
-                              if (booking['size_cm'] != null)
                                 Text(
-                                  'Tamaño: ${booking['size_cm']} cm',
-                                  style: const TextStyle(color: Colors.white70),
+                                  'Idea: ${booking['idea_description']}',
+                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
                                 ),
-                              if (booking['booking_date'] != null)
                                 Text(
-                                  'Fecha preferida: ${_formatDate(booking['booking_date'])}',
-                                  style: const TextStyle(color: Colors.white70),
+                                  'Parte del cuerpo: ${booking['body_part']}',
+                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
                                 ),
+                                if (booking['size_cm'] != null)
+                                  Text(
+                                    'Tamaño: ${booking['size_cm']} cm',
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                                  ),
+                                if (booking['booking_date'] != null)
+                                  Text(
+                                    'Fecha preferida: ${_formatDate(booking['booking_date'])}',
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                                  ),
 
                               const SizedBox(height: 16),
 
@@ -215,8 +209,6 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
                                   icon: const Icon(Icons.chat),
                                   label: const Text('Contactar'),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.tealAccent,
-                                    foregroundColor: Colors.black,
                                   ),
                                 ),
                               ),

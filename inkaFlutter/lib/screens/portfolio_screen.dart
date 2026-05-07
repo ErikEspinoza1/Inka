@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+// import 'dart:io';
 import '../services/auth_service.dart';
 
 class PortfolioScreen extends StatefulWidget {
@@ -46,16 +46,12 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
     if (result['success'] == true) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Imagen subida al portfolio'), backgroundColor: Colors.green),
+        SnackBar(content: const Text('Imagen subida al portfolio'), backgroundColor: Colors.green),
       );
       _loadPortfolio(); // Recargar lista
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['error'] ?? 'Error al subir imagen'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
-        ),
+        SnackBar(content: const Text('Error al subir imagen'), backgroundColor: Theme.of(context).colorScheme.error),
       );
     }
   }
@@ -64,12 +60,12 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     final success = await _authService.deletePortfolioPost(postId);
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Imagen eliminada'), backgroundColor: Colors.green),
+        SnackBar(content: const Text('Imagen eliminada'), backgroundColor: Colors.green),
       );
       _loadPortfolio();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al eliminar'), backgroundColor: Colors.red),
+        SnackBar(content: const Text('Error al eliminar'), backgroundColor: Theme.of(context).colorScheme.error),
       );
     }
   }
@@ -77,13 +73,11 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text('Mi Portfolio'),
-        backgroundColor: Colors.transparent,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_photo_alternate, color: Colors.purpleAccent),
+            icon: Icon(Icons.add_photo_alternate, color: Theme.of(context).colorScheme.primary),
             onPressed: _pickAndUploadImage,
           ),
         ],
@@ -95,16 +89,18 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.photo_library, size: 80, color: Colors.grey),
+                      Icon(Icons.photo_library, size: 80, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
                       const SizedBox(height: 16),
-                      const Text(
+                      Text(
                         'Tu portfolio está vacío',
-                        style: TextStyle(color: Colors.white, fontSize: 18),
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'Agrega fotos de tus tatuajes para mostrar tu trabajo',
-                        style: TextStyle(color: Colors.grey),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 20),
@@ -112,10 +108,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                         onPressed: _pickAndUploadImage,
                         icon: const Icon(Icons.upload),
                         label: const Text('Subir primera foto'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.purple,
-                          foregroundColor: Colors.white,
-                        ),
                       ),
                     ],
                   ),
@@ -146,7 +138,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                           top: 8,
                           right: 8,
                           child: IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
+                            icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
                             onPressed: () => _deletePost(post['id']),
                           ),
                         ),

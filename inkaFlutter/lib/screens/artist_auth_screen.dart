@@ -126,86 +126,64 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
   void _showError(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.red),
+      SnackBar(content: Text(msg), backgroundColor: Theme.of(context).colorScheme.error),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black87,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
-              const Icon(Icons.palette, size: 80, color: Colors.purpleAccent),
+              Icon(Icons.palette, size: 80, color: Theme.of(context).colorScheme.primary),
               const SizedBox(height: 20),
               Text(
                 _isLogin ? 'ARTIST LOGIN' : 'JOIN AS ARTIST',
-                style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white),
+                style: Theme.of(context).textTheme.displaySmall,
               ),
               const SizedBox(height: 30),
               if (!_isLogin) ...[
                 TextField(
                   controller: _nameCtrl,
-                  decoration: _inputDeco('Nombre Estudio / Artístico', Icons.store),
-                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(labelText: 'Nombre Estudio / Artístico', prefixIcon: const Icon(Icons.store)),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _specialtyCtrl,
-                  decoration: _inputDeco('Estilo (ej. Realismo)', Icons.brush),
-                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(labelText: 'Estilo (ej. Realismo)', prefixIcon: const Icon(Icons.brush)),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _addressCtrl,
-                  decoration: _inputDeco('Dirección (Calle, Ciudad)', Icons.map),
-                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(labelText: 'Dirección (Calle, Ciudad)', prefixIcon: const Icon(Icons.map)),
                 ),
                 const SizedBox(height: 16),
               ],
               TextField(
                 controller: _emailCtrl,
-                decoration: _inputDeco('Email', Icons.email),
-                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(labelText: 'Email', prefixIcon: const Icon(Icons.email)),
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _passCtrl,
-                decoration: _inputDeco('Contraseña', Icons.lock),
-                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(labelText: 'Contraseña', prefixIcon: const Icon(Icons.lock)),
                 obscureText: true,
               ),
               const SizedBox(height: 30),
               _isLoading
-                  ? const CircularProgressIndicator(color: Colors.purpleAccent)
+                  ? const CircularProgressIndicator()
                   : SizedBox(
                       width: double.infinity,
-                      height: 50,
                       child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.purple,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
                         onPressed: _submit,
-                        child: Text(
-                          _isLogin ? 'ENTRAR' : 'REGISTRARSE',
-                          style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white),
-                        ),
+                        child: Text(_isLogin ? 'ENTRAR' : 'REGISTRARSE'),
                       ),
                     ),
               const SizedBox(height: 20),
@@ -213,31 +191,12 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
                 onPressed: () => setState(() => _isLogin = !_isLogin),
                 child: Text(
                   _isLogin ? 'Crear cuenta de Artista' : 'Ya tengo cuenta',
-                  style: const TextStyle(color: Colors.purpleAccent),
                 ),
               )
             ],
           ),
         ),
       ),
-    );
-  }
-
-  InputDecoration _inputDeco(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, color: Colors.white70),
-      labelStyle: const TextStyle(color: Colors.white70),
-      enabledBorder: OutlineInputBorder(
-        borderSide: const BorderSide(color: Colors.white24),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderSide: const BorderSide(color: Colors.purpleAccent),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      filled: true,
-      fillColor: Colors.white10,
     );
   }
 }

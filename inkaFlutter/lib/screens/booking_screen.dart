@@ -26,17 +26,7 @@ class _BookingScreenState extends State<BookingScreen> {
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Colors.tealAccent,
-              onPrimary: Colors.black,
-              surface: Color(0xFF1A1A1A),
-              onSurface: Colors.white,
-            ),
-          ),
-          child: child!,
-        );
+        return child!;
       },
     );
 
@@ -79,7 +69,7 @@ class _BookingScreenState extends State<BookingScreen> {
     if (!success) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al enviar la reserva'), backgroundColor: Colors.red),
+          SnackBar(content: const Text('Error al enviar la reserva'), backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
       return;
@@ -87,10 +77,10 @@ class _BookingScreenState extends State<BookingScreen> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Reserva enviada correctamente. El artista se pondrá en contacto contigo.'),
-          backgroundColor: Colors.green,
-        ),
+          SnackBar(
+            content: const Text('Reserva enviada correctamente. El artista se pondrá en contacto contigo.'),
+            backgroundColor: Colors.green,
+          ),
       );
       Navigator.pop(context);
     }
@@ -100,10 +90,8 @@ class _BookingScreenState extends State<BookingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: Colors.black,
       appBar: AppBar(
         title: Text('Reservar con ${widget.artistName}'),
-        backgroundColor: Colors.transparent,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -127,10 +115,10 @@ class _BookingScreenState extends State<BookingScreen> {
                   children: [
                     CircleAvatar(
                       radius: 30,
-                      backgroundColor: Colors.tealAccent,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       child: Text(
                         widget.artistName.substring(0, 1).toUpperCase(),
-                        style: const TextStyle(fontSize: 24, color: Colors.black),
+                        style: TextStyle(fontSize: 24, color: Theme.of(context).colorScheme.onPrimary),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -140,15 +128,13 @@ class _BookingScreenState extends State<BookingScreen> {
                         children: [
                           Text(
                             widget.artistName,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                           ),
-                          const Text(
+                          Text(
                             'Artista Profesional',
-                            style: TextStyle(color: Colors.grey, fontSize: 14),
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                            ),
                           ),
                         ],
                       ),
@@ -160,10 +146,10 @@ class _BookingScreenState extends State<BookingScreen> {
               const SizedBox(height: 24),
 
               // Formulario de reserva
-              const Text(
+              Text(
                 'Detalles del Tatuaje',
                 style: TextStyle(
-                  color: Colors.tealAccent,
+                  color: Theme.of(context).colorScheme.primary,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -179,10 +165,10 @@ class _BookingScreenState extends State<BookingScreen> {
               const SizedBox(height: 24),
 
               // Selector de fecha
-              const Text(
+              Text(
                 'Fecha preferida',
                 style: TextStyle(
-                  color: Colors.tealAccent,
+                  color: Theme.of(context).colorScheme.primary,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -193,20 +179,20 @@ class _BookingScreenState extends State<BookingScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white10,
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.tealAccent),
+                    border: Border.all(color: Theme.of(context).colorScheme.primary),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.calendar_today, color: Colors.tealAccent),
+                      Icon(Icons.calendar_today, color: Theme.of(context).colorScheme.primary),
                       const SizedBox(width: 12),
                       Text(
                         _selectedDate != null
                             ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
                             : 'Seleccionar fecha',
                         style: TextStyle(
-                          color: _selectedDate != null ? Colors.white : Colors.grey,
+                          color: _selectedDate != null ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
                           fontSize: 16,
                         ),
                       ),
@@ -248,19 +234,10 @@ class _BookingScreenState extends State<BookingScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _submitBooking,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.tealAccent,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
                     child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.black)
+                        ? const CircularProgressIndicator()
                         : const Text(
                             'Enviar Solicitud de Reserva',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                   ),
                 ),
@@ -276,21 +253,9 @@ class _BookingScreenState extends State<BookingScreen> {
     return TextField(
       controller: controller,
       maxLines: maxLines,
-      style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: Colors.tealAccent),
-        labelStyle: const TextStyle(color: Colors.white70),
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.05),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Colors.tealAccent),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Colors.tealAccent),
-        ),
+        prefixIcon: Icon(icon),
       ),
     );
   }

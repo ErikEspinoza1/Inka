@@ -111,21 +111,21 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showImageSourceDialog() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.grey[900],
+      backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (context) => SafeArea(
         child: Wrap(
           children: [
             ListTile(
-              leading: const Icon(Icons.photo_camera, color: Colors.tealAccent),
-              title: const Text('Cámara', style: TextStyle(color: Colors.white)),
+              leading: Icon(Icons.photo_camera, color: Theme.of(context).colorScheme.primary),
+              title: Text('Cámara', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
               onTap: () {
                 Navigator.pop(context);
                 _pickAndUploadImage(ImageSource.camera);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library, color: Colors.tealAccent),
-              title: const Text('Galería', style: TextStyle(color: Colors.white)),
+              leading: Icon(Icons.photo_library, color: Theme.of(context).colorScheme.primary),
+              title: Text('Galería', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
               onTap: () {
                 Navigator.pop(context);
                 _pickAndUploadImage(ImageSource.gallery);
@@ -233,13 +233,11 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: Colors.black,
       appBar: AppBar(
         title: Text('Chat con ${widget.artistName}'),
-        backgroundColor: Colors.transparent,
         actions: [
           IconButton(
-            icon: const Icon(Icons.phone, color: Colors.tealAccent),
+            icon: Icon(Icons.phone, color: Theme.of(context).colorScheme.primary),
             onPressed: () {
               // TODO: Implementar llamada
               ScaffoldMessenger.of(context).showSnackBar(
@@ -287,44 +285,33 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.attach_file, color: Colors.tealAccent),
+                    icon: Icon(Icons.attach_file, color: Theme.of(context).colorScheme.primary),
                     onPressed: _isUploadingImage ? null : _showImageSourceDialog,
                   ),
                   if (_isUploadingImage)
-                    const Padding(
-                      padding: EdgeInsets.only(right: 8.0),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
                       child: SizedBox(
                         width: 24,
                         height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.tealAccent),
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.primary),
                       ),
                     ),
                    Expanded(
                     child: TextField(
                       controller: _messageCtrl,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         hintText: 'Escribe un mensaje...',
-                        hintStyle: const TextStyle(color: Colors.grey),
-                        filled: true,
-                        fillColor: Colors.white10,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
                       ),
                       onSubmitted: (_) => _sendMessage(),
                     ),
                   ),
                   const SizedBox(width: 8),
                   CircleAvatar(
-                     backgroundColor: Colors.tealAccent,
+                     backgroundColor: Theme.of(context).colorScheme.primary,
+                     foregroundColor: Theme.of(context).colorScheme.onPrimary,
                     child: IconButton(
-                      icon: const Icon(Icons.send, color: Colors.black),
+                      icon: const Icon(Icons.send),
                       onPressed: _sendMessage,
                     ),
                   ),
@@ -384,7 +371,7 @@ class _ChatScreenState extends State<ChatScreen> {
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
         decoration: BoxDecoration(
-          color: isMine ? Colors.tealAccent : Colors.white10,
+          color: isMine ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.only(
              topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -412,7 +399,7 @@ class _ChatScreenState extends State<ChatScreen> {
               Text(
                 content,
                 style: TextStyle(
-                  color: isMine ? Colors.black : Colors.white,
+                  color: isMine ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
                   fontSize: 16,
                 ),
               ),
@@ -423,7 +410,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 Text(
                    _formatTime(timestamp),
                   style: TextStyle(
-                    color: isMine ? Colors.black54 : Colors.white54,
+                    color: isMine ? Theme.of(context).colorScheme.onPrimary.withOpacity(0.7) : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                     fontSize: 12,
                   ),
                 ),
@@ -432,7 +419,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   Icon(
                     Icons.done_all,
                     size: 14,
-                    color: isRead ? Colors.blue[700] : Colors.black38,
+                    color: isRead ? Colors.blue[300] : Theme.of(context).colorScheme.onPrimary.withOpacity(0.5),
                   ),
                 ]
               ],
@@ -474,9 +461,9 @@ class _ChatScreenState extends State<ChatScreen> {
       margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.tealAccent.withOpacity(0.5)),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -484,14 +471,14 @@ class _ChatScreenState extends State<ChatScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Propuesta de Tattoo',
-                style: TextStyle(color: Colors.tealAccent, fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 16),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: Colors.grey[800], borderRadius: BorderRadius.circular(8)),
-                child: Text(status.toUpperCase(), style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.background, borderRadius: BorderRadius.circular(8)),
+                child: Text(status.toUpperCase(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7), fontSize: 10)),
               )
             ],
           ),
@@ -503,7 +490,7 @@ class _ChatScreenState extends State<ChatScreen> {
             _buildEditField('Zona:', ctrls?['part']),
             _buildEditField('Tamaño (cm):', ctrls?['size']),
             
-            const Text('Fecha:', style: TextStyle(color: Colors.white70, fontSize: 12)),
+            const Text('Fecha:', style: TextStyle(fontSize: 12)),
             const SizedBox(height: 4),
             InkWell(
               onTap: () async {
@@ -519,10 +506,9 @@ class _ChatScreenState extends State<ChatScreen> {
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.background, borderRadius: BorderRadius.circular(8)),
                 child: Text(
                   selectedDate != null ? '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}' : 'Seleccionar fecha',
-                  style: const TextStyle(color: Colors.white),
                 ),
               ),
             ),
@@ -539,7 +525,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 priceText: ctrls?['price']?.text ?? '0',
                 date: selectedDate,
               ),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.tealAccent, foregroundColor: Colors.black),
               child: const Text('Enviar Propuesta Actualizada'),
             ),
             
@@ -553,26 +538,25 @@ class _ChatScreenState extends State<ChatScreen> {
             ]
           ] else ...[
             // VISTA LECTURA (PARA CLIENTE O TRATO CERRADO)
-            Text('Idea: $idea', style: const TextStyle(color: Colors.white)),
-            Text('Zona: $part', style: const TextStyle(color: Colors.white70)),
-            if (size.isNotEmpty) Text('Tamaño: $size cm', style: const TextStyle(color: Colors.white70)),
+            Text('Idea: $idea'),
+            Text('Zona: $part'),
+            if (size.isNotEmpty) Text('Tamaño: $size cm'),
             if (bookingDate != null) 
-              Text('Fecha: ${bookingDate.day}/${bookingDate.month}/${bookingDate.year}', style: const TextStyle(color: Colors.white70)),
+              Text('Fecha: ${bookingDate.day}/${bookingDate.month}/${bookingDate.year}'),
             
-            const Divider(color: Colors.white24, height: 24),
+            const Divider(height: 24),
             
             if (price != null) ...[
-              Text('${price} €', style: const TextStyle(color: Colors.tealAccent, fontSize: 22, fontWeight: FontWeight.bold)),
+              Text('${price} €', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               if (status != 'aceptado') ...[
                 if (!_isArtist && !clientAcc)
                   ElevatedButton(
                     onPressed: () => _acceptBooking(bId),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.tealAccent, foregroundColor: Colors.black),
                     child: const Text('Aceptar Oferta'),
                   )
                 else if (!_isArtist)
-                  const Text('Has aceptado. Esperando confirmación del artista...', style: TextStyle(color: Colors.orange))
+                  Text('Has aceptado. Esperando confirmación del artista...', style: TextStyle(color: Theme.of(context).colorScheme.secondary))
                 else if (_isArtist && clientAcc && !artistAcc)
                   ElevatedButton(
                     onPressed: () => _acceptBooking(bId),
@@ -580,10 +564,10 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: const Text('Confirmar Trato'),
                   )
               ] else ...[
-                const Text('¡Trato cerrado!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                Text('¡Trato cerrado!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
               ]
             ] else ...[
-              const Text('Esperando oferta del artista...', style: TextStyle(color: Colors.orange, fontStyle: FontStyle.italic)),
+              Text('Esperando oferta del artista...', style: TextStyle(color: Theme.of(context).colorScheme.secondary, fontStyle: FontStyle.italic)),
             ]
           ],
 
@@ -601,18 +585,14 @@ class _ChatScreenState extends State<ChatScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        Text(label, style: const TextStyle(fontSize: 12)),
         const SizedBox(height: 4),
         TextField(
           controller: ctrl,
           keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             isDense: true,
-            filled: true,
-            fillColor: Colors.black26,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           ),
         ),
         const SizedBox(height: 12),
