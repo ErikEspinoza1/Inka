@@ -13,6 +13,7 @@ import os
 from dotenv import load_dotenv
 import base64
 import requests
+import json as json_lib
 
 reader = easyocr.Reader(['es'], gpu=False)
 
@@ -223,24 +224,49 @@ async def create_post(
     file_bytes = await file.read()
     
     # =======================================================
-    # 🕵️ 1.5. EL FILTRO ANTI-BASURA (Versión Blindada 100%)
+    # 🕵️ PASO 1: GEMINI MULTIMODAL — Validación + Metadatos
+    # Un solo prompt que mata dos pájaros de un tiro:
+    #   - Filtra basura (perros, memes, paisajes)
+    #   - Genera keywords técnicas para el embedding
     # =======================================================
     api_key = os.getenv("GEMINI_API_KEY")
+    texto_ia_embedding = ""  # Se llenará si Gemini aprueba la imagen
+    
     if api_key:
-        print("🔍 Pasando filtro Anti-Basura de Gemini (API Directa)...")
+        print("🔍 Pasando filtro Anti-Basura + Análisis Multimodal de Gemini...")
         try:
             # 1. Convertimos la imagen a Base64
             base64_image = base64.b64encode(file_bytes).decode('utf-8')
             # Flutter a veces envía 'application/octet-stream' — Gemini lo rechaza
             mime_type = file.content_type if file.content_type and file.content_type.startswith("image/") else "image/jpeg"
             
-            # 2. URL con el modelo Gemini 2.5 Flash (el 1.5 fue retirado)
+            # 2. URL con el modelo Gemini 2.5 Flash
             url_vision = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+            
+            # 3. Prompt multimodal: validación + generación de metadatos en un solo disparo
+            prompt_multimodal = (
+                "Eres un experto en tatuajes profesional. Analiza esta imagen y responde "
+                "ÚNICAMENTE con un JSON válido (sin formato Markdown, sin ```json, solo texto plano parseable). "
+                "El JSON debe tener exactamente esta estructura:\n"
+                '{"es_tatuaje": boolean, "descripcion_tecnica": "string"}\n\n'
+                "REGLAS:\n"
+                "- Si la imagen NO es un tatuaje real, ni un diseño de tatuaje, ni un boceto artístico "
+                '(es decir, es un perro, un paisaje, un meme, comida, una selfie, etc.), responde: '
+                '{"es_tatuaje": false, "descripcion_tecnica": ""}\n'
+                "- Si la imagen SÍ es un tatuaje real, un diseño de tatuaje o un boceto artístico válido, "
+                'responde con "es_tatuaje": true y en "descripcion_tecnica" escribe una lista de '
+                "aproximadamente 20 palabras clave en español separadas por comas. "
+                "Incluye: estilo artístico (ej: neotradicional, realismo, old school, japonés, blackwork), "
+                "sujeto principal (ej: león, rosa, calavera, dragón), "
+                "técnica (ej: puntillismo, línea fina, acuarela, dotwork), "
+                "posibles zonas del cuerpo (ej: brazo, antebrazo, espalda, pierna), "
+                "y elementos secundarios visibles (ej: flores, geometría, mandala, lettering, sombras)."
+            )
             
             payload = {
                 "contents": [{
                     "parts": [
-                        {"text": "Eres un moderador estricto. Analiza esta imagen. ¿Es un tatuaje real, un diseño de tatuaje o un boceto artístico? Responde SOLO con la palabra SI o con la palabra NO."},
+                        {"text": prompt_multimodal},
                         {
                             "inline_data": {
                                 "mime_type": mime_type,
@@ -251,21 +277,42 @@ async def create_post(
                 }]
             }
             
-            # 3. Disparamos la petición
+            # 4. Disparamos la petición
             respuesta = requests.post(url_vision, json=payload)
             
             if respuesta.status_code == 200:
                 datos = respuesta.json()
-                resultado = datos['candidates'][0]['content']['parts'][0]['text'].strip().upper()
-                print(f"🕵️ Filtro IA detectó: {resultado}")
+                texto_crudo = datos['candidates'][0]['content']['parts'][0]['text'].strip()
+                print(f"🧠 Respuesta cruda de Gemini: {texto_crudo}")
                 
-                if "NO" in resultado:
+                # Limpiar posible formato markdown que Gemini añade a veces
+                texto_limpio = texto_crudo
+                if texto_limpio.startswith("```"):
+                    texto_limpio = texto_limpio.split("\n", 1)[-1]  # Quita la primera línea ```json
+                if texto_limpio.endswith("```"):
+                    texto_limpio = texto_limpio[:-3]  # Quita el ``` final
+                texto_limpio = texto_limpio.strip()
+                
+                # Parsear el JSON
+                analisis = json_lib.loads(texto_limpio)
+                
+                es_tatuaje = analisis.get("es_tatuaje", False)
+                descripcion_tecnica = analisis.get("descripcion_tecnica", "")
+                
+                print(f"🕵️ ¿Es tatuaje? {es_tatuaje}")
+                print(f"📝 Descripción técnica: {descripcion_tecnica}")
+                
+                if not es_tatuaje:
                     raise HTTPException(
                         status_code=400, 
                         detail="Imagen rechazada: Nuestra IA ha detectado que no es un tatuaje."
                     )
+                
+                # ✅ Aprobada: guardar la descripción técnica para el embedding
+                texto_ia_embedding = descripcion_tecnica
+                
             else:
-                # ¡NUEVO! Si Google falla, rompemos el proceso para que NO suba la foto
+                # Si Google falla, bloqueamos por seguridad
                 print(f"⚠️ Error en la API de Gemini: {respuesta.text}")
                 raise HTTPException(
                     status_code=500, 
@@ -273,11 +320,14 @@ async def create_post(
                 )
                 
         except HTTPException:
-            raise # Lanza el error exacto al móvil (400 o 500)
+            raise  # Lanza el error exacto al móvil (400 o 500)
+        except json_lib.JSONDecodeError as e:
+            print(f"⚠️ Gemini devolvió un JSON inválido: {e}")
+            raise HTTPException(status_code=500, detail="Error procesando la validación. Inténtalo de nuevo.")
         except Exception as e:
             print(f"⚠️ Error general en el filtro: {e}")
-            # Si hay un error raro de código, también bloqueamos por seguridad
             raise HTTPException(status_code=500, detail="Error validando la imagen.")
+    
     # =======================================================
     # 2. Subir a Supabase (SÓLO LLEGA AQUÍ SI ES UN TATUAJE REAL)
     # =======================================================
@@ -286,14 +336,15 @@ async def create_post(
         raise HTTPException(status_code=500, detail="Failed to upload image")
     
     # =======================================================
-    # 3. CALCULAR EL EMBEDDING CON IA (Tu código original)
+    # 3. CALCULAR EL EMBEDDING — Usando la descripción de la IA
+    # La IA analizó la imagen real, así que sus keywords son
+    # mucho más precisas que lo que escribiría el usuario.
     # =======================================================
     vector_ia = None
-    texto_para_ia = f"{style_tag} {description}"
     
-    if texto_para_ia.strip():
+    if texto_ia_embedding.strip():
         try:
-            print(f"🤖 Calculando IA para el nuevo post: {texto_para_ia}")
+            print(f"🤖 Calculando embedding con texto de la IA: {texto_ia_embedding[:80]}...")
             if not api_key:
                 raise Exception("🚨 No se encontró la GEMINI_API_KEY en el .env")
 
@@ -301,20 +352,22 @@ async def create_post(
             
             payload = {
                 "model": "models/gemini-embedding-001",
-                "content": {"parts": [{"text": texto_para_ia}]}
+                "content": {"parts": [{"text": texto_ia_embedding}]}
             }
             respuesta = requests.post(url_embed, json=payload)
             
             if respuesta.status_code == 200:
                 vector_ia = respuesta.json()['embedding']['values'][:768]
-                print("✅ IA calculada y lista para guardar.")
+                print("✅ Embedding calculado con éxito a partir del análisis visual de la IA.")
             else:
-                 print(f"⚠️ Error de Gemini: {respuesta.text}")
+                 print(f"⚠️ Error de Gemini Embedding: {respuesta.text}")
         except Exception as e:
-            print(f"⚠️ Aviso: Falló la IA al crear el post. Error: {e}")
+            print(f"⚠️ Aviso: Falló el embedding. Error: {e}")
 
     # =======================================================
     # 4. Crear post en Base de Datos
+    # description y style_tag del usuario se guardan para la UI,
+    # pero el vector viene del análisis visual de la IA.
     # =======================================================
     new_post = models.Post(
         artist_id=current_user.id,
