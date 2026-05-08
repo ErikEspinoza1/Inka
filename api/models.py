@@ -57,6 +57,7 @@ class Artist(Base):
     # Documentación (Privado)
     business_license_id = Column(String, nullable=True) # DNI o CIF
     business_document_url = Column(String, nullable=True) # URL de la foto del certificado higiénico
+    certificate_hash = Column(String, nullable=True) # Hash para evitar duplicados entre artistas
     is_verified = Column(Boolean, default=False) # Por defecto NADIE entra verificado
     
     # Ubicación Avanzada

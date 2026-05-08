@@ -2,10 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import database, models, schemas, auth
-import easyocr
 import shutil
 from datetime import datetime
-from utils.storage import upload_file_to_supabase
+from utils.storage import upload_file_to_supabase, delete_file_from_supabase
 import google.generativeai as genai
 from PIL import Image
 import io
@@ -14,8 +13,12 @@ from dotenv import load_dotenv
 import base64
 import requests
 import json as json_lib
+import hashlib
 
-reader = easyocr.Reader(['es'], gpu=False)
+# CONFIGURACIÓN DE GEMINI
+api_key = os.getenv("GEMINI_API_KEY")
+if api_key:
+    genai.configure(api_key=api_key)
 
 router = APIRouter(prefix="/artists", tags=["Artists"])
 
@@ -123,45 +126,79 @@ async def upload_certificate(
     if not artist:
         raise HTTPException(status_code=404, detail="Perfil de artista no encontrado")
 
-    # 2. Generar nombre único: ShopName_ID_Timestamp.jpg
-    # Limpiamos el nombre de espacios para evitar problemas en URL
+    # 2. Generar nombre descriptivo pero único por ID (sin timestamp para permitir sobrescritura)
     clean_shop_name = artist.shop_name.replace(" ", "_") 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{clean_shop_name}_{artist.id}_{timestamp}.jpg"
+    filename = f"{clean_shop_name}_{artist.id}.jpg"
     
-    # 3. Leer el archivo en memoria
+    # 3. Leer el archivo en memoria y calcular HASH para evitar duplicados
     file_bytes = await file.read()
+    cert_hash = hashlib.sha256(file_bytes).hexdigest()
+
+    # Comprobar si otro artista ya tiene este certificado registrado
+    duplicate_artist = db.query(models.Artist).filter(
+        models.Artist.certificate_hash == cert_hash,
+        models.Artist.id != current_user.id
+    ).first()
+
+    if duplicate_artist:
+        raise HTTPException(
+            status_code=400, 
+            detail="Error: Este certificado ya está registrado por otro artista. El uso de documentos ajenos está prohibido."
+        )
 
     # ====================================================
-    # 🤖 EL BOT: VERIFICACIÓN CON IA (EasyOCR)
+    # 🤖 EL BOT: VERIFICACIÓN CON IA (GEMINI 1.5 FLASH)
     # ====================================================
     print("🤖 IA Analizando documento...")
+    is_ai_verified = False
+    verification_status = "Pendiente Revisión"
+    
     try:
-        # EasyOCR lee directamente los bytes
-        result = reader.readtext(file_bytes, detail=0) # detail=0 devuelve solo el texto
-        full_text = " ".join(result).upper() # Convertimos todo a mayúsculas
-        print(f"Texto detectado: {full_text[:100]}...") # Log para ver qué lee
-
-        # PALABRAS CLAVE PARA APROBAR
-        keywords = ["CERTIFICADO", "HIGIENICO", "SANITARIO", "APTO", "CURSO", "TITULO"]
+        img = Image.open(io.BytesIO(file_bytes))
+        model = genai.GenerativeModel('gemini-flash-latest')
         
-        # Lógica: Si encuentra al menos 2 palabras clave, lo damos por válido
-        matches = sum(1 for word in keywords if word in full_text)
-        is_ai_verified = matches >= 1 
+        prompt_cert = (
+            "Analiza esta imagen y determina si es un certificado oficial de Higiénico Sanitario "
+            "válido para profesionales del tatuaje, piercing o micropigmentación. "
+            "Responde ÚNICAMENTE con un JSON válido (sin formato Markdown, solo texto plano). "
+            "El JSON debe tener esta estructura:\n"
+            '{"es_valido": boolean, "explicacion": "string"}\n\n'
+            "REGLAS:\n"
+            "- 'es_valido' es true solo si el documento es claramente un certificado de higiene sanitaria.\n"
+            "- En 'explicacion' justifica MUY brevemente (máximo 5-7 palabras). Ejemplo: 'Es una foto de un coche' o 'Certificado sanitario válido'."
+        )
         
-        verification_status = "Verificado (IA)" if is_ai_verified else "Pendiente Revisión"
+        response = model.generate_content([prompt_cert, img])
+        texto_ia = response.text.strip()
+        
+        # Limpiar markdown si Gemini lo añade
+        if texto_ia.startswith("```"):
+            texto_ia = texto_ia.split("\n", 1)[-1].rsplit("\n", 1)[0].strip()
+        if texto_ia.startswith("json"):
+            texto_ia = texto_ia[4:].strip()
+            
+        analisis = json_lib.loads(texto_ia)
+        is_ai_verified = analisis.get("es_valido", False)
+        explicacion = analisis.get("explicacion", "")
+        
+        print(f"🕵️ Resultado Gemini: {is_ai_verified} - {explicacion}")
+        verification_status = "Verificado (IA)" if is_ai_verified else f"Rechazado (IA): {explicacion}"
         
     except Exception as e:
-        print(f"Error IA: {e}")
-        is_ai_verified = False # Si falla la IA, no bloqueamos, solo lo dejamos pendiente
+        print(f"Error Gemini: {e}")
         verification_status = "Error IA - Pendiente"
 
     # ====================================================
-    # 4. SUBIR A SUPABASE
+    # 4. LIMPIEZA Y SUBIDA A SUPABASE
     # ====================================================
-    # (Aquí deberías llamar a la función del PASO 2. Te pongo el código inline por si acaso)
-    # Asumiendo que has instanciado 'supabase' client aquí arriba como te expliqué antes:
-    from utils.storage import upload_file_to_supabase # Asegúrate de importar esto
+    # Borrar el certificado antiguo si el nombre ha cambiado o para asegurar limpieza
+    if artist.business_document_url:
+        # Si el nombre del archivo actual es distinto al nuevo, lo borramos.
+        # Si es el mismo, el 'upsert' de la función de subida se encargará de sobrescribirlo.
+        if filename not in artist.business_document_url:
+            print(f"🗑️ El nombre ha cambiado o es necesario limpiar. Borrando anterior...")
+            delete_file_from_supabase(artist.business_document_url)
+
     public_url = upload_file_to_supabase(file_bytes, filename)
 
     if not public_url:
@@ -169,13 +206,11 @@ async def upload_certificate(
 
     # 5. ACTUALIZAR BASE DE DATOS
     artist.business_document_url = public_url
+    artist.certificate_hash = cert_hash # Guardamos el hash para futuras comprobaciones
     
-    # OPCIONAL: ¿Quieres que se verifique automáticamente en la app?
-    # Si la IA dice que sí, ponemos is_verified = True.
-    # Si prefieres ser cauto, déjalo en False y que un admin lo revise, 
-    # pero dijiste que no querías hacer esperar a las empresas:
-    if is_ai_verified:
-        artist.is_verified = True
+    # Actualizamos el estado de verificación: si la IA dice que no vale,
+    # el artista deja de estar verificado.
+    artist.is_verified = is_ai_verified
     
     db.commit()
     
@@ -225,107 +260,55 @@ async def create_post(
     
     # =======================================================
     # 🕵️ PASO 1: GEMINI MULTIMODAL — Validación + Metadatos
-    # Un solo prompt que mata dos pájaros de un tiro:
-    #   - Filtra basura (perros, memes, paisajes)
-    #   - Genera keywords técnicas para el embedding
     # =======================================================
-    api_key = os.getenv("GEMINI_API_KEY")
     texto_ia_embedding = ""  # Se llenará si Gemini aprueba la imagen
     
     if api_key:
         print("🔍 Pasando filtro Anti-Basura + Análisis Multimodal de Gemini...")
         try:
-            # 1. Convertimos la imagen a Base64
-            base64_image = base64.b64encode(file_bytes).decode('utf-8')
-            # Flutter a veces envía 'application/octet-stream' — Gemini lo rechaza
-            mime_type = file.content_type if file.content_type and file.content_type.startswith("image/") else "image/jpeg"
+            img = Image.open(io.BytesIO(file_bytes))
+            model = genai.GenerativeModel('gemini-flash-latest')
             
-            # 2. URL con el modelo Gemini 2.5 Flash
-            url_vision = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-            
-            # 3. Prompt multimodal: validación + generación de metadatos en un solo disparo
             prompt_multimodal = (
                 "Eres un experto en tatuajes profesional. Analiza esta imagen y responde "
-                "ÚNICAMENTE con un JSON válido (sin formato Markdown, sin ```json, solo texto plano parseable). "
+                "ÚNICAMENTE con un JSON válido. "
                 "El JSON debe tener exactamente esta estructura:\n"
                 '{"es_tatuaje": boolean, "descripcion_tecnica": "string"}\n\n'
                 "REGLAS:\n"
-                "- Si la imagen NO es un tatuaje real, ni un diseño de tatuaje, ni un boceto artístico "
-                '(es decir, es un perro, un paisaje, un meme, comida, una selfie, etc.), responde: '
-                '{"es_tatuaje": false, "descripcion_tecnica": ""}\n'
-                "- Si la imagen SÍ es un tatuaje real, un diseño de tatuaje o un boceto artístico válido, "
+                "- Si la imagen NO es un tatuaje real, ni un diseño de tatuaje, ni un boceto artístico, "
+                'responde: {"es_tatuaje": false, "descripcion_tecnica": ""}\n'
+                "- Si la imagen SÍ es un tatuaje real o diseño, "
                 'responde con "es_tatuaje": true y en "descripcion_tecnica" escribe una lista de '
-                "aproximadamente 20 palabras clave en español separadas por comas. "
-                "Incluye: estilo artístico (ej: neotradicional, realismo, old school, japonés, blackwork), "
-                "sujeto principal (ej: león, rosa, calavera, dragón), "
-                "técnica (ej: puntillismo, línea fina, acuarela, dotwork), "
-                "posibles zonas del cuerpo (ej: brazo, antebrazo, espalda, pierna), "
-                "y elementos secundarios visibles (ej: flores, geometría, mandala, lettering, sombras)."
+                "20 palabras clave en español separadas por comas (estilo, sujeto, técnica, zona cuerpo)."
             )
             
-            payload = {
-                "contents": [{
-                    "parts": [
-                        {"text": prompt_multimodal},
-                        {
-                            "inline_data": {
-                                "mime_type": mime_type,
-                                "data": base64_image
-                            }
-                        }
-                    ]
-                }]
-            }
+            response = model.generate_content([prompt_multimodal, img])
+            texto_ia = response.text.strip()
             
-            # 4. Disparamos la petición
-            respuesta = requests.post(url_vision, json=payload)
+            # Limpiar markdown
+            if texto_ia.startswith("```"):
+                texto_ia = texto_ia.split("\n", 1)[-1].rsplit("\n", 1)[0].strip()
+            if texto_ia.startswith("json"):
+                texto_ia = texto_ia[4:].strip()
+                
+            analisis = json_lib.loads(texto_ia)
+            es_tatuaje = analisis.get("es_tatuaje", False)
+            descripcion_tecnica = analisis.get("descripcion_tecnica", "")
             
-            if respuesta.status_code == 200:
-                datos = respuesta.json()
-                texto_crudo = datos['candidates'][0]['content']['parts'][0]['text'].strip()
-                print(f"🧠 Respuesta cruda de Gemini: {texto_crudo}")
-                
-                # Limpiar posible formato markdown que Gemini añade a veces
-                texto_limpio = texto_crudo
-                if texto_limpio.startswith("```"):
-                    texto_limpio = texto_limpio.split("\n", 1)[-1]  # Quita la primera línea ```json
-                if texto_limpio.endswith("```"):
-                    texto_limpio = texto_limpio[:-3]  # Quita el ``` final
-                texto_limpio = texto_limpio.strip()
-                
-                # Parsear el JSON
-                analisis = json_lib.loads(texto_limpio)
-                
-                es_tatuaje = analisis.get("es_tatuaje", False)
-                descripcion_tecnica = analisis.get("descripcion_tecnica", "")
-                
-                print(f"🕵️ ¿Es tatuaje? {es_tatuaje}")
-                print(f"📝 Descripción técnica: {descripcion_tecnica}")
-                
-                if not es_tatuaje:
-                    raise HTTPException(
-                        status_code=400, 
-                        detail="Imagen rechazada: Nuestra IA ha detectado que no es un tatuaje."
-                    )
-                
-                # ✅ Aprobada: guardar la descripción técnica para el embedding
-                texto_ia_embedding = descripcion_tecnica
-                
-            else:
-                # Si Google falla, bloqueamos por seguridad
-                print(f"⚠️ Error en la API de Gemini: {respuesta.text}")
+            print(f"🕵️ ¿Es tatuaje? {es_tatuaje}")
+            
+            if not es_tatuaje:
                 raise HTTPException(
-                    status_code=500, 
-                    detail="Error temporal en el sistema de validación. Inténtalo de nuevo."
+                    status_code=400, 
+                    detail="Imagen rechazada: Nuestra IA ha detectado que no es un tatuaje."
                 )
+            
+            texto_ia_embedding = descripcion_tecnica
                 
         except HTTPException:
-            raise  # Lanza el error exacto al móvil (400 o 500)
-        except json_lib.JSONDecodeError as e:
-            print(f"⚠️ Gemini devolvió un JSON inválido: {e}")
-            raise HTTPException(status_code=500, detail="Error procesando la validación. Inténtalo de nuevo.")
+            raise
         except Exception as e:
-            print(f"⚠️ Error general en el filtro: {e}")
+            print(f"⚠️ Error en el filtro Gemini: {e}")
             raise HTTPException(status_code=500, detail="Error validando la imagen.")
     
     # =======================================================
@@ -337,30 +320,18 @@ async def create_post(
     
     # =======================================================
     # 3. CALCULAR EL EMBEDDING — Usando la descripción de la IA
-    # La IA analizó la imagen real, así que sus keywords son
-    # mucho más precisas que lo que escribiría el usuario.
     # =======================================================
     vector_ia = None
-    
     if texto_ia_embedding.strip():
         try:
-            print(f"🤖 Calculando embedding con texto de la IA: {texto_ia_embedding[:80]}...")
-            if not api_key:
-                raise Exception("🚨 No se encontró la GEMINI_API_KEY en el .env")
-
-            url_embed = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key={api_key}"
-            
-            payload = {
-                "model": "models/gemini-embedding-001",
-                "content": {"parts": [{"text": texto_ia_embedding}]}
-            }
-            respuesta = requests.post(url_embed, json=payload)
-            
-            if respuesta.status_code == 200:
-                vector_ia = respuesta.json()['embedding']['values'][:768]
-                print("✅ Embedding calculado con éxito a partir del análisis visual de la IA.")
-            else:
-                 print(f"⚠️ Error de Gemini Embedding: {respuesta.text}")
+            print(f"🤖 Calculando embedding con texto de la IA...")
+            response = genai.embed_content(
+                model="models/gemini-embedding-001",
+                content=texto_ia_embedding,
+                task_type="retrieval_document"
+            )
+            vector_ia = response['embedding'][:768]
+            print("✅ Embedding calculado con éxito.")
         except Exception as e:
             print(f"⚠️ Aviso: Falló el embedding. Error: {e}")
 
