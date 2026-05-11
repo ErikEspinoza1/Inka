@@ -45,6 +45,10 @@
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Necesitamos acceso al calendario para agendar tus sesiones de tatuaje.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Requerido para autocompletar ubicaciones en el calendario.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 </dict>

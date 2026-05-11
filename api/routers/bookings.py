@@ -36,10 +36,20 @@ def get_my_bookings(
     current_user: models.Profile = Depends(auth.get_current_user),
     db: Session = Depends(database.get_db)
 ):
-    # NOTE: the UserRole values are lowercase strings in the DB
+    from datetime import date
+    today = date.today()
+    
+    query = db.query(models.Booking)
     if current_user.role == models.UserRole.artista:
-        return db.query(models.Booking).filter(models.Booking.artist_id == current_user.id).all()
-    return db.query(models.Booking).filter(models.Booking.client_id == current_user.id).all()
+        query = query.filter(models.Booking.artist_id == current_user.id)
+    else:
+        query = query.filter(models.Booking.client_id == current_user.id)
+    
+    # Ordenar por más reciente (created_at desc)
+    # Y filtrar las que ya pasaron (booking_date < hoy), pero solo si tienen fecha
+    return query.filter(
+        (models.Booking.booking_date == None) | (models.Booking.booking_date >= today)
+    ).order_by(models.Booking.created_at.desc()).all()
 
 # Actualizar estado y aceptaciones (Cliente + Artista)
 @router.patch("/{booking_id}", response_model=schemas.BookingResponse)

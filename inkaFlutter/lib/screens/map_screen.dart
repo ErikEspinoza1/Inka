@@ -536,14 +536,6 @@ class TattooArtist {
 
     // 2. Determinar un color aleatorio o basado en el ID para que no sean todos iguales
     // Esto es puramente estético para el mapa
-    final colors = [
-      Colors.purpleAccent,
-      Colors.tealAccent,
-      Colors.orangeAccent,
-      Colors.redAccent,
-      Colors.blueAccent
-    ];
-    // final colorIndex = (json['shop_name'] ?? "").length % colors.length;
 
     return TattooArtist(
       id: json['id'].toString(),

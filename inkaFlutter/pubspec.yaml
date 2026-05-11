@@ -23,6 +23,7 @@ dependencies:
   flutter_dotenv: ^6.0.0
   carousel_slider: ^5.0.0
   google_fonts: ^8.1.0
+  add_2_calendar: ^3.0.1
   
 dev_dependencies:
   flutter_test:

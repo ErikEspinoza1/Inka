@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
+import 'package:add_2_calendar/add_2_calendar.dart';
 
 class ChatScreen extends StatefulWidget {
   final String artistId;
@@ -229,6 +230,51 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<void> _addToCalendar(Map<String, dynamic> data) async {
+    final idea = data['idea_description']?.toString() ?? 'Sesión de Tatuaje';
+    final part = data['body_part']?.toString() ?? 'Cuerpo';
+    final price = data['price_quote']?.toString() ?? '0';
+    final dateStr = data['booking_date']?.toString();
+    
+    if (dateStr == null || dateStr.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('La reserva no tiene una fecha válida')),
+        );
+      }
+      return;
+    }
+    
+    final startDate = DateTime.parse(dateStr);
+    // Asumimos 2 horas de duración por defecto
+    final endDate = startDate.add(const Duration(hours: 2));
+
+    final Event event = Event(
+      title: 'Tatuaje: $idea',
+      description: 'Zona: $part\nPrecio estimado: $price €\nGestión desde Inka App',
+      location: 'Estudio de Tatuajes',
+      startDate: startDate,
+      endDate: endDate,
+      iosParams: IOSParams(
+        reminder: const Duration(hours: 1),
+      ),
+      androidParams: AndroidParams(
+        emailInvites: [], // Lista de invitados si fuera necesario
+      ),
+    );
+
+    try {
+      await Add2Calendar.addEvent2Cal(event);
+    } catch (e) {
+      print('Error al agregar al calendario: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo abrir el calendario: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -410,7 +456,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 Text(
                    _formatTime(timestamp),
                   style: TextStyle(
-                    color: isMine ? Theme.of(context).colorScheme.onPrimary.withOpacity(0.7) : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: isMine ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                     fontSize: 12,
                   ),
                 ),
@@ -419,7 +465,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   Icon(
                     Icons.done_all,
                     size: 14,
-                    color: isRead ? Colors.blue[300] : Theme.of(context).colorScheme.onPrimary.withOpacity(0.5),
+                    color: isRead ? Colors.blue[300] : Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.5),
                   ),
                 ]
               ],
@@ -463,7 +509,7 @@ class _ChatScreenState extends State<ChatScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.5)),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -478,7 +524,7 @@ class _ChatScreenState extends State<ChatScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(color: Theme.of(context).colorScheme.background, borderRadius: BorderRadius.circular(8)),
-                child: Text(status.toUpperCase(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7), fontSize: 10)),
+                child: Text(status.toUpperCase(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 10)),
               )
             ],
           ),
@@ -565,6 +611,16 @@ class _ChatScreenState extends State<ChatScreen> {
                   )
               ] else ...[
                 Text('¡Trato cerrado!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: () => _addToCalendar(data),
+                  icon: const Icon(Icons.calendar_today, size: 18),
+                  label: const Text('Agregar al Calendario'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueGrey[800],
+                    foregroundColor: Colors.white,
+                  ),
+                ),
               ]
             ] else ...[
               Text('Esperando oferta del artista...', style: TextStyle(color: Theme.of(context).colorScheme.secondary, fontStyle: FontStyle.italic)),
