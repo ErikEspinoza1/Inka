@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, File, Form, UploadFile
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import database, models, schemas, auth
 import easyocr
 import shutil
 from datetime import datetime
-from utils.storage import upload_file_to_supabase
+from utils.storage import upload_file_to_supabase, delete_file_from_supabase
 import google.generativeai as genai
 from PIL import Image
 import io
@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 import base64
 import requests
 import json as json_lib
+from utils.ar_processor import generar_stencil_ar
 
 reader = easyocr.Reader(['es'], gpu=False)
 
@@ -204,8 +205,8 @@ def get_my_posts(
 
 @router.post("/me/posts", response_model=schemas.PostResponse)
 async def create_post(
-    description: str = "",
-    style_tag: str = "",
+    description: str = Form(""),
+    style_tag: str = Form(""),
     file: UploadFile = File(...),
     current_user: models.Profile = Depends(auth.get_current_user),
     db: Session = Depends(database.get_db)
@@ -223,11 +224,13 @@ async def create_post(
     filename = f"portfolio_{clean_shop_name}_{current_user.id}_{timestamp}.jpg"
     file_bytes = await file.read()
     
+    # Texto del artista (puede venir vacío)
+    texto_artista = f"{style_tag} {description}".strip()
+    
     # =======================================================
-    # 🕵️ PASO 1: GEMINI MULTIMODAL — Validación + Metadatos
-    # Un solo prompt que mata dos pájaros de un tiro:
-    #   - Filtra basura (perros, memes, paisajes)
-    #   - Genera keywords técnicas para el embedding
+    # 🕵️ PASO 1: GEMINI MULTIMODAL — Validación de imagen
+    #   + Moderación del texto del artista
+    #   + Generación de keywords para embedding
     # =======================================================
     api_key = os.getenv("GEMINI_API_KEY")
     texto_ia_embedding = ""  # Se llenará si Gemini aprueba la imagen
@@ -243,24 +246,39 @@ async def create_post(
             # 2. URL con el modelo Gemini 2.5 Flash
             url_vision = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
             
-            # 3. Prompt multimodal: validación + generación de metadatos en un solo disparo
+            # 3. Prompt multimodal: validación imagen + moderación texto + metadatos
+            #    Si el artista ha escrito texto, se lo pasamos a Gemini para moderarlo
+            bloque_texto = ""
+            if texto_artista:
+                bloque_texto = (
+                    f'\n\nAdemás, el artista ha escrito este texto para acompañar la imagen:\n'
+                    f'"""{texto_artista}"""\n'
+                    'Si este texto contiene insultos, contenido sexual explícito, spam, '
+                    'URLs sospechosas, contenido de odio o cualquier texto que no sea '
+                    'apropiado para una plataforma profesional de tatuajes, marca '
+                    '"texto_inapropiado" como true. Si es un texto normal y profesional '
+                    '(nombre de estilo, descripción del trabajo, etc.), marca "texto_inapropiado" como false.'
+                )
+            
             prompt_multimodal = (
-                "Eres un experto en tatuajes profesional. Analiza esta imagen y responde "
-                "ÚNICAMENTE con un JSON válido (sin formato Markdown, sin ```json, solo texto plano parseable). "
+                "Eres un experto en tatuajes profesional y moderador de contenido. "
+                "Analiza esta imagen y responde ÚNICAMENTE con un JSON válido "
+                "(sin formato Markdown, sin ```json, solo texto plano parseable). "
                 "El JSON debe tener exactamente esta estructura:\n"
-                '{"es_tatuaje": boolean, "descripcion_tecnica": "string"}\n\n'
-                "REGLAS:\n"
+                '{"es_tatuaje": boolean, "texto_inapropiado": boolean, "descripcion_tecnica": "string"}\n\n'
+                "REGLAS PARA LA IMAGEN:\n"
                 "- Si la imagen NO es un tatuaje real, ni un diseño de tatuaje, ni un boceto artístico "
                 '(es decir, es un perro, un paisaje, un meme, comida, una selfie, etc.), responde: '
-                '{"es_tatuaje": false, "descripcion_tecnica": ""}\n'
+                '{"es_tatuaje": false, "texto_inapropiado": false, "descripcion_tecnica": ""}\n'
                 "- Si la imagen SÍ es un tatuaje real, un diseño de tatuaje o un boceto artístico válido, "
-                'responde con "es_tatuaje": true y en "descripcion_tecnica" escribe una lista de '
+                '"es_tatuaje" debe ser true. En "descripcion_tecnica" escribe una lista de '
                 "aproximadamente 20 palabras clave en español separadas por comas. "
                 "Incluye: estilo artístico (ej: neotradicional, realismo, old school, japonés, blackwork), "
                 "sujeto principal (ej: león, rosa, calavera, dragón), "
                 "técnica (ej: puntillismo, línea fina, acuarela, dotwork), "
                 "posibles zonas del cuerpo (ej: brazo, antebrazo, espalda, pierna), "
                 "y elementos secundarios visibles (ej: flores, geometría, mandala, lettering, sombras)."
+                f"{bloque_texto}"
             )
             
             payload = {
@@ -297,18 +315,28 @@ async def create_post(
                 analisis = json_lib.loads(texto_limpio)
                 
                 es_tatuaje = analisis.get("es_tatuaje", False)
+                texto_inapropiado = analisis.get("texto_inapropiado", False)
                 descripcion_tecnica = analisis.get("descripcion_tecnica", "")
                 
                 print(f"🕵️ ¿Es tatuaje? {es_tatuaje}")
+                print(f"🚫 ¿Texto inapropiado? {texto_inapropiado}")
                 print(f"📝 Descripción técnica: {descripcion_tecnica}")
                 
+                # VALIDACIÓN 1: Imagen no es tatuaje
                 if not es_tatuaje:
                     raise HTTPException(
                         status_code=400, 
                         detail="Imagen rechazada: Nuestra IA ha detectado que no es un tatuaje."
                     )
                 
-                # ✅ Aprobada: guardar la descripción técnica para el embedding
+                # VALIDACIÓN 2: Texto del artista es inapropiado
+                if texto_inapropiado:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Texto rechazado: El título o descripción contiene contenido inapropiado. Modifícalo e inténtalo de nuevo."
+                    )
+                
+                # ✅ Todo aprobado: guardar la descripción técnica para el embedding
                 texto_ia_embedding = descripcion_tecnica
                 
             else:
@@ -329,22 +357,46 @@ async def create_post(
             raise HTTPException(status_code=500, detail="Error validando la imagen.")
     
     # =======================================================
-    # 2. Subir a Supabase (SÓLO LLEGA AQUÍ SI ES UN TATUAJE REAL)
+    # 2. Subir a Supabase la original
     # =======================================================
     public_url = upload_file_to_supabase(file_bytes, filename, folder="portfolio-artistas")
     if not public_url:
         raise HTTPException(status_code=500, detail="Failed to upload image")
+        
+    # =======================================================
+    # 🌟 NUEVO: GENERAR Y SUBIR STENCIL PARA AR
+    # =======================================================
+    ar_public_url = None
+    try:
+        print("🪄 Iniciando extracción de tatuaje para AR en segundo plano...")
+        ar_bytes = generar_stencil_ar(file_bytes)
+        
+        if ar_bytes:
+            ar_filename = f"ar_stencil_{current_user.id}_{timestamp}.png"
+            # Subimos el PNG transparente a una carpeta especial en Supabase
+            ar_public_url = upload_file_to_supabase(ar_bytes, ar_filename, folder="ar-stencils")
+            print(f"✅ Stencil AR subido: {ar_public_url}")
+    except Exception as e:
+        print(f"⚠️ Aviso: Falló la generación del Stencil AR. Error: {e}")
+        # No lanzamos HTTPException porque no queremos bloquear la subida del post normal
+        # simplemente se quedará sin versión AR.
     
     # =======================================================
-    # 3. CALCULAR EL EMBEDDING — Usando la descripción de la IA
-    # La IA analizó la imagen real, así que sus keywords son
-    # mucho más precisas que lo que escribiría el usuario.
+    # 3. CALCULAR EL EMBEDDING — Combinando IA + texto del artista
+    # La IA analizó la imagen real → keywords técnicas precisas
+    # El artista aporta contexto humano → título y descripción
+    # Juntos = embedding rico y completo para búsquedas
     # =======================================================
     vector_ia = None
     
-    if texto_ia_embedding.strip():
+    # Combinar: keywords de la IA + texto del artista (si existe)
+    texto_para_embedding = texto_ia_embedding
+    if texto_artista:
+        texto_para_embedding = f"{texto_ia_embedding}, {texto_artista}"
+    
+    if texto_para_embedding.strip():
         try:
-            print(f"🤖 Calculando embedding con texto de la IA: {texto_ia_embedding[:80]}...")
+            print(f"🤖 Calculando embedding: {texto_para_embedding[:100]}...")
             if not api_key:
                 raise Exception("🚨 No se encontró la GEMINI_API_KEY en el .env")
 
@@ -352,13 +404,13 @@ async def create_post(
             
             payload = {
                 "model": "models/gemini-embedding-001",
-                "content": {"parts": [{"text": texto_ia_embedding}]}
+                "content": {"parts": [{"text": texto_para_embedding}]}
             }
             respuesta = requests.post(url_embed, json=payload)
             
             if respuesta.status_code == 200:
                 vector_ia = respuesta.json()['embedding']['values'][:768]
-                print("✅ Embedding calculado con éxito a partir del análisis visual de la IA.")
+                print("✅ Embedding calculado (IA visual + texto artista).")
             else:
                  print(f"⚠️ Error de Gemini Embedding: {respuesta.text}")
         except Exception as e:
@@ -366,12 +418,13 @@ async def create_post(
 
     # =======================================================
     # 4. Crear post en Base de Datos
-    # description y style_tag del usuario se guardan para la UI,
-    # pero el vector viene del análisis visual de la IA.
+    # description y style_tag del artista se guardan para la UI,
+    # el vector combina análisis visual de la IA + texto humano.
     # =======================================================
     new_post = models.Post(
         artist_id=current_user.id,
         image_url=public_url,
+        ar_image_url=ar_public_url,
         description=description,
         style_tag=style_tag,
         embedding=vector_ia 
@@ -399,6 +452,14 @@ def delete_post(
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     
+    # 🧹 1. Borrar la foto original del Storage de Supabase
+    delete_file_from_supabase(post.image_url, bucket="portfolio-artistas")
+    
+    # 🧹 2. Borrar la foto AR (stencil) si existe
+    if hasattr(post, 'ar_image_url') and post.ar_image_url:
+        delete_file_from_supabase(post.ar_image_url, bucket="ar-stencils")
+    
+    # 🧹 3. Borrar la fila de la base de datos
     db.delete(post)
     db.commit()
     

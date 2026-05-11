@@ -115,6 +115,7 @@ class PostResponse(BaseModel):
     artist_id: UUID
     image_url: str
     description: Optional[str]
+    style_tag: Optional[str] = None
     created_at: datetime
     class Config:
         from_attributes = True

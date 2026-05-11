@@ -36,3 +36,24 @@ def upload_file_to_supabase(file_bytes, file_name, bucket="app-images", folder="
     except Exception as e:
         print(f"Error subiendo a Supabase: {e}")
         return None
+
+def delete_file_from_supabase(file_url: str, bucket: str = "portfolio-artistas"):
+    """Extrae el path del archivo de la URL pública y lo borra del bucket de Supabase."""
+    if not file_url:
+        return False
+    try:
+        # La URL pública tiene formato: .../storage/v1/object/public/bucket/folder/filename
+        # Extraemos todo lo que va después del nombre del bucket
+        parts = file_url.split(f"/{bucket}/")
+        if len(parts) < 2:
+            print(f"⚠️ No se pudo extraer el path del archivo de la URL: {file_url}")
+            return False
+        
+        file_path = parts[1]  # ej: "portfolio-artistas/archivo.jpg"
+        
+        response = supabase.storage.from_(bucket).remove([file_path])
+        print(f"🗑️ Archivo borrado de Supabase: {file_path}")
+        return True
+    except Exception as e:
+        print(f"⚠️ Error intentando borrar archivo de Supabase: {e}")
+        return False
