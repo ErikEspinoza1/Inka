@@ -35,7 +35,7 @@ class TattooPainter extends CustomPainter {
     if (tattooImage == null || startPoint == null || endPoint == null) return;
     if (absoluteImageSize.width == 0 || absoluteImageSize.height == 0) return;
 
-    // Escalado correcto según orientación del sensor
+    // --- 1. Escalado según orientación del sensor ---
     final bool isRotated = sensorOrientation == 90 || sensorOrientation == 270;
     final double scaleX = isRotated
         ? size.width  / absoluteImageSize.height
@@ -44,12 +44,13 @@ class TattooPainter extends CustomPainter {
         ? size.height / absoluteImageSize.width
         : size.height / absoluteImageSize.height;
 
-    // Coordenadas escaladas + espejo horizontal para cámara frontal
+    // --- 2. Coordenadas con efecto ESPEJO para cámara frontal ---
     double startX = size.width - (startPoint!.x * scaleX);
     double startY = startPoint!.y * scaleY;
     double endX   = size.width - (endPoint!.x * scaleX);
     double endY   = endPoint!.y * scaleY;
 
+    // --- 3. Cálculos de centro, ángulo y distancia ---
     final centerX  = startX + (endX - startX) * positionFactor;
     final centerY  = startY + (endY - startY) * positionFactor;
     final angle    = atan2(endY - startY, endX - startX) - rotationOffset + rotationManual;
@@ -57,41 +58,83 @@ class TattooPainter extends CustomPainter {
 
     if (distance < 10) return;
 
-    final double imgW      = tattooImage!.width.toDouble();
-    final double imgH      = tattooImage!.height.toDouble();
-    final double imageScale = (distance * scaleFactor) / imgW;
+    final double imgW = tattooImage!.width.toDouble();
+    final double imgH = tattooImage!.height.toDouble();
+    
+    // ARREGLO 1 (El tamaño): Calculamos la escala basándonos en la ALTURA (imgH)
+    // Así el tatuaje no se hace gigante si la imagen es estrecha.
+    final double imageScale = (distance * scaleFactor) / imgH;
+    final double drawnWidth = imgW * imageScale;
+    final double drawnHeight = imgH * imageScale;
 
+    // ARREGLO 2 (El borrón): Un solo filtro de multiplicación para integración en la piel
     final paint = Paint()
-      ..filterQuality = FilterQuality.high
+      ..filterQuality = FilterQuality.high // Mantiene la imagen HD nítida
       ..isAntiAlias   = true
-      ..color         = Colors.white.withOpacity(opacity)
       ..blendMode     = BlendMode.multiply;
 
     canvas.save();
     canvas.translate(centerX, centerY);
     canvas.rotate(angle);
-    canvas.scale(imageScale, imageScale);
 
-    canvas.drawImage(tattooImage!, Offset(-imgW / 2, -imgH / 2), paint);
+    // --- 4. DEFORMACIÓN CILÍNDRICA (Malla UV) ---
+    const int verticalSlices = 10;
+    const int horizontalVertices = 10;
 
-    // Sombra lateral para simular volumen 3D
-    final volumePaint = Paint()
-      ..blendMode = BlendMode.multiply
-      ..shader = ui.Gradient.linear(
-        Offset(-imgW / 2, 0),
-        Offset( imgW / 2, 0),
-        [
-          Colors.black.withOpacity(0.3),
-          Colors.transparent,
-          Colors.transparent,
-          Colors.black.withOpacity(0.3),
-        ],
-        [0.0, 0.2, 0.8, 1.0],
-      );
+    final double sliceWidth = drawnWidth / (horizontalVertices - 1);
+    final double sliceHeight = drawnHeight / verticalSlices;
 
-    canvas.drawRect(
-      Rect.fromLTWH(-imgW / 2, -imgH / 2, imgW, imgH),
-      volumePaint,
+    List<ui.Offset> positions = [];
+    List<ui.Offset> textureCoordinates = [];
+    List<ui.Color> colors = [];
+    List<int> indices = [];
+
+    for (int y = 0; y <= verticalSlices; y++) {
+      for (int x = 0; x < horizontalVertices; x++) {
+        final double normX = x / (horizontalVertices - 1);
+        final double normY = y / verticalSlices;
+
+        final double flatY = (-drawnHeight / 2) + (y * sliceHeight);
+
+        final double theta = (normX - 0.5) * pi;
+        final double distortedX = sin(theta) * (drawnWidth / 2);
+
+        // ARREGLO 3 (Sombra suave): Hacemos la sombra mucho más sutil (mínimo 80% de luz)
+        // para que no ensucie los bordes del tatuaje.
+        final double brightness = (cos(theta) + 1.0) / 2.0; 
+        final double intensity = 0.8 + (brightness * 0.2); 
+        
+        final int alphaValue = (opacity * 255).round();
+        final int colorV = (intensity * 255).round();
+
+        positions.add(ui.Offset(distortedX, flatY));
+        textureCoordinates.add(ui.Offset(normX * imgW, normY * imgH));
+        colors.add(ui.Color.fromARGB(alphaValue, colorV, colorV, colorV));
+      }
+    }
+
+    for (int y = 0; y < verticalSlices; y++) {
+      for (int x = 0; x < horizontalVertices - 1; x++) {
+        final int topLeft = (y * horizontalVertices) + x;
+        final int topRight = topLeft + 1;
+        final int bottomLeft = ((y + 1) * horizontalVertices) + x;
+        final int bottomRight = bottomLeft + 1;
+
+        indices.addAll([topLeft, topRight, bottomLeft]);
+        indices.addAll([topRight, bottomRight, bottomLeft]);
+      }
+    }
+
+    canvas.drawVertices(
+      ui.Vertices(
+        ui.VertexMode.triangles,
+        positions,
+        textureCoordinates: textureCoordinates,
+        colors: colors,
+        indices: indices,
+      ),
+      ui.BlendMode.modulate, 
+      paint,
     );
 
     canvas.restore();
@@ -99,12 +142,12 @@ class TattooPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant TattooPainter oldDelegate) {
-    return oldDelegate.startPoint        != startPoint        ||
-           oldDelegate.endPoint          != endPoint          ||
-           oldDelegate.positionFactor    != positionFactor    ||
-           oldDelegate.scaleFactor       != scaleFactor       ||
-           oldDelegate.rotationManual    != rotationManual    ||
-           oldDelegate.opacity           != opacity           ||
+    return oldDelegate.startPoint      != startPoint      ||
+           oldDelegate.endPoint        != endPoint        ||
+           oldDelegate.positionFactor  != positionFactor  ||
+           oldDelegate.scaleFactor     != scaleFactor     ||
+           oldDelegate.rotationManual  != rotationManual  ||
+           oldDelegate.opacity         != opacity         ||
            oldDelegate.sensorOrientation != sensorOrientation;
   }
 }

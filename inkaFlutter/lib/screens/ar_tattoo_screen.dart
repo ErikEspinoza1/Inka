@@ -9,15 +9,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:http/http.dart' as http; 
 
 import '../painters/tattoo_painter.dart';
 import '../utils/camera_utils.dart';
+import '../utils/one_euro_filter.dart'; // <-- One Euro Filter Import
 
 enum BodyZone { leftArm, rightArm, chest }
 enum ControlMode { size, position, rotation, opacity }
 
 class ArTattooScreen extends StatefulWidget {
-  // Opcional: si se pasa, usa esa imagen. Si no, usa el asset por defecto.
   final Uint8List? tattooBytes;
 
   const ArTattooScreen({super.key, this.tattooBytes});
@@ -30,7 +31,7 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
   CameraController? _controller;
   PoseDetector? _poseDetector;
   bool _isCameraInitialized = false;
-  bool _isProcessing = false;
+  bool _isProcessing = false; 
 
   BodyZone _selectedZone = BodyZone.leftArm;
   ControlMode _activeControl = ControlMode.size;
@@ -40,12 +41,14 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
   double _rotValue = 0.0;
   double _opacityValue = 0.9;
 
-  final List<PoseLandmark> _startBuffer = [];
-  final List<PoseLandmark> _endBuffer = [];
-  final int _bufferSize = 6;
-
-  PoseLandmark? _smoothStart;
-  PoseLandmark? _smoothEnd;
+  // --- NEW: Math Filters for Jitter Stabilization ---
+  // minCutoff: Reduces jitter at slow speeds.
+  // beta: Reduces lag at high speeds.
+  final OneEuroFilter _startFilter = OneEuroFilter(minCutoff: 0.5, beta: 0.01);
+  final OneEuroFilter _endFilter = OneEuroFilter(minCutoff: 0.5, beta: 0.01);
+  
+  PoseLandmark? _stabilizedStart;
+  PoseLandmark? _stabilizedEnd;
 
   ui.Image? _tattooImage;
   CameraDescription? _cameraDescription;
@@ -61,11 +64,20 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
   Future<void> _initializeAll() async {
     await Permission.camera.request();
 
-    // Cargar imagen desde bytes o desde asset
-    if (widget.tattooBytes != null) {
-      _tattooImage = await _loadUiImageFromBytes(widget.tattooBytes!);
-    } else {
+    try {
+      if (widget.tattooBytes != null) {
+        setState(() => _isProcessing = true);
+        
+        final transparentBytes = await _removeBackgroundOnServer(widget.tattooBytes!);
+        _tattooImage = await _loadUiImageFromBytes(transparentBytes);
+      } else {
+        _tattooImage = await _loadUiImage('assets/images/tattoo.png');
+      }
+    } catch (e) {
+      debugPrint("Error processing image on server: $e");
       _tattooImage = await _loadUiImage('assets/images/tattoo.png');
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
     }
 
     final options = PoseDetectorOptions(mode: PoseDetectionMode.stream);
@@ -74,7 +86,7 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
     final cameras = await availableCameras();
     if (cameras.isNotEmpty) {
       _cameraDescription = cameras.firstWhere(
-        (c) => c.lensDirection == CameraLensDirection.back,
+        (c) => c.lensDirection == CameraLensDirection.front,
         orElse: () => cameras.first,
       );
 
@@ -94,6 +106,28 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
       await _controller!.initialize();
       _controller!.startImageStream(_processCameraImage);
       if (mounted) setState(() => _isCameraInitialized = true);
+    }
+  }
+
+  Future<Uint8List> _removeBackgroundOnServer(Uint8List originalBytes) async {
+    // 172.17.33.7 is your computer's local IP on the network
+    final uri = Uri.parse('http://172.17.33.7:8000/api/remove-background'); 
+    
+    var request = http.MultipartRequest('POST', uri);
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file', 
+        originalBytes, 
+        filename: 'tattoo_design.jpg',
+      ),
+    );
+
+    var response = await request.send();
+
+    if (response.statusCode == 200) {
+      return await response.stream.toBytes();
+    } else {
+      throw Exception('Server failed to remove background: ${response.statusCode}');
     }
   }
 
@@ -122,20 +156,9 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
     }
   }
 
-  PoseLandmark _calculateAverage(List<PoseLandmark> buffer) {
-    double totalX = 0; double totalY = 0;
-    for (var mark in buffer) { totalX += mark.x; totalY += mark.y; }
-    return PoseLandmark(
-      type: buffer.first.type,
-      x: totalX / buffer.length,
-      y: totalY / buffer.length,
-      z: buffer.first.z,
-      likelihood: 1.0,
-    );
-  }
-
   Future<void> _processCameraImage(CameraImage image) async {
     if (_isProcessing || _poseDetector == null) return;
+    
     _isProcessing = true;
     try {
       final inputImage = CameraUtils.convertCameraImageToInputImage(image, _cameraDescription!);
@@ -148,25 +171,47 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
         final rawStart = pose.landmarks[startType];
         final rawEnd = pose.landmarks[endType];
 
-        if (rawStart != null && rawEnd != null && rawStart.likelihood > 0.6) {
-          _startBuffer.add(rawStart);
-          _endBuffer.add(rawEnd);
-          if (_startBuffer.length > _bufferSize) _startBuffer.removeAt(0);
-          if (_endBuffer.length > _bufferSize) _endBuffer.removeAt(0);
+        if (rawStart != null && rawEnd != null && rawStart.likelihood > 0.3) {
+          
+          final int timestamp = DateTime.now().millisecondsSinceEpoch;
 
-          if (mounted) setState(() {
-            _smoothStart = _calculateAverage(_startBuffer);
-            _smoothEnd = _calculateAverage(_endBuffer);
-          });
+          // Process raw coordinates through the One Euro Filter
+          final startOffset = _startFilter.filter(Offset(rawStart.x, rawStart.y), timestamp);
+          final endOffset = _endFilter.filter(Offset(rawEnd.x, rawEnd.y), timestamp);
+
+          if (mounted) {
+            setState(() {
+              // Re-pack into PoseLandmark to keep compatibility with TattooPainter
+              _stabilizedStart = PoseLandmark(
+                type: rawStart.type,
+                x: startOffset.dx,
+                y: startOffset.dy,
+                z: rawStart.z,
+                likelihood: rawStart.likelihood,
+              );
+              _stabilizedEnd = PoseLandmark(
+                type: rawEnd.type,
+                x: endOffset.dx,
+                y: endOffset.dy,
+                z: rawEnd.z,
+                likelihood: rawEnd.likelihood,
+              );
+            });
+          }
         }
       } else {
-        if (_startBuffer.isNotEmpty) {
-          _startBuffer.clear(); _endBuffer.clear();
-          if (mounted) setState(() { _smoothStart = null; _smoothEnd = null; });
+        // Reset filters if we lose track of the body to prevent ghosting
+        _startFilter.reset();
+        _endFilter.reset();
+        if (mounted) {
+          setState(() { 
+            _stabilizedStart = null; 
+            _stabilizedEnd = null; 
+          });
         }
       }
     } catch (e) {
-      debugPrint("Error: $e");
+      debugPrint("Error analyzing pose: $e");
     } finally {
       _isProcessing = false;
     }
@@ -175,8 +220,10 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
   void _changeZone(BodyZone newZone) {
     setState(() {
       _selectedZone = newZone;
-      _startBuffer.clear(); _endBuffer.clear();
-      _smoothStart = null; _smoothEnd = null;
+      _startFilter.reset();
+      _endFilter.reset();
+      _stabilizedStart = null;
+      _stabilizedEnd = null;
       _posValue = 0.5;
     });
   }
@@ -190,6 +237,26 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isProcessing && !_isCameraInitialized) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Colors.tealAccent),
+              SizedBox(height: 20),
+              Text(
+                "Processing tattoo with AI...\nRemoving background",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (!_isCameraInitialized || _controller == null) {
       return const Scaffold(
         backgroundColor: Colors.black,
@@ -209,8 +276,8 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
             return CustomPaint(
               painter: TattooPainter(
                 tattooImage: _tattooImage,
-                startPoint: _smoothStart,
-                endPoint: _smoothEnd,
+                startPoint: _stabilizedStart,
+                endPoint: _stabilizedEnd,
                 absoluteImageSize: _inputImageSize,
                 scaleFactor: _sizeValue,
                 positionFactor: _posValue,
@@ -222,6 +289,35 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
               size: Size(constraints.maxWidth, constraints.maxHeight),
             );
           }),
+
+          // --- VISUAL DETECTION ALERT ---
+          Positioned(
+            top: 100,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _stabilizedStart != null 
+                      ? Colors.green.withOpacity(0.8) 
+                      : Colors.redAccent.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _stabilizedStart != null
+                      ? "✅ Zone detected and tracking"
+                      : "❌ Searching for body part...",
+                  style: const TextStyle(
+                    color: Colors.white, 
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+          ),
 
           Positioned(
             bottom: 0, left: 0, right: 0,
@@ -237,10 +333,10 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildModeIcon(Icons.zoom_out_map, "Tamaño", ControlMode.size),
-                      _buildModeIcon(Icons.linear_scale, "Posición", ControlMode.position),
-                      _buildModeIcon(Icons.rotate_right, "Rotar", ControlMode.rotation),
-                      _buildModeIcon(Icons.opacity, "Opacidad", ControlMode.opacity),
+                      _buildModeIcon(Icons.zoom_out_map, "Size", ControlMode.size),
+                      _buildModeIcon(Icons.linear_scale, "Position", ControlMode.position),
+                      _buildModeIcon(Icons.rotate_right, "Rotate", ControlMode.rotation),
+                      _buildModeIcon(Icons.opacity, "Opacity", ControlMode.opacity),
                     ],
                   ),
                   const Divider(color: Colors.white24, height: 20),
@@ -257,11 +353,11 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildZoneButton("Izq.", Icons.arrow_back, BodyZone.leftArm),
+                        _buildZoneButton("Left", Icons.arrow_back, BodyZone.leftArm),
                         const SizedBox(width: 10),
-                        _buildZoneButton("Pecho", Icons.accessibility_new, BodyZone.chest),
+                        _buildZoneButton("Chest", Icons.accessibility_new, BodyZone.chest),
                         const SizedBox(width: 10),
-                        _buildZoneButton("Der.", Icons.arrow_forward, BodyZone.rightArm),
+                        _buildZoneButton("Right", Icons.arrow_forward, BodyZone.rightArm),
                       ],
                     ),
                   ),
@@ -304,10 +400,10 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
 
   String _getSliderLabel() {
     switch (_activeControl) {
-      case ControlMode.size:     return " Escala ";
-      case ControlMode.position: return " Mover ";
-      case ControlMode.rotation: return " Girar ";
-      case ControlMode.opacity:  return " Tinta ";
+      case ControlMode.size:     return " Scale ";
+      case ControlMode.position: return " Move ";
+      case ControlMode.rotation: return " Rotate ";
+      case ControlMode.opacity:  return " Ink ";
     }
   }
 

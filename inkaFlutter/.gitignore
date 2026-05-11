@@ -43,15 +43,3 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-
-
-.env
-
-# Unity project (very large, export only unityLibrary)
-unity/
-
-# Build artifacts
-android/build/
-
-# VS Code settings
-.vscode/
