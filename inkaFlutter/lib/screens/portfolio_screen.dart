@@ -440,20 +440,11 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
                             // Botón eliminar
                             Positioned(
-                              top: 6,
-                              right: 6,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.5),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: IconButton(
-                                  icon: Icon(Icons.delete_outline, 
-                                    color: Theme.of(context).colorScheme.error, size: 20),
-                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                                  padding: const EdgeInsets.all(4),
-                                  onPressed: () => _deletePost(post['id']),
-                                ),
+                              top: 8,
+                              right: 8,
+                              child: IconButton(
+                                icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+                                onPressed: () => _deletePost(post['id']),
                               ),
                             ),
                           ],
