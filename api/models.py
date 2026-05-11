@@ -80,10 +80,8 @@ class Post(Base):
     image_url = Column(String, nullable=False)
     description = Column(Text)
     style_tag = Column(String)
-    
-    # 👇 AÑADE ESTA LÍNEA 👇
-    embedding = Column(Vector(768), nullable=True)
-    
+    ar_image_url = Column(String, nullable=True)
+    embedding = Column(Vector(768), nullable=True)    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     artist = relationship("Artist", back_populates="posts")
 
