@@ -13,12 +13,14 @@ class MenuInicio extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 60),
                 // Título principal
                 Text(
                   'Welcome to Inka',
                   style: Theme.of(context).textTheme.displaySmall,
+                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12), 
                 // Subtítulo
@@ -27,6 +29,7 @@ class MenuInicio extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                   ),
+                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 50),
                 // Primera tarjeta - Buscar tatuajes
@@ -60,26 +63,6 @@ class MenuInicio extends StatelessWidget {
                 ),
                 const SizedBox(height: 40), // He cambiado Spacer() por SizedBox porque Spacer() no funciona bien dentro de un Scroll
                 // Link inferior
-                TextButton(
-                  onPressed: () {},
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'View New Components',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.arrow_forward,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 16,
-                      ),
-                    ],
-                  ),
-                ),
                 const SizedBox(height: 30),
               ],
             ),

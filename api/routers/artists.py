@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, File, Form, Upload
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import database, models, schemas, auth
-import easyocr
 import shutil
 from datetime import datetime
 from utils.storage import upload_file_to_supabase, delete_file_from_supabase
@@ -15,8 +14,12 @@ import base64
 import requests
 import json as json_lib
 from utils.ar_processor import generar_stencil_ar
+import hashlib
 
-reader = easyocr.Reader(['es'], gpu=False)
+# CONFIGURACIÓN DE GEMINI
+api_key = os.getenv("GEMINI_API_KEY")
+if api_key:
+    genai.configure(api_key=api_key)
 
 router = APIRouter(prefix="/artists", tags=["Artists"])
 
@@ -124,45 +127,79 @@ async def upload_certificate(
     if not artist:
         raise HTTPException(status_code=404, detail="Perfil de artista no encontrado")
 
-    # 2. Generar nombre único: ShopName_ID_Timestamp.jpg
-    # Limpiamos el nombre de espacios para evitar problemas en URL
+    # 2. Generar nombre descriptivo pero único por ID (sin timestamp para permitir sobrescritura)
     clean_shop_name = artist.shop_name.replace(" ", "_") 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{clean_shop_name}_{artist.id}_{timestamp}.jpg"
+    filename = f"{clean_shop_name}_{artist.id}.jpg"
     
-    # 3. Leer el archivo en memoria
+    # 3. Leer el archivo en memoria y calcular HASH para evitar duplicados
     file_bytes = await file.read()
+    cert_hash = hashlib.sha256(file_bytes).hexdigest()
+
+    # Comprobar si otro artista ya tiene este certificado registrado
+    duplicate_artist = db.query(models.Artist).filter(
+        models.Artist.certificate_hash == cert_hash,
+        models.Artist.id != current_user.id
+    ).first()
+
+    if duplicate_artist:
+        raise HTTPException(
+            status_code=400, 
+            detail="Error: Este certificado ya está registrado por otro artista. El uso de documentos ajenos está prohibido."
+        )
 
     # ====================================================
-    # 🤖 EL BOT: VERIFICACIÓN CON IA (EasyOCR)
+    # 🤖 EL BOT: VERIFICACIÓN CON IA (GEMINI 1.5 FLASH)
     # ====================================================
     print("🤖 IA Analizando documento...")
+    is_ai_verified = False
+    verification_status = "Pendiente Revisión"
+    
     try:
-        # EasyOCR lee directamente los bytes
-        result = reader.readtext(file_bytes, detail=0) # detail=0 devuelve solo el texto
-        full_text = " ".join(result).upper() # Convertimos todo a mayúsculas
-        print(f"Texto detectado: {full_text[:100]}...") # Log para ver qué lee
-
-        # PALABRAS CLAVE PARA APROBAR
-        keywords = ["CERTIFICADO", "HIGIENICO", "SANITARIO", "APTO", "CURSO", "TITULO"]
+        img = Image.open(io.BytesIO(file_bytes))
+        model = genai.GenerativeModel('gemini-flash-latest')
         
-        # Lógica: Si encuentra al menos 2 palabras clave, lo damos por válido
-        matches = sum(1 for word in keywords if word in full_text)
-        is_ai_verified = matches >= 1 
+        prompt_cert = (
+            "Analiza esta imagen y determina si es un certificado oficial de Higiénico Sanitario "
+            "válido para profesionales del tatuaje, piercing o micropigmentación. "
+            "Responde ÚNICAMENTE con un JSON válido (sin formato Markdown, solo texto plano). "
+            "El JSON debe tener esta estructura:\n"
+            '{"es_valido": boolean, "explicacion": "string"}\n\n'
+            "REGLAS:\n"
+            "- 'es_valido' es true solo si el documento es claramente un certificado de higiene sanitaria.\n"
+            "- En 'explicacion' justifica MUY brevemente (máximo 5-7 palabras). Ejemplo: 'Es una foto de un coche' o 'Certificado sanitario válido'."
+        )
         
-        verification_status = "Verificado (IA)" if is_ai_verified else "Pendiente Revisión"
+        response = model.generate_content([prompt_cert, img])
+        texto_ia = response.text.strip()
+        
+        # Limpiar markdown si Gemini lo añade
+        if texto_ia.startswith("```"):
+            texto_ia = texto_ia.split("\n", 1)[-1].rsplit("\n", 1)[0].strip()
+        if texto_ia.startswith("json"):
+            texto_ia = texto_ia[4:].strip()
+            
+        analisis = json_lib.loads(texto_ia)
+        is_ai_verified = analisis.get("es_valido", False)
+        explicacion = analisis.get("explicacion", "")
+        
+        print(f"🕵️ Resultado Gemini: {is_ai_verified} - {explicacion}")
+        verification_status = "Verificado (IA)" if is_ai_verified else f"Rechazado (IA): {explicacion}"
         
     except Exception as e:
-        print(f"Error IA: {e}")
-        is_ai_verified = False # Si falla la IA, no bloqueamos, solo lo dejamos pendiente
+        print(f"Error Gemini: {e}")
         verification_status = "Error IA - Pendiente"
 
     # ====================================================
-    # 4. SUBIR A SUPABASE
+    # 4. LIMPIEZA Y SUBIDA A SUPABASE
     # ====================================================
-    # (Aquí deberías llamar a la función del PASO 2. Te pongo el código inline por si acaso)
-    # Asumiendo que has instanciado 'supabase' client aquí arriba como te expliqué antes:
-    from utils.storage import upload_file_to_supabase # Asegúrate de importar esto
+    # Borrar el certificado antiguo si el nombre ha cambiado o para asegurar limpieza
+    if artist.business_document_url:
+        # Si el nombre del archivo actual es distinto al nuevo, lo borramos.
+        # Si es el mismo, el 'upsert' de la función de subida se encargará de sobrescribirlo.
+        if filename not in artist.business_document_url:
+            print(f"🗑️ El nombre ha cambiado o es necesario limpiar. Borrando anterior...")
+            delete_file_from_supabase(artist.business_document_url)
+
     public_url = upload_file_to_supabase(file_bytes, filename)
 
     if not public_url:
@@ -170,13 +207,11 @@ async def upload_certificate(
 
     # 5. ACTUALIZAR BASE DE DATOS
     artist.business_document_url = public_url
+    artist.certificate_hash = cert_hash # Guardamos el hash para futuras comprobaciones
     
-    # OPCIONAL: ¿Quieres que se verifique automáticamente en la app?
-    # Si la IA dice que sí, ponemos is_verified = True.
-    # Si prefieres ser cauto, déjalo en False y que un admin lo revise, 
-    # pero dijiste que no querías hacer esperar a las empresas:
-    if is_ai_verified:
-        artist.is_verified = True
+    # Actualizamos el estado de verificación: si la IA dice que no vale,
+    # el artista deja de estar verificado.
+    artist.is_verified = is_ai_verified
     
     db.commit()
     
@@ -232,22 +267,16 @@ async def create_post(
     #   + Moderación del texto del artista
     #   + Generación de keywords para embedding
     # =======================================================
-    api_key = os.getenv("GEMINI_API_KEY")
     texto_ia_embedding = ""  # Se llenará si Gemini aprueba la imagen
     
     if api_key:
         print("🔍 Pasando filtro Anti-Basura + Análisis Multimodal de Gemini...")
         try:
-            # 1. Convertimos la imagen a Base64
-            base64_image = base64.b64encode(file_bytes).decode('utf-8')
-            # Flutter a veces envía 'application/octet-stream' — Gemini lo rechaza
-            mime_type = file.content_type if file.content_type and file.content_type.startswith("image/") else "image/jpeg"
+            img = Image.open(io.BytesIO(file_bytes))
+            model = genai.GenerativeModel('gemini-flash-latest')
             
-            # 2. URL con el modelo Gemini 2.5 Flash
-            url_vision = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-            
-            # 3. Prompt multimodal: validación imagen + moderación texto + metadatos
-            #    Si el artista ha escrito texto, se lo pasamos a Gemini para moderarlo
+            # Prompt multimodal: validación imagen + moderación texto + metadatos
+            # Si el artista ha escrito texto, se lo pasamos a Gemini para moderarlo
             bloque_texto = ""
             if texto_artista:
                 bloque_texto = (
@@ -281,79 +310,45 @@ async def create_post(
                 f"{bloque_texto}"
             )
             
-            payload = {
-                "contents": [{
-                    "parts": [
-                        {"text": prompt_multimodal},
-                        {
-                            "inline_data": {
-                                "mime_type": mime_type,
-                                "data": base64_image
-                            }
-                        }
-                    ]
-                }]
-            }
+            response = model.generate_content([prompt_multimodal, img])
+            texto_ia = response.text.strip()
             
-            # 4. Disparamos la petición
-            respuesta = requests.post(url_vision, json=payload)
+            # Limpiar markdown si Gemini lo añade
+            if texto_ia.startswith("```"):
+                texto_ia = texto_ia.split("\n", 1)[-1].rsplit("\n", 1)[0].strip()
+            if texto_ia.startswith("json"):
+                texto_ia = texto_ia[4:].strip()
+                
+            analisis = json_lib.loads(texto_ia)
+            es_tatuaje = analisis.get("es_tatuaje", False)
+            texto_inapropiado = analisis.get("texto_inapropiado", False)
+            descripcion_tecnica = analisis.get("descripcion_tecnica", "")
             
-            if respuesta.status_code == 200:
-                datos = respuesta.json()
-                texto_crudo = datos['candidates'][0]['content']['parts'][0]['text'].strip()
-                print(f"🧠 Respuesta cruda de Gemini: {texto_crudo}")
-                
-                # Limpiar posible formato markdown que Gemini añade a veces
-                texto_limpio = texto_crudo
-                if texto_limpio.startswith("```"):
-                    texto_limpio = texto_limpio.split("\n", 1)[-1]  # Quita la primera línea ```json
-                if texto_limpio.endswith("```"):
-                    texto_limpio = texto_limpio[:-3]  # Quita el ``` final
-                texto_limpio = texto_limpio.strip()
-                
-                # Parsear el JSON
-                analisis = json_lib.loads(texto_limpio)
-                
-                es_tatuaje = analisis.get("es_tatuaje", False)
-                texto_inapropiado = analisis.get("texto_inapropiado", False)
-                descripcion_tecnica = analisis.get("descripcion_tecnica", "")
-                
-                print(f"🕵️ ¿Es tatuaje? {es_tatuaje}")
-                print(f"🚫 ¿Texto inapropiado? {texto_inapropiado}")
-                print(f"📝 Descripción técnica: {descripcion_tecnica}")
-                
-                # VALIDACIÓN 1: Imagen no es tatuaje
-                if not es_tatuaje:
-                    raise HTTPException(
-                        status_code=400, 
-                        detail="Imagen rechazada: Nuestra IA ha detectado que no es un tatuaje."
-                    )
-                
-                # VALIDACIÓN 2: Texto del artista es inapropiado
-                if texto_inapropiado:
-                    raise HTTPException(
-                        status_code=400,
-                        detail="Texto rechazado: El título o descripción contiene contenido inapropiado. Modifícalo e inténtalo de nuevo."
-                    )
-                
-                # ✅ Todo aprobado: guardar la descripción técnica para el embedding
-                texto_ia_embedding = descripcion_tecnica
-                
-            else:
-                # Si Google falla, bloqueamos por seguridad
-                print(f"⚠️ Error en la API de Gemini: {respuesta.text}")
+            print(f"🕵️ ¿Es tatuaje? {es_tatuaje}")
+            print(f"🚫 ¿Texto inapropiado? {texto_inapropiado}")
+            print(f"📝 Descripción técnica: {descripcion_tecnica}")
+            
+            # VALIDACIÓN 1: Imagen no es tatuaje
+            if not es_tatuaje:
                 raise HTTPException(
-                    status_code=500, 
-                    detail="Error temporal en el sistema de validación. Inténtalo de nuevo."
+                    status_code=400, 
+                    detail="Imagen rechazada: Nuestra IA ha detectado que no es un tatuaje."
                 )
+            
+            # VALIDACIÓN 2: Texto del artista es inapropiado
+            if texto_inapropiado:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Texto rechazado: El título o descripción contiene contenido inapropiado. Modifícalo e inténtalo de nuevo."
+                )
+            
+            # ✅ Todo aprobado: guardar la descripción técnica para el embedding
+            texto_ia_embedding = descripcion_tecnica
                 
         except HTTPException:
-            raise  # Lanza el error exacto al móvil (400 o 500)
-        except json_lib.JSONDecodeError as e:
-            print(f"⚠️ Gemini devolvió un JSON inválido: {e}")
-            raise HTTPException(status_code=500, detail="Error procesando la validación. Inténtalo de nuevo.")
+            raise
         except Exception as e:
-            print(f"⚠️ Error general en el filtro: {e}")
+            print(f"⚠️ Error en el filtro Gemini: {e}")
             raise HTTPException(status_code=500, detail="Error validando la imagen.")
     
     # =======================================================
@@ -364,7 +359,7 @@ async def create_post(
         raise HTTPException(status_code=500, detail="Failed to upload image")
         
     # =======================================================
-    # 🌟 NUEVO: GENERAR Y SUBIR STENCIL PARA AR
+    # 🌟 GENERAR Y SUBIR STENCIL PARA AR
     # =======================================================
     ar_public_url = None
     try:
@@ -397,22 +392,13 @@ async def create_post(
     if texto_para_embedding.strip():
         try:
             print(f"🤖 Calculando embedding: {texto_para_embedding[:100]}...")
-            if not api_key:
-                raise Exception("🚨 No se encontró la GEMINI_API_KEY en el .env")
-
-            url_embed = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key={api_key}"
-            
-            payload = {
-                "model": "models/gemini-embedding-001",
-                "content": {"parts": [{"text": texto_para_embedding}]}
-            }
-            respuesta = requests.post(url_embed, json=payload)
-            
-            if respuesta.status_code == 200:
-                vector_ia = respuesta.json()['embedding']['values'][:768]
-                print("✅ Embedding calculado (IA visual + texto artista).")
-            else:
-                 print(f"⚠️ Error de Gemini Embedding: {respuesta.text}")
+            response = genai.embed_content(
+                model="models/gemini-embedding-001",
+                content=texto_para_embedding,
+                task_type="retrieval_document"
+            )
+            vector_ia = response['embedding'][:768]
+            print("✅ Embedding calculado (IA visual + texto artista).")
         except Exception as e:
             print(f"⚠️ Aviso: Falló el embedding. Error: {e}")
 
@@ -435,6 +421,7 @@ async def create_post(
     db.refresh(new_post)
     
     return new_post
+
 @router.delete("/me/posts/{post_id}")
 def delete_post(
     post_id: str,

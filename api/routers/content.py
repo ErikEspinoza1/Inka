@@ -41,7 +41,7 @@ def validar_imagen_tatuaje(image_url: str) -> bool:
         img = Image.open(io.BytesIO(respuesta_img.content))
         
         # Llamamos al modelo ultrarrápido de visión
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-flash-latest')
         
         prompt = """
         Eres un moderador estricto para una aplicación profesional de tatuajes.

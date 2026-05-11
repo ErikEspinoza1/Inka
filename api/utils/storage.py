@@ -27,7 +27,10 @@ def upload_file_to_supabase(file_bytes, file_name, bucket="app-images", folder="
         res = supabase.storage.from_(bucket).upload(
             path=path,
             file=file_bytes,
-            file_options={"content-type": "image/jpeg"}
+            file_options={
+                "content-type": "image/jpeg",
+                "upsert": "true"  # Sobrescribir si el archivo ya existe
+            }
         )
         
         # Obtener la URL pública
@@ -37,23 +40,35 @@ def upload_file_to_supabase(file_bytes, file_name, bucket="app-images", folder="
         print(f"Error subiendo a Supabase: {e}")
         return None
 
-def delete_file_from_supabase(file_url: str, bucket: str = "portfolio-artistas"):
-    """Extrae el path del archivo de la URL pública y lo borra del bucket de Supabase."""
+def delete_file_from_supabase(file_url: str, bucket: str = "app-images"):
+    """
+    Extrae la ruta del archivo de una URL pública de Supabase y lo elimina.
+    Funciona con cualquier bucket (app-images, portfolio-artistas, ar-stencils, etc.)
+    """
     if not file_url:
         return False
     try:
-        # La URL pública tiene formato: .../storage/v1/object/public/bucket/folder/filename
-        # Extraemos todo lo que va después del nombre del bucket
+        # Estrategia 1: Buscar por /public/bucket/ (formato estándar de Supabase)
+        token = f"/public/{bucket}/"
+        if token in file_url:
+            ruta_archivo = file_url.split(token)[1]
+            # Limpiar posibles parámetros de query (como ?t=12345)
+            ruta_archivo = ruta_archivo.split('?')[0]
+            
+            supabase.storage.from_(bucket).remove([ruta_archivo])
+            print(f"🗑️ Archivo eliminado del Storage: {ruta_archivo}")
+            return True
+        
+        # Estrategia 2: Buscar por /bucket/ (fallback si la URL tiene otro formato)
         parts = file_url.split(f"/{bucket}/")
-        if len(parts) < 2:
-            print(f"⚠️ No se pudo extraer el path del archivo de la URL: {file_url}")
-            return False
+        if len(parts) >= 2:
+            ruta_archivo = parts[1].split('?')[0]
+            supabase.storage.from_(bucket).remove([ruta_archivo])
+            print(f"🗑️ Archivo eliminado del Storage (fallback): {ruta_archivo}")
+            return True
         
-        file_path = parts[1]  # ej: "portfolio-artistas/archivo.jpg"
-        
-        response = supabase.storage.from_(bucket).remove([file_path])
-        print(f"🗑️ Archivo borrado de Supabase: {file_path}")
-        return True
+        print(f"⚠️ No se pudo extraer el path del archivo de la URL: {file_url}")
+        return False
     except Exception as e:
-        print(f"⚠️ Error intentando borrar archivo de Supabase: {e}")
+        print(f"⚠️ Error eliminando archivo del Storage: {e}")
         return False

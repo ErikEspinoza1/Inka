@@ -269,10 +269,10 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                 
                 const SizedBox(height: 16),
                 
-                // ZONA DE CARGA DE CERTIFICADO
                 Container(
                   width: double.infinity,
-                  height: 180, 
+                  constraints: const BoxConstraints(minHeight: 180),
+                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(12),
