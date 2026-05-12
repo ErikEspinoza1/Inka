@@ -103,9 +103,11 @@ class _ChatScreenState extends State<ChatScreen> {
     // Enviar mensaje a la API
     final success = await _authService.sendMessageToArtist(widget.artistId, content);
     if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error enviando mensaje'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error enviando mensaje'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -166,14 +168,18 @@ class _ChatScreenState extends State<ChatScreen> {
       
       final success = await _authService.sendMessageToArtist(widget.artistId, jsonMsg);
       if (!success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error enviando imagen'), backgroundColor: Colors.red),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error enviando imagen'), backgroundColor: Colors.red),
+          );
+        }
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error subiendo imagen'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error subiendo imagen'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -202,14 +208,18 @@ class _ChatScreenState extends State<ChatScreen> {
 
     final success = await _authService.updateBooking(bookingId, updateData);
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Propuesta enviada'), backgroundColor: Colors.green),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Propuesta enviada'), backgroundColor: Colors.green),
+        );
+      }
       _loadMessages(); // Recargar para ver el nuevo mensaje
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al enviar propuesta'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al enviar propuesta'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -219,14 +229,18 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!_isArtist) 'client_accepted': true,
     });
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Propuesta aceptada'), backgroundColor: Colors.green),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Propuesta aceptada'), backgroundColor: Colors.green),
+        );
+      }
       _loadMessages();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al aceptar'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al aceptar'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -523,7 +537,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: Theme.of(context).colorScheme.background, borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(8)),
                 child: Text(status.toUpperCase(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 10)),
               )
             ],
@@ -552,7 +566,7 @@ class _ChatScreenState extends State<ChatScreen> {
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(color: Theme.of(context).colorScheme.background, borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(8)),
                 child: Text(
                   selectedDate != null ? '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}' : 'Seleccionar fecha',
                 ),
@@ -593,7 +607,7 @@ class _ChatScreenState extends State<ChatScreen> {
             const Divider(height: 24),
             
             if (price != null) ...[
-              Text('${price} €', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 22, fontWeight: FontWeight.bold)),
+              Text('$price €', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               if (status != 'aceptado') ...[
                 if (!_isArtist && !clientAcc)
@@ -610,7 +624,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: const Text('Confirmar Trato'),
                   )
               ] else ...[
-                Text('¡Trato cerrado!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                const Text('¡Trato cerrado!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
                   onPressed: () => _addToCalendar(data),

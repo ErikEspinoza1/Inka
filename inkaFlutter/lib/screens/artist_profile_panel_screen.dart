@@ -70,6 +70,7 @@ class _ArtistProfilePanelScreenState extends State<ArtistProfilePanelScreen> {
                       // Información del perfil
                       _infoTile('Nombre del Estudio', _profileData!['shop_name'] ?? 'No especificado'),
                       _infoTile('Instagram', _profileData!['instagram_handle'] ?? 'No especificado'),
+                      _infoTile('CIF / DNI', _profileData!['business_license_id'] ?? 'No especificado'),
                       _infoTile('Biografía', _profileData!['bio'] ?? 'No especificada'),
                       _infoTile('Dirección', _profileData!['address'] ?? 'No especificada'),
                       _infoTile('Estado de Verificación',

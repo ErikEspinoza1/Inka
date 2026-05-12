@@ -19,6 +19,7 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
   final TextEditingController _nameCtrl = TextEditingController(); 
   final TextEditingController _specialtyCtrl = TextEditingController();
   final TextEditingController _addressCtrl = TextEditingController();
+  final TextEditingController _licenseCtrl = TextEditingController();
 
   bool _isLogin = true;
   bool _isLoading = false;
@@ -30,6 +31,7 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
     final shopName = _nameCtrl.text.trim();
     final specialty = _specialtyCtrl.text.trim();
     final address = _addressCtrl.text.trim();
+    final licenseId = _licenseCtrl.text.trim();
 
     // 2. Validaciones básicas
     if (email.isEmpty || pass.isEmpty) {
@@ -63,8 +65,8 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
       // ===========================
       // LÓGICA DE REGISTRO ARTISTA
       // ===========================
-      if (shopName.isEmpty || specialty.isEmpty || address.isEmpty) {
-        _showError('Nombre, Especialidad y Dirección son obligatorios');
+      if (shopName.isEmpty || specialty.isEmpty || address.isEmpty || licenseId.isEmpty) {
+        _showError('Nombre, Especialidad, Dirección y CIF/DNI son obligatorios');
         setState(() => _isLoading = false);
         return;
       }
@@ -80,7 +82,7 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
           lng = locations.first.longitude;
         }
       } catch (e) {
-        print("Error geocoding: $e");
+        debugPrint("Error geocoding: $e");
       }
 
       // Llamada al servicio
@@ -92,6 +94,7 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
         address: address,
         lat: lat,
         lng: lng,
+        businessLicenseId: licenseId,
       );
 
       if (success) {
@@ -108,18 +111,22 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
     final data = await _authService.getArtistProfile();
     if (data != null && data['is_verified'] == true) {
       // Verificado: ir a pantalla principal
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const ArtistHomeScreen()),
-        (route) => false,
-      );
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const ArtistHomeScreen()),
+          (route) => false,
+        );
+      }
     } else {
       // No verificado: ir a editar perfil para subir certificado
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const ArtistProfileScreen()),
-        (route) => false,
-      );
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const ArtistProfileScreen()),
+          (route) => false,
+        );
+      }
     }
   }
 
@@ -156,24 +163,33 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: _specialtyCtrl,
-                  decoration: InputDecoration(labelText: 'Estilo (ej. Realismo)', prefixIcon: const Icon(Icons.brush)),
+                  decoration: const InputDecoration(labelText: 'Estilo (ej. Realismo)', prefixIcon: Icon(Icons.brush)),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _addressCtrl,
-                  decoration: InputDecoration(labelText: 'Dirección (Calle, Ciudad)', prefixIcon: const Icon(Icons.map)),
+                  decoration: const InputDecoration(labelText: 'Dirección (Calle, Ciudad)', prefixIcon: Icon(Icons.map)),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _licenseCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'CIF / DNI del Titular', 
+                    prefixIcon: Icon(Icons.badge_outlined),
+                    hintText: 'Necesario para validar el certificado',
+                  ),
                 ),
                 const SizedBox(height: 16),
               ],
               TextField(
                 controller: _emailCtrl,
-                decoration: InputDecoration(labelText: 'Email', prefixIcon: const Icon(Icons.email)),
+                decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email)),
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _passCtrl,
-                decoration: InputDecoration(labelText: 'Contraseña', prefixIcon: const Icon(Icons.lock)),
+                decoration: const InputDecoration(labelText: 'Contraseña', prefixIcon: Icon(Icons.lock)),
                 obscureText: true,
               ),
               const SizedBox(height: 30),

@@ -9,29 +9,28 @@ class MenuInicio extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView( // <--- AÑADIDO ESTO AQUÍ
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 60),
-                // Título principal
-                Text(
-                  'Welcome to Inka',
-                  style: Theme.of(context).textTheme.displaySmall,
-                  textAlign: TextAlign.center,
+                const SizedBox(height: 40),
+                // Logo principal
+                Image.asset(
+                  'assets/images/inka_logo.png',
+                  height: 80,
+                  fit: BoxFit.contain,
                 ),
-                const SizedBox(height: 12), 
+                const SizedBox(height: 10), 
                 // Subtítulo
                 Text(
                   'Choose how you want to continue',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 50),
+                const SizedBox(height: 30),
                 // Primera tarjeta - Buscar tatuajes
                 _buildOptionCard(
                   context,
@@ -61,16 +60,12 @@ class MenuInicio extends StatelessWidget {
                     );
                   },
                 ),
-                const SizedBox(height: 40), // He cambiado Spacer() por SizedBox porque Spacer() no funciona bien dentro de un Scroll
-                // Link inferior
-                const SizedBox(height: 30),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
+      );
+    }
 
   Widget _buildOptionCard(
     BuildContext context, {
@@ -86,7 +81,7 @@ class MenuInicio extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
           child: Column(
             children: [
               // Icono circular
@@ -94,7 +89,7 @@ class MenuInicio extends StatelessWidget {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.15),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -115,7 +110,7 @@ class MenuInicio extends StatelessWidget {
               Text(
                 subtitle,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   height: 1.4,
                 ),
                 textAlign: TextAlign.center,

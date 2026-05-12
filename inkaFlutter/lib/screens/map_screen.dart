@@ -161,7 +161,7 @@ class _MapScreenState extends State<MapScreen> {
                                 Text(
                                   artist.specialty,
                                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                                   ),
                                 ),
                               ],
@@ -298,23 +298,29 @@ class _MapScreenState extends State<MapScreen> {
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied)
+      if (permission == LocationPermission.denied) {
         return Future.error('Permisos denegados');
+      }
     }
 
-    if (permission == LocationPermission.deniedForever)
+    if (permission == LocationPermission.deniedForever) {
       return Future.error('Permisos denegados permanentemente');
+    }
     return await Geolocator.getCurrentPosition();
   }
 
   void _centerOnUser() async {
     try {
       final pos = await _determinePosition();
-      final userPos = LatLng(pos.latitude, pos.longitude);
-      setState(() => _currentPosition = userPos);
-      _mapController.move(userPos, 16.0);
+      if (mounted) {
+        final userPos = LatLng(pos.latitude, pos.longitude);
+        setState(() => _currentPosition = userPos);
+        _mapController.move(userPos, 16.0);
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
     }
   }
 
@@ -374,7 +380,7 @@ class _MapScreenState extends State<MapScreen> {
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.5),
+                                    color: Colors.black.withValues(alpha: 0.5),
                                     blurRadius: 8,
                                   )
                                 ],
@@ -399,7 +405,7 @@ class _MapScreenState extends State<MapScreen> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.7),
+                                color: Colors.black.withValues(alpha: 0.7),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -430,7 +436,7 @@ class _MapScreenState extends State<MapScreen> {
                       height: 60,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.blueAccent.withOpacity(0.3),
+                          color: Colors.blueAccent.withValues(alpha: 0.3),
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -500,7 +506,7 @@ class _MapScreenState extends State<MapScreen> {
         filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           padding: padding,
-          color: Colors.white.withOpacity(0.08),
+          color: Colors.white.withValues(alpha: 0.08),
           child: child,
         ),
       ),
