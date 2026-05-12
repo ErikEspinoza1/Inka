@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/auth_service.dart';
+import '../services/image_service.dart';
 
 class PortfolioScreen extends StatefulWidget {
   const PortfolioScreen({super.key});
@@ -15,11 +16,22 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   final ImagePicker _picker = ImagePicker();
   final List<Map<String, dynamic>> _portfolioImages = [];
   bool _isLoading = false;
+  String _artistName = "Inka Artist"; // Nombre por defecto
 
   @override
   void initState() {
     super.initState();
     _loadPortfolio();
+    _loadArtistInfo();
+  }
+
+  Future<void> _loadArtistInfo() async {
+    final profile = await _authService.getArtistProfile();
+    if (profile != null && profile['shop_name'] != null) {
+      setState(() {
+        _artistName = profile['shop_name'];
+      });
+    }
   }
 
   Future<void> _loadPortfolio() async {
@@ -212,8 +224,15 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                             : () async {
                                 setSheetState(() => isUploading = true);
 
+                                // 1. Aplicar marca de agua antes de subir
+                                final File watermarkedFile = await ImageService.applyWatermark(
+                                  imagePath: image.path,
+                                  artistName: _artistName,
+                                );
+
+                                // 2. Subir la imagen con marca de agua
                                 final result = await _authService.uploadPortfolioImage(
-                                  image.path,
+                                  watermarkedFile.path,
                                   description: descriptionController.text.trim(),
                                   styleTag: titleController.text.trim(),
                                 );

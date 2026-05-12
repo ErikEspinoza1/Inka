@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'auth_screen.dart';
 import 'artist_auth_screen.dart';
+import 'watermark_test_screen.dart';
 
 class MenuInicio extends StatelessWidget {
   const MenuInicio({super.key});
@@ -59,6 +60,17 @@ class MenuInicio extends StatelessWidget {
                       MaterialPageRoute(builder: (context) => const ArtistAuthScreen()),
                     );
                   },
+                ),
+                const SizedBox(height: 20),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const WatermarkTestScreen()),
+                    );
+                  },
+                  child: const Text("🛠️ Probar Marca de Agua (Test)", 
+                    style: TextStyle(color: Colors.white24)),
                 ),
               ],
             ),
