@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import engine, Base, get_db
 from dotenv import load_dotenv # <--- IMPORTANTE: Añadido para leer el .env
-
+from routers import users, auth, artists, search # 👈 Añade 'search' aquí
 # Cargar las variables secretas del .env
 load_dotenv()
 
@@ -35,6 +35,7 @@ app.include_router(artists.router)
 app.include_router(bookings.router)
 app.include_router(content.router)
 app.include_router(messages.router)
+app.include_router(search.router) 
 
 # --- NUESTRO ENDPOINT NUCLEAR Y AUTOPILOTO DE IA ---
 @app.get("/buscar-tatuajes-ia")

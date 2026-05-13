@@ -133,3 +133,28 @@ class AIDesign(Base):
     image_url = Column(String, nullable=False)
     style_tag = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class SearchCache(Base):
+    __tablename__ = "search_cache"
+    search_query = Column(String, primary_key=True)
+    embedding = Column(Vector(768), nullable=False)
+    search_count = Column(Integer, default=1)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+from sqlalchemy import UniqueConstraint
+
+class Like(Base):
+    __tablename__ = "likes"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"), nullable=False)
+    post_id = Column(UUID(as_uuid=True), ForeignKey("posts.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (UniqueConstraint('user_id', 'post_id', name='uix_user_post_like'),)
+
+class Favorite(Base):
+    __tablename__ = "favorites"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"), nullable=False)
+    post_id = Column(UUID(as_uuid=True), ForeignKey("posts.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (UniqueConstraint('user_id', 'post_id', name='uix_user_post_favorite'),)

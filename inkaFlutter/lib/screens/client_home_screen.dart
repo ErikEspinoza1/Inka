@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'explore_screen.dart'; // <-- ¡Aquí importamos nuestra IA!
+import 'feed_screen.dart';       // <-- El Feed Principal (TikTok Flow)
 import 'map_screen.dart';
 import 'client_profile_screen.dart';
 import 'chat_list_screen.dart';
@@ -12,10 +12,10 @@ class ClientHomeScreen extends StatefulWidget {
 }
 
 class _ClientHomeScreenState extends State<ClientHomeScreen> {
-  int _selectedIndex = 0; // Empieza en la pantalla 0 (Explorar)
+  int _selectedIndex = 0; 
 
   static const List<Widget> _screens = <Widget>[
-    ExploreScreen(),        // 0: Explorar (NUEVO)
+    FeedScreen(),           // 0: Feed (TikTok)
     MapScreen(),            // 1: Mapa
     ChatListScreen(),       // 2: Chats
     ClientProfileScreen(),  // 3: Perfil
@@ -32,13 +32,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     return Scaffold(
       body: _screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
-        // Añadimos el tipo 'fixed' para que no se vuelva loco al tener 4 items
         type: BottomNavigationBarType.fixed, 
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Colors.grey,
         items: const <BottomNavigationBarItem>[
-          // Nuestro nuevo botón de Explorar
           BottomNavigationBarItem(
-            icon: Icon(Icons.auto_awesome), // Icono de IA/Destellos
-            label: 'Explorar',
+            icon: Icon(Icons.home),
+            label: 'Para ti',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.map),

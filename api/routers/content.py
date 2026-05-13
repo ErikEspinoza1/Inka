@@ -169,3 +169,50 @@ def get_my_ai_designs(
     db: Session = Depends(database.get_db)
 ):
     return db.query(models.AIDesign).filter(models.AIDesign.user_id == current_user.id).all()
+
+import uuid
+
+# ================= LIKES Y FAVORITOS (Flujo TikTok) =================
+@router.post("/likes/{post_id}")
+def toggle_like(
+    post_id: str,
+    current_user: models.Profile = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    try:
+        post_uuid = uuid.UUID(post_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid post_id format")
+
+    like = db.query(models.Like).filter_by(user_id=current_user.id, post_id=post_uuid).first()
+    if like:
+        db.delete(like)
+        db.commit()
+        return {"status": "unliked"}
+    else:
+        new_like = models.Like(user_id=current_user.id, post_id=post_uuid)
+        db.add(new_like)
+        db.commit()
+        return {"status": "liked"}
+
+@router.post("/favorites/{post_id}")
+def toggle_favorite(
+    post_id: str,
+    current_user: models.Profile = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    try:
+        post_uuid = uuid.UUID(post_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid post_id format")
+
+    fav = db.query(models.Favorite).filter_by(user_id=current_user.id, post_id=post_uuid).first()
+    if fav:
+        db.delete(fav)
+        db.commit()
+        return {"status": "unfavorited"}
+    else:
+        new_fav = models.Favorite(user_id=current_user.id, post_id=post_uuid)
+        db.add(new_fav)
+        db.commit()
+        return {"status": "favorited"}

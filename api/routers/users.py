@@ -10,6 +10,18 @@ router = APIRouter(prefix="/users", tags=["Users"])
 def read_users_me(current_user: models.Profile = Depends(auth.get_current_user)):
     return current_user
 
+@router.get("/me/favorites", response_model=List[schemas.PostResponse])
+def get_my_favorites(
+    current_user: models.Profile = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    # Join explícito para obtener los Posts que el usuario ha guardado
+    favorites = db.query(models.Post).join(
+        models.Favorite, 
+        models.Favorite.post_id == models.Post.id
+    ).filter(models.Favorite.user_id == current_user.id).all()
+    return favorites
+
 # Obtener perfil público de otro usuario/artista por ID
 @router.get("/{user_id}", response_model=schemas.UserResponse)
 def read_user(user_id: str, db: Session = Depends(database.get_db)):
