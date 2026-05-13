@@ -158,15 +158,27 @@ async def upload_certificate(
         img = Image.open(io.BytesIO(file_bytes))
         model = genai.GenerativeModel('gemini-flash-latest')
         
+        # Obtenemos los datos que el usuario declaró en su registro para contrastar
+        user_legal_name = current_user.full_name or ""
+        studio_name = artist.shop_name or ""
+        license_id = artist.business_license_id or ""
+
         prompt_cert = (
             "Analiza esta imagen y determina si es un certificado oficial de Higiénico Sanitario "
-            "válido para profesionales del tatuaje, piercing o micropigmentación. "
+            "válido para profesionales del tatuaje, piercing o micropigmentación.\n\n"
+            "DATOS DECLARADOS POR EL USUARIO (para contrastar):\n"
+            f"- Nombre del Estudio: {studio_name}\n"
+            f"- Nombre del Titular: {user_legal_name}\n"
+            f"- CIF/DNI del Titular: {license_id}\n\n"
+            "REGLAS DE VALIDACIÓN:\n"
+            "1. El documento debe ser un certificado higiénico-sanitario real.\n"
+            "2. El nombre o el CIF/DNI que aparece en el certificado DEBE COINCIDIR con alguno de los datos declarados arriba.\n"
+            "3. Si el nombre en el certificado es diferente al del titular o estudio, pero el CIF/DNI coincide, es VÁLIDO.\n"
+            "4. Si NO coincide ni el nombre ni el CIF/DNI, o la imagen es basura/internet, marca 'es_valido' como false.\n\n"
             "Responde ÚNICAMENTE con un JSON válido (sin formato Markdown, solo texto plano). "
             "El JSON debe tener esta estructura:\n"
-            '{"es_valido": boolean, "explicacion": "string"}\n\n'
-            "REGLAS:\n"
-            "- 'es_valido' es true solo si el documento es claramente un certificado de higiene sanitaria.\n"
-            "- En 'explicacion' justifica MUY brevemente (máximo 5-7 palabras). Ejemplo: 'Es una foto de un coche' o 'Certificado sanitario válido'."
+            '{"es_valido": boolean, "explicacion": "string", "nombre_detectado": "string", "documento_detectado": "string"}\n\n'
+            "En 'explicacion' justifica brevemente por qué es válido o por qué se rechaza."
         )
         
         response = model.generate_content([prompt_cert, img])
@@ -181,9 +193,13 @@ async def upload_certificate(
         analisis = json_lib.loads(texto_ia)
         is_ai_verified = analisis.get("es_valido", False)
         explicacion = analisis.get("explicacion", "")
+        nombre_detectado = analisis.get("nombre_detectado", "No detectado")
         
         print(f"🕵️ Resultado Gemini: {is_ai_verified} - {explicacion}")
-        verification_status = "Verificado (IA)" if is_ai_verified else f"Rechazado (IA): {explicacion}"
+        if is_ai_verified:
+            verification_status = f"Verificado (IA): Coincide con {nombre_detectado}"
+        else:
+            verification_status = f"Rechazado (IA): {explicacion}"
         
     except Exception as e:
         print(f"Error Gemini: {e}")

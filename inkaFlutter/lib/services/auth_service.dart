@@ -41,6 +41,7 @@ class AuthService {
     required String address,
     required double lat,
     required double lng,
+    required String businessLicenseId,
   }) async {
     
     // PASO A: Crear usuario base
@@ -82,7 +83,7 @@ class AuthService {
           'workspace_type': 'shop',
           'show_exact_location': true,
           'instagram_handle': 'pendiente', 
-          'business_license_id': 'pendiente',
+          'business_license_id': businessLicenseId,
         }),
       );
 

@@ -21,6 +21,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
   final _shopNameCtrl = TextEditingController();
   final _bioCtrl = TextEditingController();
   final _instaCtrl = TextEditingController();
+  final _licenseCtrl = TextEditingController();
 
   // Controladores Dirección
   final _streetCtrl = TextEditingController();
@@ -50,6 +51,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
       _shopNameCtrl.text = data['shop_name'] ?? '';
       _bioCtrl.text = data['bio'] ?? '';
       _instaCtrl.text = data['instagram_handle'] ?? '';
+      _licenseCtrl.text = data['business_license_id'] ?? '';
       
       // 2. Estado de verificación inicial
       if (data['is_verified'] == true) {
@@ -113,7 +115,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
         lng = locations.first.longitude;
       }
     } catch (e) {
-      print("Error geo: $e");
+      debugPrint("Error geo: $e");
     }
 
     // 3. JSON Data
@@ -121,6 +123,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
       if (_shopNameCtrl.text.isNotEmpty) 'shop_name': _shopNameCtrl.text,
       if (_bioCtrl.text.isNotEmpty) 'bio': _bioCtrl.text,
       if (_instaCtrl.text.isNotEmpty) 'instagram_handle': _instaCtrl.text,
+      if (_licenseCtrl.text.isNotEmpty) 'business_license_id': _licenseCtrl.text,
       
       'address': finalAddress,
       'latitude': lat,
@@ -136,10 +139,10 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Perfil actualizado correctamente ✅'), backgroundColor: Colors.green),
+        const SnackBar(content: Text('Perfil actualizado correctamente ✅'), backgroundColor: Colors.green),
       );
       Navigator.pop(context);
-    } else {
+    } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: const Text('Error al guardar'), backgroundColor: Theme.of(context).colorScheme.error),
       );
@@ -172,17 +175,21 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
             
         if (verified) _loadCurrentData(); // Recargar si se aprobó
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Resultado IA: $analysisText"),
-            backgroundColor: verified ? Colors.green : Theme.of(context).colorScheme.secondary,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Resultado IA: $analysisText"),
+              backgroundColor: verified ? Colors.green : Theme.of(context).colorScheme.secondary,
+            ),
+          );
+        }
       } else {
         _certificateStatus = "❌ Error al subir";
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text("Error al subir imagen"), backgroundColor: Theme.of(context).colorScheme.error),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: const Text("Error al subir imagen"), backgroundColor: Theme.of(context).colorScheme.error),
+          );
+        }
       }
     });
   }
@@ -209,6 +216,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                 _sectionTitle("Datos del Estudio"),
                 _inputField("Nombre del Estudio / Artista", _shopNameCtrl, Icons.store),
                 _inputField("Instagram (@usuario)", _instaCtrl, Icons.camera_alt),
+                _inputField("CIF / DNI del Titular", _licenseCtrl, Icons.badge_outlined),
                 _inputField("Biografía corta", _bioCtrl, Icons.text_fields, maxLines: 3),
 
                 const SizedBox(height: 30),
@@ -220,7 +228,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                     _hasPhysicalShop ? "La dirección exacta será pública" : "Modo Viajero/Privado (Solo se muestra ciudad)",
                   ),
                   value: _hasPhysicalShop,
-                  activeColor: Theme.of(context).colorScheme.primary,
+                  activeThumbColor: Theme.of(context).colorScheme.primary,
                   onChanged: (val) => setState(() => _hasPhysicalShop = val),
                 ),
                 
@@ -249,7 +257,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
+                    color: Colors.red.withValues(alpha: 0.1),
                     border: Border.all(color: Colors.redAccent),
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -277,7 +285,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                     color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: _certificateStatus.contains("✅") ? Colors.green : Theme.of(context).colorScheme.primary.withOpacity(0.5), 
+                        color: _certificateStatus.contains("✅") ? Colors.green : Theme.of(context).colorScheme.primary.withValues(alpha: 0.5), 
                         style: BorderStyle.solid),
                   ),
                   child: Column(
@@ -292,7 +300,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                           ),
                         )
                       else
-                        Icon(Icons.document_scanner, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5), size: 40),
+                        Icon(Icons.document_scanner, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5), size: 40),
                       
                       const SizedBox(height: 8),
                       
@@ -307,7 +315,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                         child: Text(
                           "Estado: $_certificateStatus",
                           style: TextStyle(
-                            color: _certificateStatus.contains("✅") ? Colors.green : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                            color: _certificateStatus.contains("✅") ? Colors.green : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                             fontWeight: FontWeight.bold
                           ),
                           textAlign: TextAlign.center,

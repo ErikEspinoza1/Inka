@@ -83,7 +83,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             ] else ...[
               Text(
                 'Este artista aún no tiene fotos en su portfolio',
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
               ),
             ],
 
@@ -129,7 +129,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
                     Text(
                       _artistData!['styles']?.join(' • ') ?? 'Sin especialidad',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
                       ),
                     ),
                   ],
@@ -220,7 +220,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
               gradient: LinearGradient(
                 begin: Alignment.bottomCenter,
                 end: Alignment.topCenter,
-                colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+                colors: [Colors.black.withValues(alpha: 0.7), Colors.transparent],
               ),
             ),
             child: Padding(

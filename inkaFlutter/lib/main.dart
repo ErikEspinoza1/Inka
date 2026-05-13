@@ -3,12 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // Importar
 
-// Importamos la pantalla de Login y Splash
-import 'screens/splash_screen.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'services/auth_service.dart';
+import 'screens/menu_inicio.dart';
+import 'screens/client_home_screen.dart';
+import 'screens/artist_home_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   await dotenv.load(fileName: ".env");
 
@@ -24,20 +28,37 @@ void main() async {
     DeviceOrientation.portraitUp,
   ]);
 
-  runApp(const MyApp());
+  // Lógica de sesión directamente en el arranque
+  final authService = AuthService();
+  Widget initialScreen = const MenuInicio();
+
+  final token = await authService.getToken();
+  if (token != null) {
+    final role = await authService.getUserRole();
+    if (role == 'artista') {
+      initialScreen = const ArtistHomeScreen();
+    } else if (role == 'cliente' || role == 'admin') {
+      initialScreen = const ClientHomeScreen();
+    }
+  }
+
+  runApp(MyApp(initialScreen: initialScreen));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final Widget initialScreen;
+  const MyApp({super.key, required this.initialScreen});
 
   @override
   Widget build(BuildContext context) {
+    // Eliminamos el splash nativo cuando el primer frame de la pantalla real se dibuje
+    FlutterNativeSplash.remove();
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Tattoo AR',
+      title: 'Inka',
       theme: AppTheme.darkTheme,
-      // Pantalla principal: Splash Screen (gestiona sesión)
-      home: const SplashScreen(),
+      home: initialScreen,
     );
   }
 }

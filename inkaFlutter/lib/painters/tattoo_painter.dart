@@ -35,7 +35,7 @@ class TattooPainter extends CustomPainter {
     final paint = Paint()
       ..filterQuality = FilterQuality.high
       ..isAntiAlias = true
-      ..color = Colors.white.withOpacity(opacity); // Aquí aplicamos la transparencia
+      ..color = Colors.white.withValues(alpha: opacity); // Aquí aplicamos la transparencia
 
     // 1. Escalar coordenadas
     final double scaleX = size.width / absoluteImageSize.height;

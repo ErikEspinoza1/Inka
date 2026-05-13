@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
+import 'package:add_2_calendar/add_2_calendar.dart';
 
 class ChatScreen extends StatefulWidget {
   final String artistId;
@@ -102,9 +103,11 @@ class _ChatScreenState extends State<ChatScreen> {
     // Enviar mensaje a la API
     final success = await _authService.sendMessageToArtist(widget.artistId, content);
     if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error enviando mensaje'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error enviando mensaje'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -165,14 +168,18 @@ class _ChatScreenState extends State<ChatScreen> {
       
       final success = await _authService.sendMessageToArtist(widget.artistId, jsonMsg);
       if (!success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error enviando imagen'), backgroundColor: Colors.red),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error enviando imagen'), backgroundColor: Colors.red),
+          );
+        }
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error subiendo imagen'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error subiendo imagen'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -201,14 +208,18 @@ class _ChatScreenState extends State<ChatScreen> {
 
     final success = await _authService.updateBooking(bookingId, updateData);
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Propuesta enviada'), backgroundColor: Colors.green),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Propuesta enviada'), backgroundColor: Colors.green),
+        );
+      }
       _loadMessages(); // Recargar para ver el nuevo mensaje
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al enviar propuesta'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al enviar propuesta'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -218,14 +229,63 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!_isArtist) 'client_accepted': true,
     });
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Propuesta aceptada'), backgroundColor: Colors.green),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Propuesta aceptada'), backgroundColor: Colors.green),
+        );
+      }
       _loadMessages();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al aceptar'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al aceptar'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _addToCalendar(Map<String, dynamic> data) async {
+    final idea = data['idea_description']?.toString() ?? 'Sesión de Tatuaje';
+    final part = data['body_part']?.toString() ?? 'Cuerpo';
+    final price = data['price_quote']?.toString() ?? '0';
+    final dateStr = data['booking_date']?.toString();
+    
+    if (dateStr == null || dateStr.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('La reserva no tiene una fecha válida')),
+        );
+      }
+      return;
+    }
+    
+    final startDate = DateTime.parse(dateStr);
+    // Asumimos 2 horas de duración por defecto
+    final endDate = startDate.add(const Duration(hours: 2));
+
+    final Event event = Event(
+      title: 'Tatuaje: $idea',
+      description: 'Zona: $part\nPrecio estimado: $price €\nGestión desde Inka App',
+      location: 'Estudio de Tatuajes',
+      startDate: startDate,
+      endDate: endDate,
+      iosParams: IOSParams(
+        reminder: const Duration(hours: 1),
+      ),
+      androidParams: AndroidParams(
+        emailInvites: [], // Lista de invitados si fuera necesario
+      ),
+    );
+
+    try {
+      await Add2Calendar.addEvent2Cal(event);
+    } catch (e) {
+      print('Error al agregar al calendario: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo abrir el calendario: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -410,7 +470,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 Text(
                    _formatTime(timestamp),
                   style: TextStyle(
-                    color: isMine ? Theme.of(context).colorScheme.onPrimary.withOpacity(0.7) : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: isMine ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                     fontSize: 12,
                   ),
                 ),
@@ -419,7 +479,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   Icon(
                     Icons.done_all,
                     size: 14,
-                    color: isRead ? Colors.blue[300] : Theme.of(context).colorScheme.onPrimary.withOpacity(0.5),
+                    color: isRead ? Colors.blue[300] : Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.5),
                   ),
                 ]
               ],
@@ -463,7 +523,7 @@ class _ChatScreenState extends State<ChatScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.5)),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -477,8 +537,8 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: Theme.of(context).colorScheme.background, borderRadius: BorderRadius.circular(8)),
-                child: Text(status.toUpperCase(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7), fontSize: 10)),
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(8)),
+                child: Text(status.toUpperCase(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 10)),
               )
             ],
           ),
@@ -506,7 +566,7 @@ class _ChatScreenState extends State<ChatScreen> {
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(color: Theme.of(context).colorScheme.background, borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(8)),
                 child: Text(
                   selectedDate != null ? '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}' : 'Seleccionar fecha',
                 ),
@@ -547,7 +607,7 @@ class _ChatScreenState extends State<ChatScreen> {
             const Divider(height: 24),
             
             if (price != null) ...[
-              Text('${price} €', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 22, fontWeight: FontWeight.bold)),
+              Text('$price €', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               if (status != 'aceptado') ...[
                 if (!_isArtist && !clientAcc)
@@ -564,7 +624,17 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: const Text('Confirmar Trato'),
                   )
               ] else ...[
-                Text('¡Trato cerrado!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                const Text('¡Trato cerrado!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: () => _addToCalendar(data),
+                  icon: const Icon(Icons.calendar_today, size: 18),
+                  label: const Text('Agregar al Calendario'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueGrey[800],
+                    foregroundColor: Colors.white,
+                  ),
+                ),
               ]
             ] else ...[
               Text('Esperando oferta del artista...', style: TextStyle(color: Theme.of(context).colorScheme.secondary, fontStyle: FontStyle.italic)),

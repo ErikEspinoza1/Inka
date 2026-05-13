@@ -178,6 +178,7 @@ class ArtistUpdate(BaseModel):
     workspace_type: Optional[StudioType] = None
     
     # Documentos
+    business_license_id: Optional[str] = None
     business_document_url: Optional[str] = None # Aquí irá la URL de la foto del certificado
 
 class ArtistResponse(BaseModel):
@@ -195,10 +196,9 @@ class ArtistResponse(BaseModel):
     workspace_type: Optional[str] = None 
     instagram_handle: Optional[str] = None
     
-    # URLs de imágenes (opcional, para el futuro)
-    avatar_url: Optional[str] = None 
-    
     is_verified: bool
-    
+    business_license_id: Optional[str] = None
+    business_document_url: Optional[str] = None
+
     class Config:
         from_attributes = True

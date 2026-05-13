@@ -133,7 +133,7 @@ class _BookingScreenState extends State<BookingScreen> {
                           Text(
                             'Artista Profesional',
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
                             ),
                           ),
                         ],
@@ -192,7 +192,7 @@ class _BookingScreenState extends State<BookingScreen> {
                             ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
                             : 'Seleccionar fecha',
                         style: TextStyle(
-                          color: _selectedDate != null ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                          color: _selectedDate != null ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                           fontSize: 16,
                         ),
                       ),
@@ -207,7 +207,7 @@ class _BookingScreenState extends State<BookingScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   border: Border.all(color: Colors.orangeAccent),
                   borderRadius: BorderRadius.circular(12),
                 ),

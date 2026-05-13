@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'chat_screen.dart';
+import 'package:add_2_calendar/add_2_calendar.dart';
 
 class ArtistBookingManagementScreen extends StatefulWidget {
   const ArtistBookingManagementScreen({super.key});
@@ -79,6 +80,46 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
     }
   }
 
+  Future<void> _addToCalendar(Map<String, dynamic> booking) async {
+    final idea = booking['idea_description']?.toString() ?? 'Sesión de Tatuaje';
+    final part = booking['body_part']?.toString() ?? 'Cuerpo';
+    final price = booking['price_quote']?.toString() ?? '0';
+    final dateStr = booking['booking_date']?.toString();
+    
+    if (dateStr == null || dateStr.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('La reserva no tiene una fecha válida')),
+        );
+      }
+      return;
+    }
+    
+    final startDate = DateTime.parse(dateStr);
+    final endDate = startDate.add(const Duration(hours: 2));
+
+    final Event event = Event(
+      title: 'Tatuaje: $idea',
+      description: 'Zona: $part\nPrecio estimado: $price €\nGestión desde Inka App',
+      location: 'Estudio de Tatuajes',
+      startDate: startDate,
+      endDate: endDate,
+      iosParams: IOSParams(reminder: const Duration(hours: 1)),
+      androidParams: AndroidParams(emailInvites: []),
+    );
+
+    try {
+      await Add2Calendar.addEvent2Cal(event);
+    } catch (e) {
+      print('Error al agregar al calendario: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo abrir el calendario: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -92,7 +133,7 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
                 ? Center(
                     child: Text(
                       'No tienes reservas pendientes',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                     ),
                   )
                 : ListView.builder(
@@ -143,21 +184,21 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
                               // Detalles del tatuaje
                                 Text(
                                   'Idea: ${booking['idea_description']}',
-                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                                 ),
                                 Text(
                                   'Parte del cuerpo: ${booking['body_part']}',
-                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                                 ),
                                 if (booking['size_cm'] != null)
                                   Text(
                                     'Tamaño: ${booking['size_cm']} cm',
-                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                                   ),
                                 if (booking['booking_date'] != null)
                                   Text(
                                     'Fecha preferida: ${_formatDate(booking['booking_date'])}',
-                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                                   ),
 
                               const SizedBox(height: 16),
@@ -212,6 +253,22 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
                                   ),
                                 ),
                               ),
+                              if (status == 'aceptado' && booking['booking_date'] != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton.icon(
+                                      onPressed: () => _addToCalendar(booking),
+                                      icon: const Icon(Icons.calendar_today, size: 18),
+                                      label: const Text('Agregar al Calendario'),
+                                      style: OutlinedButton.styleFrom(
+                                        side: BorderSide(color: Theme.of(context).colorScheme.primary),
+                                        foregroundColor: Theme.of(context).colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
