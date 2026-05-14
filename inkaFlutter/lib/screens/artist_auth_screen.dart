@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart'; 
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import 'artist_profile_screen.dart';
 import 'artist_home_screen.dart';
 
@@ -133,6 +134,7 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
   }
 
   void _goToHome() async {
+    NotificationService.initialize();
     final data = await _authService.getArtistProfile();
     if (data != null && data['is_verified'] == true) {
       // Verificado: ir a pantalla principal

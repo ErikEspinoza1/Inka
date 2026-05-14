@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // Importar
+import 'services/notification_service.dart';
 
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'services/auth_service.dart';
@@ -23,6 +25,9 @@ void main() async {
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVucWZrZnVueG5seHlhdGpueXFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3ODM5NTIsImV4cCI6MjA4MTM1OTk1Mn0.Mfe5ykSKG9gds8FNIjnaFuN63VsLZ_89-LZU0KGj8mI',
   );
 
+  // Inicialización de Firebase
+  await Firebase.initializeApp();
+
   // Bloquear orientación vertical
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -40,6 +45,8 @@ void main() async {
     } else if (role == 'cliente' || role == 'admin') {
       initialScreen = const ClientHomeScreen();
     }
+    // Inicializar notificaciones una vez logueado
+    NotificationService.initialize();
   }
 
   runApp(MyApp(initialScreen: initialScreen));

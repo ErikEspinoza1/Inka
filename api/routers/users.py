@@ -37,6 +37,7 @@ def update_user_me(
     current_user: models.Profile = Depends(auth.get_current_user),
     db: Session = Depends(database.get_db)
 ):
+    print(f"DEBUG: Actualizando usuario {current_user.id} con datos: {update_data.dict(exclude_unset=True)}")
     if update_data.full_name:
         current_user.full_name = update_data.full_name
     if update_data.email:
@@ -57,6 +58,9 @@ def update_user_me(
         if not auth.verify_password(update_data.current_password, current_user.password):
             raise HTTPException(status_code=403, detail="Incorrect current password")
         current_user.password = auth.get_password_hash(update_data.new_password)
+    
+    if update_data.fcm_token:
+        current_user.fcm_token = update_data.fcm_token
     
     db.commit()
     db.refresh(current_user)

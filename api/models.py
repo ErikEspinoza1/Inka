@@ -34,6 +34,7 @@ class Profile(Base):
     avatar_url = Column(String, nullable=True)
     role = Column(Enum(UserRole), default=UserRole.cliente)
     password = Column(String) 
+    fcm_token = Column(String, nullable=True) # Token para notificaciones push
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     artist_profile = relationship("Artist", back_populates="profile", uselist=False)

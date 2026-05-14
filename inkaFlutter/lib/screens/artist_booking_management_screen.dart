@@ -143,9 +143,9 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
                     itemCount: _bookings.length,
                     itemBuilder: (context, index) {
                       final booking = _bookings[index];
-                      final status = booking['status'] as String;
-                      final clientAccepted = booking['client_accepted'] as bool;
-                      final artistAccepted = booking['artist_accepted'] as bool;
+                      final status = (booking['status'] ?? 'pendiente').toString();
+                      final clientAccepted = booking['client_accepted'] == true;
+                      final artistAccepted = booking['artist_accepted'] == true;
 
                       return Card(
                         color: Theme.of(context).colorScheme.surface,
@@ -198,7 +198,7 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
                                     style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                                   ),
                                   Text(
-                                    'Fecha preferida: ${_formatDate(booking['booking_date'])}',
+                                    'Fecha preferida: ${booking['booking_date'] != null ? _formatDate(booking['booking_date']) : "Sin fecha todavía"}',
                                     style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                                   ),
                                 if (booking['duration_hours'] != null)
@@ -317,9 +317,14 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
     }
   }
 
-  String _formatDate(String dateString) {
-    final date = DateTime.parse(dateString).toLocal();
-    final time = '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-    return '${date.day}/${date.month}/${date.year} a las $time';
+  String _formatDate(dynamic dateString) {
+    if (dateString == null) return "Sin fecha";
+    try {
+      final date = DateTime.parse(dateString.toString()).toLocal();
+      final time = '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+      return '${date.day}/${date.month}/${date.year} a las $time';
+    } catch (e) {
+      return "Fecha inválida";
+    }
   }
 }

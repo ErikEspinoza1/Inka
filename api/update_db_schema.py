@@ -8,6 +8,7 @@ def update_db():
             conn.execute(text("ALTER TABLE artists ADD COLUMN IF NOT EXISTS working_hours_start VARCHAR DEFAULT '09:00'"))
             conn.execute(text("ALTER TABLE artists ADD COLUMN IF NOT EXISTS working_hours_end VARCHAR DEFAULT '18:00'"))
             conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS duration_hours FLOAT"))
+            conn.execute(text("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS fcm_token VARCHAR"))
             conn.commit()
             print("Database updated successfully!")
         except Exception as e:

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 import database, models, schemas, auth
+from utils.notifications import send_push_notification
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
@@ -54,6 +55,17 @@ def create_booking(
     )
     db.add(new_message)
     db.commit()
+
+    # 🚀 Notificación Push para el Artista
+    try:
+        send_push_notification(
+            receiver_id=str(booking.artist_id),
+            title="¡Nueva solicitud de reserva! 📥",
+            body=f"{current_user.full_name} quiere tatuarse: {booking.idea_description[:50]}...",
+            db=db
+        )
+    except Exception as e:
+        print(f"Error enviando push de reserva: {e}")
 
     return booking
 
@@ -155,6 +167,24 @@ def update_booking(
             content=json.dumps(message_data)
         )
         db.add(new_message)
+        db.commit()
+
+        # 🚀 Notificación Push para la actualización
+        try:
+            title = "Actualización de reserva 📅"
+            if price_changed and is_artist:
+                title = "¡Presupuesto recibido! 💸"
+            elif client_accepted_changed and booking.client_accepted:
+                title = "¡Cliente ha aceptado la cita! ✅"
+            
+            send_push_notification(
+                receiver_id=str(receiver_id),
+                title=title,
+                body=f"{current_user.full_name} ha actualizado los detalles de la reserva.",
+                db=db
+            )
+        except Exception as e:
+            print(f"Error enviando push de actualización: {e}")
 
     db.commit()
     db.refresh(booking)

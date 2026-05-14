@@ -20,6 +20,7 @@ class UserUpdate(BaseModel):
     avatar_url: Optional[str] = None
     current_password: Optional[str] = None
     new_password: Optional[str] = None
+    fcm_token: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str

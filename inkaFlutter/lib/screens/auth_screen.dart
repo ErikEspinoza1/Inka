@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import 'client_home_screen.dart'; 
 
 class AuthScreen extends StatefulWidget {
@@ -93,6 +94,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   void _goToHome() {
+    NotificationService.initialize();
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const ClientHomeScreen()),

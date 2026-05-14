@@ -109,3 +109,4 @@ zstandard==0.25.0
 rembg==2.0.75
 opencv-python==4.13.0.92
 onnxruntime==1.26.0
+firebase-admin==6.6.0
