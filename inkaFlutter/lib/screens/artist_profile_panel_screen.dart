@@ -73,6 +73,7 @@ class _ArtistProfilePanelScreenState extends State<ArtistProfilePanelScreen> {
                       _infoTile('CIF / DNI', _profileData!['business_license_id'] ?? 'No especificado'),
                       _infoTile('Biografía', _profileData!['bio'] ?? 'No especificada'),
                       _infoTile('Dirección', _profileData!['address'] ?? 'No especificada'),
+                      _infoTile('Horario Laboral', '${_profileData!['working_hours_start'] ?? '09:00'} - ${_profileData!['working_hours_end'] ?? '18:00'}'),
                       _infoTile('Estado de Verificación',
                           _profileData!['is_verified'] == true ? '✅ Verificado' : '⏳ Pendiente'),
 

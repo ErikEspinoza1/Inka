@@ -475,6 +475,9 @@ class AuthService {
 
     final url = Uri.parse('$baseUrl/users/me');
     try {
+      // Limpiamos los nulos para no enviarlos
+      data.removeWhere((key, value) => value == null);
+      
       final response = await http.patch(
         url,
         headers: {

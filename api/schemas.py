@@ -14,6 +14,13 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    avatar_url: Optional[str] = None
+    current_password: Optional[str] = None
+    new_password: Optional[str] = None
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -23,6 +30,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     full_name: str
     role: UserRole
+    created_at: datetime
     class Config:
         from_attributes = True
 

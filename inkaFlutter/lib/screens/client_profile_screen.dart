@@ -21,6 +21,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
 
   final TextEditingController _nameCtrl = TextEditingController();
   final TextEditingController _emailCtrl = TextEditingController();
+  final TextEditingController _currentPassCtrl = TextEditingController();
+  final TextEditingController _newPassCtrl = TextEditingController();
   bool _isEditing = false;
 
   @override
@@ -49,11 +51,17 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
 
     final success = await _authService.updateUserProfile({
       'full_name': _nameCtrl.text,
-      'email': _emailCtrl.text,
+      // El email ya no lo enviamos porque es solo lectura según el usuario
+      if (_newPassCtrl.text.isNotEmpty) 'current_password': _currentPassCtrl.text,
+      if (_newPassCtrl.text.isNotEmpty) 'new_password': _newPassCtrl.text,
     });
 
     if (success) {
-      setState(() => _isEditing = false);
+      setState(() {
+        _isEditing = false;
+        _currentPassCtrl.clear();
+        _newPassCtrl.clear();
+      });
       await _loadData(); 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -64,7 +72,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Error al actualizar perfil'), backgroundColor: Theme.of(context).colorScheme.error),
+          SnackBar(content: const Text('Error al actualizar perfil. Verifica los datos o la contraseña actual.'), backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     }
@@ -130,12 +138,6 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
               _profileData!['full_name'] ?? 'Usuario',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
-            Text(
-              _profileData!['role'] ?? 'Cliente',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
-              ),
-            ),
             const SizedBox(height: 16),
             
             // --- TABS ---
@@ -183,9 +185,21 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
               const SizedBox(height: 16),
               _buildTextField('Nombre completo', _nameCtrl, Icons.person, _isEditing),
               const SizedBox(height: 16),
-              _buildTextField('Email', _emailCtrl, Icons.email, _isEditing),
-              const SizedBox(height: 16),
-              _buildInfoTile('Tipo de cuenta', _profileData!['role'] ?? 'Cliente'),
+              _buildTextField('Email', _emailCtrl, Icons.email, false), // Siempre false (lectura)
+              if (_isEditing) ...[
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+                Text(
+                  'Cambiar Contraseña',
+                  style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                _buildTextField('Contraseña Actual', _currentPassCtrl, Icons.lock_outline, true, isPassword: true),
+                const SizedBox(height: 12),
+                _buildTextField('Nueva Contraseña', _newPassCtrl, Icons.lock, true, isPassword: true),
+              ],
+              const SizedBox(height: 24),
               _buildInfoTile('Fecha de registro', _formatDate(_profileData!['created_at'])),
             ],
           ),
@@ -244,10 +258,11 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon, bool enabled) {
+  Widget _buildTextField(String label, TextEditingController controller, IconData icon, bool enabled, {bool isPassword = false}) {
     return TextField(
       controller: controller,
       enabled: enabled,
+      obscureText: isPassword,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
