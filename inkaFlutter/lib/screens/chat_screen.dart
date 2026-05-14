@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
@@ -28,6 +29,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoading = true;
   bool _isUploadingImage = false;
   bool _isArtist = false;
+  Timer? _pollingTimer;
   
   // Controladores dinámicos para los campos en las tarjetas de oferta
   final Map<String, Map<String, TextEditingController>> _bookingControllers = {};
@@ -37,10 +39,15 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _loadMessages();
+    // Iniciar polling cada 3 segundos
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      _loadMessages(quietly: true);
+    });
   }
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     _messageCtrl.dispose();
     _scrollController.dispose();
     for (var innerMap in _bookingControllers.values) {
@@ -51,8 +58,8 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  Future<void> _loadMessages() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadMessages({bool quietly = false}) async {
+    if (!quietly) setState(() => _isLoading = true);
 
     final role = await _authService.getUserRole();
     if (mounted) {
@@ -63,22 +70,39 @@ class _ChatScreenState extends State<ChatScreen> {
     final messages = await _authService.getMessagesWithArtist(widget.artistId);
 
     if (messages != null && currentUserId != null) {
-      setState(() {
-        _messages = messages.map((m) {
-          return {
-            'id': m['id'],
-            'content': m['content'],
-            'sender_id': m['sender_id'],
-            'created_at': DateTime.parse(m['created_at']),
-            'is_mine': m['sender_id'] == currentUserId,
-            'is_read': m['is_read'],
-          };
-        }).toList();
-      });
+      final newMessages = messages.map((m) {
+        return {
+          'id': m['id'],
+          'content': m['content'],
+          'sender_id': m['sender_id'],
+          'created_at': DateTime.parse(m['created_at']),
+          'is_mine': m['sender_id'] == currentUserId,
+          'is_read': m['is_read'],
+        };
+      }).toList();
+
+      // Solo actualizar si hay cambios (para evitar saltos visuales)
+      if (newMessages.length != _messages.length || 
+          newMessages.last['id'] != _messages.last['id'] ||
+          newMessages.any((m) => m['is_read'] == true) != _messages.any((m) => m['is_read'] == true)) {
+        setState(() {
+          _messages = newMessages;
+        });
+        if (!quietly) {
+           WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+        } else {
+           // Si es en background y hay mensaje nuevo de la otra persona, hacer scroll
+           if (newMessages.length > _messages.length && !newMessages.last['is_mine']) {
+             _scrollToBottom();
+           }
+        }
+      }
     }
 
-    setState(() => _isLoading = false);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    if (!quietly) {
+      setState(() => _isLoading = false);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    }
   }
 
   Future<void> _sendMessage() async {
@@ -462,18 +486,22 @@ class _ChatScreenState extends State<ChatScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                   _formatTime(timestamp),
+                  '${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}',
                   style: TextStyle(
-                    color: isMine ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                    fontSize: 12,
+                    fontSize: 10,
+                    color: isMine 
+                        ? Theme.of(context).colorScheme.onPrimary.withOpacity(0.7)
+                        : Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
                   ),
                 ),
                 if (isMine) ...[
                   const SizedBox(width: 4),
                   Icon(
-                    Icons.done_all,
+                    isRead ? Icons.done_all : Icons.done,
                     size: 14,
-                    color: isRead ? Colors.blue[300] : Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.5),
+                    color: isRead 
+                        ? Colors.blueAccent 
+                        : Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
                   ),
                 ]
               ],

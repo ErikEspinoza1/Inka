@@ -603,4 +603,14 @@ class AuthService {
     }
     return null;
   }
+
+  Future<int> getTotalUnreadCount() async {
+    final contacts = await getMessageContacts();
+    if (contacts == null) return 0;
+    int total = 0;
+    for (var contact in contacts) {
+      total += (contact['unread_count'] as int? ?? 0);
+    }
+    return total;
+  }
 }
