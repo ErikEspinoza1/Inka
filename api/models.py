@@ -66,6 +66,10 @@ class Artist(Base):
     longitude = Column(Float)
     workspace_type = Column(Enum(StudioType), default=StudioType.shop)
     show_exact_location = Column(Boolean, default=True) # False = Privacidad (Estudios privados)
+    
+    # Horario Laboral
+    working_hours_start = Column(String, default="09:00")
+    working_hours_end = Column(String, default="18:00")
 
     # Relaciones
     profile = relationship("Profile", back_populates="artist_profile")
@@ -96,6 +100,7 @@ class Booking(Base):
     size_cm = Column(String)
     price_quote = Column(Numeric, nullable=True)
     booking_date = Column(DateTime(timezone=True), nullable=True)
+    duration_hours = Column(Float, nullable=True)
     client_accepted = Column(Boolean, default=False)
     artist_accepted = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

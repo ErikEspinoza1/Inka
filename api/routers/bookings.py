@@ -28,6 +28,33 @@ def create_booking(
     db.add(booking)
     db.commit()
     db.refresh(booking)
+
+    # 💬 Mensaje automático inicial para abrir el chat
+    import json
+    message_data = {
+        "type": "booking_update",
+        "booking_id": str(booking.id),
+        "status": booking.status.value if hasattr(booking.status, 'value') else booking.status,
+        "idea_description": booking.idea_description,
+        "body_part": booking.body_part,
+        "size_cm": booking.size_cm,
+        "price_quote": None,
+        "booking_date": booking.booking_date.isoformat() if booking.booking_date else None,
+        "duration_hours": None,
+        "client_accepted": False,
+        "artist_accepted": False,
+        "autor": "client"
+    }
+    
+    new_message = models.Message(
+        booking_id=booking.id,
+        sender_id=current_user.id,
+        receiver_id=booking.artist_id,
+        content=json.dumps(message_data)
+    )
+    db.add(new_message)
+    db.commit()
+
     return booking
 
 # Ver mis reservas (Como cliente o artista)
@@ -85,7 +112,7 @@ def update_booking(
                 setattr(booking, key, value)
             else:
                 raise HTTPException(status_code=403, detail=f"Not allowed to update field: {key}")
-        elif key in {"status", "price_quote", "booking_date", "idea_description", "body_part", "size_cm"} and is_artist:
+        elif key in {"status", "price_quote", "booking_date", "idea_description", "body_part", "size_cm", "duration_hours"} and is_artist:
             setattr(booking, key, value)
         else:
             raise HTTPException(status_code=403, detail=f"Not allowed to update field: {key}")
@@ -99,8 +126,9 @@ def update_booking(
     price_changed = old_price != booking.price_quote
     client_accepted_changed = old_client_accepted != booking.client_accepted
     artist_accepted_changed = old_artist_accepted != booking.artist_accepted
+    duration_changed = update_data.duration_hours is not None
 
-    if status_changed or price_changed or client_accepted_changed or artist_accepted_changed:
+    if status_changed or price_changed or client_accepted_changed or artist_accepted_changed or duration_changed:
         import json
         message_data = {
             "type": "booking_update",
@@ -111,6 +139,7 @@ def update_booking(
             "size_cm": booking.size_cm,
             "price_quote": float(booking.price_quote) if booking.price_quote is not None else None,
             "booking_date": booking.booking_date.isoformat() if booking.booking_date else None,
+            "duration_hours": booking.duration_hours,
             "client_accepted": booking.client_accepted,
             "artist_accepted": booking.artist_accepted,
             "autor": "client" if is_client else "artist"

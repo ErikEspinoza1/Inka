@@ -95,12 +95,14 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
       return;
     }
     
-    final startDate = DateTime.parse(dateStr);
-    final endDate = startDate.add(const Duration(hours: 2));
+    final startDate = DateTime.parse(dateStr).toLocal();
+    final duration = double.tryParse(booking['duration_hours']?.toString() ?? '2') ?? 2.0;
+    final endDate = startDate.add(Duration(minutes: (duration * 60).toInt()));
 
+    final clientName = _clientNames[booking['client_id']] ?? 'Cliente';
     final Event event = Event(
-      title: 'Tatuaje: $idea',
-      description: 'Zona: $part\nPrecio estimado: $price €\nGestión desde Inka App',
+      title: 'Tatuaje de $clientName',
+      description: 'Zona: $part\nIdea: $idea\nPrecio Estimado: $price €\nGestion desde Inka',
       location: 'Estudio de Tatuajes',
       startDate: startDate,
       endDate: endDate,
@@ -195,9 +197,13 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
                                     'Tamaño: ${booking['size_cm']} cm',
                                     style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                                   ),
-                                if (booking['booking_date'] != null)
                                   Text(
                                     'Fecha preferida: ${_formatDate(booking['booking_date'])}',
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+                                  ),
+                                if (booking['duration_hours'] != null)
+                                  Text(
+                                    'Duración estimada: ${booking['duration_hours']} h',
                                     style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                                   ),
 
@@ -312,7 +318,8 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
   }
 
   String _formatDate(String dateString) {
-    final date = DateTime.parse(dateString);
-    return '${date.day}/${date.month}/${date.year}';
+    final date = DateTime.parse(dateString).toLocal();
+    final time = '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    return '${date.day}/${date.month}/${date.year} a las $time';
   }
 }

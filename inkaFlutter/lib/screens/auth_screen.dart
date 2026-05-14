@@ -66,6 +66,12 @@ class _AuthScreenState extends State<AuthScreen> {
         return;
       }
 
+      if (!_isPasswordSecure(pass)) {
+        _showError('La contraseña debe tener al menos 8 caracteres, una mayúscula y un símbolo');
+        setState(() => _isLoading = false);
+        return;
+      }
+
       final success = await _authService.register(email, pass, name);
       if (success) {
         // Si se registra bien, hacemos login automático
@@ -77,6 +83,13 @@ class _AuthScreenState extends State<AuthScreen> {
     }
 
     if (mounted) setState(() => _isLoading = false);
+  }
+
+  bool _isPasswordSecure(String pass) {
+    if (pass.length < 8) return false;
+    if (!pass.contains(RegExp(r'[A-Z]'))) return false;
+    if (!pass.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) return false;
+    return true;
   }
 
   void _goToHome() {

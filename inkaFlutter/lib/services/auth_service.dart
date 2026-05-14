@@ -532,7 +532,7 @@ class AuthService {
           'idea_description': ideaDescription,
           'body_part': bodyPart,
           if (sizeCm != null && sizeCm.isNotEmpty) 'size_cm': sizeCm,
-          if (bookingDate != null) 'booking_date': bookingDate.toIso8601String(),
+          if (bookingDate != null) 'booking_date': bookingDate.toUtc().toIso8601String(),
         }),
       );
       return response.statusCode == 200;

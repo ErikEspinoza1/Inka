@@ -18,8 +18,13 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
   final TextEditingController _passCtrl = TextEditingController();
   final TextEditingController _nameCtrl = TextEditingController(); 
   final TextEditingController _specialtyCtrl = TextEditingController();
-  final TextEditingController _addressCtrl = TextEditingController();
   final TextEditingController _licenseCtrl = TextEditingController();
+
+  // Controladores Dirección detallada
+  final TextEditingController _streetCtrl = TextEditingController();
+  final TextEditingController _numberCtrl = TextEditingController();
+  final TextEditingController _zipCtrl = TextEditingController();
+  final TextEditingController _cityCtrl = TextEditingController();
 
   bool _isLogin = true;
   bool _isLoading = false;
@@ -30,7 +35,6 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
     final pass = _passCtrl.text.trim();
     final shopName = _nameCtrl.text.trim();
     final specialty = _specialtyCtrl.text.trim();
-    final address = _addressCtrl.text.trim();
     final licenseId = _licenseCtrl.text.trim();
 
     // 2. Validaciones básicas
@@ -65,11 +69,25 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
       // ===========================
       // LÓGICA DE REGISTRO ARTISTA
       // ===========================
-      if (shopName.isEmpty || specialty.isEmpty || address.isEmpty || licenseId.isEmpty) {
-        _showError('Nombre, Especialidad, Dirección y CIF/DNI son obligatorios');
+      final street = _streetCtrl.text.trim();
+      final number = _numberCtrl.text.trim();
+      final zip = _zipCtrl.text.trim();
+      final city = _cityCtrl.text.trim();
+
+      if (shopName.isEmpty || specialty.isEmpty || street.isEmpty || city.isEmpty || licenseId.isEmpty) {
+        _showError('Nombre, Especialidad, Dirección (Calle/Ciudad) y CIF/DNI son obligatorios');
         setState(() => _isLoading = false);
         return;
       }
+
+      if (!_isPasswordSecure(pass)) {
+        _showError('La contraseña debe tener al menos 8 caracteres, una mayúscula y un símbolo');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Construir dirección final
+      String address = "$street $number, $zip, $city";
 
       // Geocodificación (Dirección -> Coordenadas)
       double lat = 0.0;
@@ -90,7 +108,7 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
         email: email,
         password: pass,
         fullName: shopName,
-        specialty: specialty, // ¡Ojo! Asegúrate de pasar specialty aquí
+        specialty: specialty, 
         address: address,
         lat: lat,
         lng: lng,
@@ -105,6 +123,13 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
     }
 
     if (mounted) setState(() => _isLoading = false);
+  }
+
+  bool _isPasswordSecure(String pass) {
+    if (pass.length < 8) return false;
+    if (!pass.contains(RegExp(r'[A-Z]'))) return false;
+    if (!pass.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) return false;
+    return true;
   }
 
   void _goToHome() async {
@@ -166,9 +191,42 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
                   decoration: const InputDecoration(labelText: 'Estilo (ej. Realismo)', prefixIcon: Icon(Icons.brush)),
                 ),
                 const SizedBox(height: 16),
-                TextField(
-                  controller: _addressCtrl,
-                  decoration: const InputDecoration(labelText: 'Dirección (Calle, Ciudad)', prefixIcon: Icon(Icons.map)),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: _streetCtrl,
+                        decoration: const InputDecoration(labelText: 'Calle', prefixIcon: Icon(Icons.map)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 1,
+                      child: TextField(
+                        controller: _numberCtrl,
+                        decoration: const InputDecoration(labelText: 'Nº'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _cityCtrl,
+                        decoration: const InputDecoration(labelText: 'Ciudad', prefixIcon: Icon(Icons.location_city)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _zipCtrl,
+                        decoration: const InputDecoration(labelText: 'CP'),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 TextField(

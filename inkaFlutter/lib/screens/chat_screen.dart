@@ -189,21 +189,24 @@ class _ChatScreenState extends State<ChatScreen> {
     required String part,
     required String size,
     required String priceText,
+    required String durationText,
     DateTime? date,
   }) async {
     final price = double.tryParse(priceText);
+    final duration = double.tryParse(durationText);
     
     final Map<String, dynamic> updateData = {
       'idea_description': idea,
       'body_part': part,
       'size_cm': size,
       'price_quote': price,
+      'duration_hours': duration,
       'artist_accepted': true,
       'client_accepted': false,
     };
 
     if (date != null) {
-      updateData['booking_date'] = date.toIso8601String();
+      updateData['booking_date'] = date.toUtc().toIso8601String();
     }
 
     final success = await _authService.updateBooking(bookingId, updateData);
@@ -259,13 +262,15 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
     
-    final startDate = DateTime.parse(dateStr);
-    // Asumimos 2 horas de duración por defecto
-    final endDate = startDate.add(const Duration(hours: 2));
+    final startDate = DateTime.parse(dateStr).toLocal();
+    final duration = double.tryParse(data['duration_hours']?.toString() ?? '2') ?? 2.0;
+    
+    // Calcular fin basado en la duración (convertir horas a minutos)
+    final endDate = startDate.add(Duration(minutes: (duration * 60).toInt()));
 
     final Event event = Event(
-      title: 'Tatuaje: $idea',
-      description: 'Zona: $part\nPrecio estimado: $price €\nGestión desde Inka App',
+      title: 'Tatuaje de ${widget.artistName}',
+      description: 'Zona: $part\nIdea: $idea\nPrecio Estimado: $price €\nGestion desde Inka',
       location: 'Estudio de Tatuajes',
       startDate: startDate,
       endDate: endDate,
@@ -295,17 +300,6 @@ class _ChatScreenState extends State<ChatScreen> {
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Text('Chat con ${widget.artistName}'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.phone, color: Theme.of(context).colorScheme.primary),
-            onPressed: () {
-              // TODO: Implementar llamada
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Función de llamada próximamente')),
-              );
-            },
-          ),
-        ],
       ),
       body: SafeArea(
         child: Column(
@@ -497,8 +491,9 @@ class _ChatScreenState extends State<ChatScreen> {
     final part = data['body_part']?.toString() ?? '';
     final size = data['size_cm']?.toString() ?? '';
     final price = data['price_quote'];
+    final duration = data['duration_hours'];
     final dateStr = data['booking_date']?.toString();
-    DateTime? bookingDate = dateStr != null ? DateTime.parse(dateStr) : null;
+    DateTime? bookingDate = dateStr != null ? DateTime.parse(dateStr).toLocal() : null;
     
     final clientAcc = data['client_accepted'] as bool? ?? false;
     final artistAcc = data['artist_accepted'] as bool? ?? false;
@@ -510,6 +505,7 @@ class _ChatScreenState extends State<ChatScreen> {
         'part': TextEditingController(text: part),
         'size': TextEditingController(text: size),
         'price': TextEditingController(text: price?.toString() ?? ''),
+        'duration': TextEditingController(text: duration?.toString() ?? '2'),
       };
       _selectedDates[msgId] = bookingDate;
     }
@@ -574,6 +570,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             const SizedBox(height: 12),
             _buildEditField('Precio (€):', ctrls?['price'], isNumber: true),
+            _buildEditField('Duración estimada (h):', ctrls?['duration'], isNumber: true),
             
             const SizedBox(height: 16),
             ElevatedButton(
@@ -583,6 +580,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 part: ctrls?['part']?.text ?? '',
                 size: ctrls?['size']?.text ?? '',
                 priceText: ctrls?['price']?.text ?? '0',
+                durationText: ctrls?['duration']?.text ?? '2',
                 date: selectedDate,
               ),
               child: const Text('Enviar Propuesta Actualizada'),
@@ -602,7 +600,9 @@ class _ChatScreenState extends State<ChatScreen> {
             Text('Zona: $part'),
             if (size.isNotEmpty) Text('Tamaño: $size cm'),
             if (bookingDate != null) 
-              Text('Fecha: ${bookingDate.day}/${bookingDate.month}/${bookingDate.year}'),
+              Text('Fecha: ${bookingDate.day}/${bookingDate.month}/${bookingDate.year} a las ${_formatTimeOnly(bookingDate)}'),
+            if (duration != null)
+              Text('Duración: $duration h'),
             
             const Divider(height: 24),
             
@@ -683,6 +683,10 @@ class _ChatScreenState extends State<ChatScreen> {
     } else {
       return 'Ahora';
     }
+  }
+
+  String _formatTimeOnly(DateTime time) {
+    return '${time.hour}:${time.minute.toString().padLeft(2, '0')}';
   }
 
   void _showFullScreenImage(String imageUrl) {

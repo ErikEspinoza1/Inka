@@ -48,6 +48,10 @@ class ArtistCreate(BaseModel):
     # Documentación para verificar
     business_license_id: str # DNI/NIF
     business_document_url: Optional[str] = None # URL de la foto del certificado
+    
+    # Horario
+    working_hours_start: Optional[str] = "09:00"
+    working_hours_end: Optional[str] = "18:00"
 
 class ArtistResponse(BaseModel):
     id: UUID
@@ -78,6 +82,7 @@ class BookingCreate(BaseModel):
     body_part: str
     size_cm: Optional[str] = None
     booking_date: Optional[datetime] = None
+    duration_hours: Optional[float] = None
 
 class BookingUpdate(BaseModel):
     status: Optional[BookingStatus] = None
@@ -86,6 +91,7 @@ class BookingUpdate(BaseModel):
     idea_description: Optional[str] = None
     body_part: Optional[str] = None
     size_cm: Optional[str] = None
+    duration_hours: Optional[float] = None
     client_accepted: Optional[bool] = None
     artist_accepted: Optional[bool] = None
 
@@ -101,6 +107,7 @@ class BookingResponse(BaseModel):
     price_quote: Optional[float]
     client_accepted: bool
     artist_accepted: bool
+    duration_hours: Optional[float] = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -180,6 +187,9 @@ class ArtistUpdate(BaseModel):
     # Documentos
     business_license_id: Optional[str] = None
     business_document_url: Optional[str] = None # Aquí irá la URL de la foto del certificado
+    
+    working_hours_start: Optional[str] = None
+    working_hours_end: Optional[str] = None
 
 class ArtistResponse(BaseModel):
     id: UUID
@@ -199,6 +209,9 @@ class ArtistResponse(BaseModel):
     is_verified: bool
     business_license_id: Optional[str] = None
     business_document_url: Optional[str] = None
+    
+    working_hours_start: Optional[str] = "09:00"
+    working_hours_end: Optional[str] = "18:00"
 
     class Config:
         from_attributes = True
