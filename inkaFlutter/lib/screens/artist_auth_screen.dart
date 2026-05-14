@@ -167,6 +167,7 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -176,7 +177,7 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
               Icon(Icons.palette, size: 80, color: Theme.of(context).colorScheme.primary),
               const SizedBox(height: 20),
               Text(
-                _isLogin ? 'ARTIST LOGIN' : 'JOIN AS ARTIST',
+                _isLogin ? 'ACCESO PROFESIONAL' : 'UNIRSE COMO ARTISTA',
                 style: Theme.of(context).textTheme.displaySmall,
               ),
               const SizedBox(height: 30),

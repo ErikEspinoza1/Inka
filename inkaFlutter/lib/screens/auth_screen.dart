@@ -110,6 +110,10 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -119,7 +123,7 @@ class _AuthScreenState extends State<AuthScreen> {
               Icon(Icons.fingerprint, size: 80, color: Theme.of(context).colorScheme.primary),
               const SizedBox(height: 20),
               Text(
-                _isLogin ? 'INKA LOGIN' : 'CREAR CUENTA',
+                _isLogin ? 'INICIAR SESIÓN' : 'CREAR CUENTA',
                 style: Theme.of(context).textTheme.displaySmall,
               ),
               const SizedBox(height: 40),

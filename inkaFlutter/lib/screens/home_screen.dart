@@ -24,7 +24,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Menú Principal Dev"),
+        title: const Text("Menú de Desarrollo"),
         actions: [
           // Botón de Logout opcional
           IconButton(
@@ -57,7 +57,7 @@ class HomeScreen extends StatelessWidget {
             // --- BOTÓN 2: SUBIDA IMAGEN ---
             ElevatedButton.icon(
               icon: const Icon(Icons.cloud_upload),
-              label: const Text("TEST SUBIDA (PERSONA 3)"),
+              label: const Text("TEST DE AGUA"),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.secondary,
                 foregroundColor: Theme.of(context).colorScheme.onSecondary,
