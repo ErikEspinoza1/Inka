@@ -1,12 +1,16 @@
+// lib/screens/artist_profile_view_screen.dart
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:http/http.dart' as http;
 import '../services/auth_service.dart';
 import 'chat_screen.dart';
 import 'booking_screen.dart';
+import 'ar_tattoo_screen.dart';
 
 class ArtistProfileViewScreen extends StatefulWidget {
   final String artistId;
-
   const ArtistProfileViewScreen({super.key, required this.artistId});
 
   @override
@@ -18,6 +22,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
   Map<String, dynamic>? _artistData;
   List<dynamic> _portfolioImages = [];
   bool _isLoading = true;
+  String? _loadingPostId;
 
   @override
   void initState() {
@@ -26,16 +31,61 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
   }
 
   Future<void> _loadArtistData() async {
-    // Cargar datos del artista
     final artistData = await _authService.getArtistById(widget.artistId);
-    // Cargar portfolio
-    final portfolio = await _authService.getArtistPortfolio(widget.artistId);
-
+    final portfolio  = await _authService.getArtistPortfolio(widget.artistId);
     setState(() {
-      _artistData = artistData;
+      _artistData      = artistData;
       _portfolioImages = portfolio ?? [];
-      _isLoading = false;
+      _isLoading       = false;
     });
+  }
+
+  Future<void> _tryTattooAR(Map<String, dynamic> post) async {
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La prueba AR solo está disponible en la app móvil'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final postId      = post['id'] as String?;
+    final cleanUrl    = post['clean_image_url'] as String?;
+    final originalUrl = post['image_url'] as String?;
+
+    setState(() => _loadingPostId = postId);
+    Uint8List? imageBytes;
+
+    if (cleanUrl != null && cleanUrl.isNotEmpty) {
+      try {
+        final res = await http.get(Uri.parse(cleanUrl)).timeout(const Duration(seconds: 15));
+        if (res.statusCode == 200) imageBytes = res.bodyBytes;
+      } catch (_) {}
+    }
+
+    if (imageBytes == null && originalUrl != null && originalUrl.isNotEmpty) {
+      try {
+        final res = await http.get(Uri.parse(originalUrl)).timeout(const Duration(seconds: 15));
+        if (res.statusCode == 200) imageBytes = res.bodyBytes;
+      } catch (_) {}
+    }
+
+    setState(() => _loadingPostId = null);
+
+    if (imageBytes == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo cargar el diseño'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ArTattooScreen(tattooBytes: imageBytes),
+    ));
   }
 
   @override
@@ -45,7 +95,6 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-
     if (_artistData == null) {
       return const Scaffold(
         body: Center(
@@ -63,12 +112,8 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Información básica del artista
             _buildArtistInfo(),
-
             const SizedBox(height: 20),
-
-            // Portfolio slider
             if (_portfolioImages.isNotEmpty) ...[
               Text(
                 'Portfolio',
@@ -88,8 +133,6 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             ],
 
             const SizedBox(height: 30),
-
-            // Botones de acción
             _buildActionButtons(),
           ],
         ),
@@ -198,54 +241,105 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
   Widget _buildPortfolioSlider() {
     return CarouselSlider(
       options: CarouselOptions(
-        height: 300,
+        height: 360,
         enlargeCenterPage: true,
         enableInfiniteScroll: false,
         viewportFraction: 0.8,
       ),
       items: _portfolioImages.map((image) {
+        final post        = image as Map<String, dynamic>;
+        final postId      = post['id'] as String?;
+        final bgRemoved   = post['bg_removed'] as bool? ?? false;
+        final isLoadingThis = _loadingPostId == postId;
+
         return Container(
-          width: MediaQuery.of(context).size.width,
           margin: const EdgeInsets.symmetric(horizontal: 5.0),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            image: DecorationImage(
-              image: NetworkImage(image['image_url']),
-              fit: BoxFit.cover,
-            ),
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-                colors: [Colors.black.withOpacity(0.7), Colors.transparent],
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (image['description'] != null && image['description'].isNotEmpty)
-                    Text(
-                      image['description'],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
+          child: Column(
+            children: [
+              // Imagen
+              Expanded(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                      child: Image.network(
+                        post['image_url'] ?? '',
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: Colors.grey[900],
+                          child: const Icon(Icons.broken_image, color: Colors.white38, size: 48),
+                        ),
                       ),
                     ),
-                  if (image['style_tag'] != null && image['style_tag'].isNotEmpty)
-                    Text(
-                      image['style_tag'],
-                      style: const TextStyle(color: Colors.white70, fontSize: 14),
+                    // Info texto
+                    Positioned(
+                      bottom: 0, left: 0, right: 0,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                            colors: [Colors.black.withOpacity(0.8), Colors.transparent],
+                          ),
+                        ),
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (post['description'] != null && post['description'].isNotEmpty)
+                              Text(post['description'],
+                                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                            if (post['style_tag'] != null && post['style_tag'].isNotEmpty)
+                              Text(post['style_tag'],
+                                  style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                          ],
+                        ),
+                      ),
                     ),
-                ],
+                    // Badge AR
+                    if (bgRemoved)
+                      Positioned(
+                        top: 8, right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(color: Colors.tealAccent, borderRadius: BorderRadius.circular(6)),
+                          child: const Text('AR',
+                              style: TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
+              // Botón Probar AR
+              Container(
+                decoration: const BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 38,
+                  child: ElevatedButton.icon(
+                    onPressed: isLoadingThis ? null : () => _tryTattooAR(post),
+                    icon: isLoadingThis
+                        ? const SizedBox(width: 14, height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                        : const Icon(Icons.camera_alt, size: 16),
+                    label: Text(isLoadingThis ? 'Cargando…' : 'Probar tatuaje en AR',
+                        style: const TextStyle(fontSize: 13)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.tealAccent,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       }).toList(),
@@ -258,17 +352,12 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ChatScreen(
-                    artistId: widget.artistId,
-                    artistName: _artistData!['shop_name'] ?? 'Artista',
-                  ),
-                ),
-              );
-            },
+            onPressed: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => ChatScreen(
+                artistId: widget.artistId,
+                artistName: _artistData!['shop_name'] ?? 'Artista',
+              ),
+            )),
             icon: const Icon(Icons.message),
             label: const Text('Contactar Artista'),
             style: ElevatedButton.styleFrom(
@@ -280,17 +369,12 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => BookingScreen(
-                    artistId: widget.artistId,
-                    artistName: _artistData!['shop_name'] ?? 'Artista',
-                  ),
-                ),
-              );
-            },
+            onPressed: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => BookingScreen(
+                artistId: widget.artistId,
+                artistName: _artistData!['shop_name'] ?? 'Artista',
+              ),
+            )),
             icon: const Icon(Icons.calendar_today),
             label: const Text('Reservar Cita'),
             style: OutlinedButton.styleFrom(

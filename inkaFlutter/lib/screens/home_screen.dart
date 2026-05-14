@@ -14,10 +14,12 @@ class HomeScreen extends StatelessWidget {
     await authService.logout();
     
     // Volver al Login eliminando el historial
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const AuthScreen()),
-    );
+    if (context.mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AuthScreen()),
+      );
+    }
   }
 
   @override
@@ -70,6 +72,8 @@ class HomeScreen extends StatelessWidget {
                 );
               },
             ),
+
+            const SizedBox(height: 30),
           ],
         ),
       ),

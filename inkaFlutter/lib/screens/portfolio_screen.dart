@@ -1,10 +1,22 @@
+// lib/screens/portfolio_screen.dart
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:http/http.dart' as http;
 import '../services/auth_service.dart';
+import 'ar_tattoo_screen.dart';
 
 class PortfolioScreen extends StatefulWidget {
-  const PortfolioScreen({super.key});
+  final String? artistId;
+  final bool isOwnPortfolio;
+
+  const PortfolioScreen({
+    super.key,
+    this.artistId,
+    this.isOwnPortfolio = true,
+  });
 
   @override
   State<PortfolioScreen> createState() => _PortfolioScreenState();
@@ -15,6 +27,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   final ImagePicker _picker = ImagePicker();
   final List<Map<String, dynamic>> _portfolioImages = [];
   bool _isLoading = false;
+  String? _loadingPostId;
 
   @override
   void initState() {
@@ -24,11 +37,16 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
   Future<void> _loadPortfolio() async {
     setState(() => _isLoading = true);
-    final posts = await _authService.getPortfolioPosts();
+    List<dynamic>? posts;
+    if (widget.isOwnPortfolio) {
+      posts = await _authService.getPortfolioPosts();
+    } else if (widget.artistId != null) {
+      posts = await _authService.getArtistPortfolio(widget.artistId!);
+    }
     if (posts != null) {
       setState(() {
         _portfolioImages.clear();
-        _portfolioImages.addAll(posts.map((post) => post as Map<String, dynamic>));
+        _portfolioImages.addAll(posts!.map((p) => p as Map<String, dynamic>));
       });
     }
     setState(() => _isLoading = false);
@@ -306,6 +324,54 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     }
   }
 
+  Future<void> _tryTattooAR(Map<String, dynamic> post) async {
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La prueba AR solo está disponible en la app móvil'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final postId    = post['id'] as String?;
+    final cleanUrl  = post['clean_image_url'] as String?;
+    final originalUrl = post['image_url'] as String?;
+
+    setState(() => _loadingPostId = postId);
+    Uint8List? imageBytes;
+
+    if (cleanUrl != null && cleanUrl.isNotEmpty) {
+      try {
+        final res = await http.get(Uri.parse(cleanUrl)).timeout(const Duration(seconds: 15));
+        if (res.statusCode == 200) imageBytes = res.bodyBytes;
+      } catch (_) {}
+    }
+
+    if (imageBytes == null && originalUrl != null && originalUrl.isNotEmpty) {
+      try {
+        final res = await http.get(Uri.parse(originalUrl)).timeout(const Duration(seconds: 15));
+        if (res.statusCode == 200) imageBytes = res.bodyBytes;
+      } catch (_) {}
+    }
+
+    setState(() => _loadingPostId = null);
+
+    if (imageBytes == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo cargar el diseño'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ArTattooScreen(tattooBytes: imageBytes),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -462,6 +528,34 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                     );
                   },
                 ),
+    );
+  }
+
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.photo_library, size: 80, color: Colors.grey),
+          const SizedBox(height: 16),
+          Text(
+            widget.isOwnPortfolio ? 'Tu portfolio está vacío' : 'Este artista no tiene diseños aún',
+            style: const TextStyle(color: Colors.white, fontSize: 18),
+          ),
+          if (widget.isOwnPortfolio) ...[
+            const SizedBox(height: 8),
+            const Text('Agrega fotos de tus tatuajes',
+                style: TextStyle(color: Colors.grey), textAlign: TextAlign.center),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _pickAndUploadImage,
+              icon: const Icon(Icons.upload),
+              label: const Text('Subir primera foto'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.purple, foregroundColor: Colors.white),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

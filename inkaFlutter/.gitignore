@@ -45,4 +45,6 @@ app.*.map.json
 /android/app/release
 
 
-.env
+
+# Archivos temporales de compilación de Windows
+inkaFlutter/windows/flutter/ephemeral/
