@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
 import 'package:add_2_calendar/add_2_calendar.dart';
+import 'artist_profile_view_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final String artistId;
@@ -35,6 +36,9 @@ class _ChatScreenState extends State<ChatScreen> {
   final Map<String, Map<String, TextEditingController>> _bookingControllers = {};
   final Map<String, DateTime?> _selectedDates = {};
 
+  String? _otherUserAvatarUrl;
+  bool _avatarLoaded = false;
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +68,16 @@ class _ChatScreenState extends State<ChatScreen> {
     final role = await _authService.getUserRole();
     if (mounted) {
       _isArtist = role == 'artista';
+      if (!_avatarLoaded && !_isArtist) {
+        _avatarLoaded = true;
+        _authService.getArtistById(widget.artistId).then((data) {
+          if (mounted && data != null && data['avatar_url'] != null) {
+            setState(() {
+              _otherUserAvatarUrl = data['avatar_url'];
+            });
+          }
+        });
+      }
     }
 
     final currentUserId = await _authService.getCurrentUserId();
@@ -323,7 +337,40 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: Text('Chat con ${widget.artistName}'),
+        title: GestureDetector(
+          onTap: () {
+            if (!_isArtist) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ArtistProfileViewScreen(artistId: widget.artistId),
+                ),
+              );
+            }
+          },
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                radius: 18,
+                backgroundImage: _otherUserAvatarUrl != null ? NetworkImage(_otherUserAvatarUrl!) : null,
+                child: _otherUserAvatarUrl == null
+                    ? Text(
+                        widget.artistName.isNotEmpty ? widget.artistName[0].toUpperCase() : 'A',
+                        style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 16),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  widget.artistName,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
       body: SafeArea(
         child: Column(
