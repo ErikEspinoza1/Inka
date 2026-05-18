@@ -13,6 +13,9 @@ import 'package:http/http.dart' as http;
 import 'package:gal/gal.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http_parser/http_parser.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../painters/tattoo_painter.dart';
 import '../utils/camera_utils.dart';
@@ -260,8 +263,13 @@ class _ArTattooScreenState extends State<ArTattooScreen> with WidgetsBindingObse
       await Gal.putImageBytes(pngBytes, name: "Inka_${DateTime.now().millisecondsSinceEpoch}");
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("¡Foto guardada en la galería!"), backgroundColor: Colors.teal));
+        // Remove the simple snackbar and push the new preview screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ArPhotoPreviewScreen(imageBytes: pngBytes),
+          ),
+        );
       }
     } catch (e) {
       debugPrint("Error guardando foto: $e");
@@ -332,6 +340,17 @@ class _ArTattooScreenState extends State<ArTattooScreen> with WidgetsBindingObse
                         rotationOffset: rotationOffset,
                         sensorOrientation: _sensorOrientation,
                         selectedZone: _selectedZone,
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 16,
+                      right: 16,
+                      child: Opacity(
+                        opacity: 0.6,
+                        child: Image.asset(
+                          'assets/images/inka_logo.png',
+                          width: 80,
+                        ),
                       ),
                     ),
                   ],
@@ -602,3 +621,104 @@ class _ArTattooScreenState extends State<ArTattooScreen> with WidgetsBindingObse
     );
   }
 }
+
+class ArPhotoPreviewScreen extends StatefulWidget {
+  final Uint8List imageBytes;
+
+  const ArPhotoPreviewScreen({super.key, required this.imageBytes});
+
+  @override
+  State<ArPhotoPreviewScreen> createState() => _ArPhotoPreviewScreenState();
+}
+
+class _ArPhotoPreviewScreenState extends State<ArPhotoPreviewScreen> {
+  Future<void> _sharePhoto() async {
+    try {
+      final documentDirectory = await getTemporaryDirectory();
+      final file = File('${documentDirectory.path}/inka_tattoo_ar.png');
+      file.writeAsBytesSync(widget.imageBytes);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: '¡Descárgate Inka para ver más fotos como esta!',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al compartir la imagen'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Imagen capturada
+          Image.memory(
+            widget.imageBytes,
+            fit: BoxFit.cover,
+          ),
+          
+          // Botón Atrás (Repetir)
+          Positioned(
+            top: 50,
+            left: 16,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.arrow_back, color: Colors.white),
+              ),
+            ),
+          ),
+
+          // Botones Inferiores (Repetir y Compartir)
+          Positioned(
+            bottom: 40,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                // Botón Repetir
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Repetir'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black54,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  ),
+                ),
+                
+                // Botón Compartir
+                ElevatedButton.icon(
+                  onPressed: _sharePhoto,
+                  icon: const Icon(Icons.share),
+                  label: const Text('Compartir'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
