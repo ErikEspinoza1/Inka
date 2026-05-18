@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import engine, Base, get_db
 from dotenv import load_dotenv # <--- IMPORTANTE: Añadido para leer el .env
-from routers import users, auth, artists, search # 👈 Añade 'search' aquí
+
 # Cargar las variables secretas del .env
 load_dotenv()
 
@@ -15,7 +15,7 @@ if "SSL_CERT_FILE" in os.environ:
     del os.environ["SSL_CERT_FILE"]
 
 # Importamos TODOS los routers
-from routers import auth, artists, bookings, users, content, messages, tattoo_ar
+from routers import auth, artists, bookings, users, content, messages
 
 Base.metadata.create_all(bind=engine)
 
@@ -35,8 +35,6 @@ app.include_router(artists.router)
 app.include_router(bookings.router)
 app.include_router(content.router)
 app.include_router(messages.router)
-app.include_router(search.router) 
-app.include_router(tattoo_ar.router) 
 
 # --- NUESTRO ENDPOINT NUCLEAR Y AUTOPILOTO DE IA ---
 @app.get("/buscar-tatuajes-ia")

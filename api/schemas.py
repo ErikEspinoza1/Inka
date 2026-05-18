@@ -31,8 +31,11 @@ class UserResponse(BaseModel):
     email: EmailStr
     full_name: str
     role: UserRole
+<<<<<<< HEAD
     avatar_url: Optional[str] = None
     created_at: datetime
+=======
+>>>>>>> parent of 1a8214c (a)
     class Config:
         from_attributes = True
 
@@ -58,10 +61,13 @@ class ArtistCreate(BaseModel):
     # Documentación para verificar
     business_license_id: str # DNI/NIF
     business_document_url: Optional[str] = None # URL de la foto del certificado
+<<<<<<< HEAD
     
     # Horario
     working_hours_start: Optional[str] = "09:00"
     working_hours_end: Optional[str] = "18:00"
+=======
+>>>>>>> parent of 1a8214c (a)
 
 class ArtistResponse(BaseModel):
     id: UUID
@@ -153,8 +159,36 @@ class ReviewResponse(BaseModel):
     rating: int
     comment: Optional[str]
     created_at: datetime
+<<<<<<< HEAD
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class MessageCreate(BaseModel):
+    receiver_id: UUID
+    content: str
+    booking_id: Optional[UUID] = None
+
+class MessageResponse(BaseModel):
+    id: UUID
+    booking_id: Optional[UUID] = None
+    sender_id: UUID
+    receiver_id: UUID
+    content: str
+    is_read: bool
+    created_at: datetime
+    
+    # Documentos
+    business_license_id: Optional[str] = None
+    business_document_url: Optional[str] = None # Aquí irá la URL de la foto del certificado
+    
+    working_hours_start: Optional[str] = None
+    working_hours_end: Optional[str] = None
+
+# --- DISEÑOS DE IA (Añadir esto a api/schemas.py) ---
+=======
     class Config:
         from_attributes = True
+>>>>>>> parent of 1a8214c (a)
 
 class AIDesignCreate(BaseModel):
     prompt_text: str
@@ -163,6 +197,12 @@ class AIDesignCreate(BaseModel):
 
 class AIDesignResponse(BaseModel):
     id: UUID
+<<<<<<< HEAD
+    shop_name: str
+    bio: Optional[str] = None
+    styles: Optional[List[str]] = []
+    
+=======
     prompt_text: str
     image_url: str
     created_at: datetime
@@ -199,11 +239,7 @@ class ArtistUpdate(BaseModel):
     workspace_type: Optional[StudioType] = None
     
     # Documentos
-    business_license_id: Optional[str] = None
     business_document_url: Optional[str] = None # Aquí irá la URL de la foto del certificado
-    
-    working_hours_start: Optional[str] = None
-    working_hours_end: Optional[str] = None
 
 class ArtistResponse(BaseModel):
     id: UUID
@@ -211,6 +247,7 @@ class ArtistResponse(BaseModel):
     bio: Optional[str] = None
     styles: Optional[List[str]] = []
     
+>>>>>>> parent of 1a8214c (a)
     # --- CAMPOS QUE FALTABAN ---
     latitude: float   # <--- IMPORTANTE: Sin esto, el mapa no sabe dónde poner el pin
     longitude: float  # <--- IMPORTANTE
@@ -220,6 +257,7 @@ class ArtistResponse(BaseModel):
     workspace_type: Optional[str] = None 
     instagram_handle: Optional[str] = None
     
+<<<<<<< HEAD
     is_verified: bool
     business_license_id: Optional[str] = None
     business_document_url: Optional[str] = None
@@ -229,3 +267,12 @@ class ArtistResponse(BaseModel):
 
     class Config:
         from_attributes = True
+=======
+    # URLs de imágenes (opcional, para el futuro)
+    avatar_url: Optional[str] = None 
+    
+    is_verified: bool
+    
+    class Config:
+        from_attributes = True
+>>>>>>> parent of 1a8214c (a)

@@ -1,9 +1,14 @@
 import 'dart:io';
+<<<<<<< HEAD
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
+=======
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+>>>>>>> parent of 1a8214c (a)
 
 class ImageService {
   /// Aplica una marca de agua premium (Logo + Nombre de Artista) usando el Canvas de Flutter.
@@ -63,6 +68,16 @@ class ImageService {
         logoRect,
         Paint()..filterQuality = ui.FilterQuality.high,
       );
+<<<<<<< HEAD
+=======
+      if (image != null) return File(image.path);
+      return null;
+    } catch (e) {
+      print('Error: $e');
+      return null;
+    }
+  }
+>>>>>>> parent of 1a8214c (a)
 
       // 4. Dibujar Texto (@artista) más pequeño para dar protagonismo a Inka
       final textStyle = GoogleFonts.oswald(
@@ -113,8 +128,13 @@ class ImageService {
 
       return watermarkedFile;
     } catch (e) {
+<<<<<<< HEAD
       debugPrint("Error en marca de agua: $e");
       return File(imagePath);
+=======
+      print('Error upload: $e');
+      return null;
+>>>>>>> parent of 1a8214c (a)
     }
   }
 }

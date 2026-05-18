@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+<<<<<<< HEAD
 import 'package:provider/provider.dart';
+=======
+import 'package:carousel_slider/carousel_slider.dart';
+>>>>>>> parent of 1a8214c (a)
 import '../services/auth_service.dart';
 import '../providers/interaction_provider.dart';
 import 'chat_screen.dart';
 import 'booking_screen.dart';
+<<<<<<< HEAD
 import 'explore_screen.dart'; // Para FullScreenFeedScreen
+=======
+>>>>>>> parent of 1a8214c (a)
 
 class ArtistProfileViewScreen extends StatefulWidget {
   final String artistId;
@@ -20,7 +27,10 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
   Map<String, dynamic>? _artistData;
   List<dynamic> _portfolioImages = [];
   bool _isLoading = true;
+<<<<<<< HEAD
   bool _isNewestFirst = true;
+=======
+>>>>>>> parent of 1a8214c (a)
 
   @override
   void initState() {
@@ -29,7 +39,9 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
   }
 
   Future<void> _loadArtistData() async {
+    // Cargar datos del artista
     final artistData = await _authService.getArtistById(widget.artistId);
+<<<<<<< HEAD
     final portfolio = await _authService.getArtistPortfolio(widget.artistId);
 
     if (mounted) {
@@ -43,6 +55,16 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
         _isLoading = false;
       });
     }
+=======
+    // Cargar portfolio
+    final portfolio = await _authService.getArtistPortfolio(widget.artistId);
+
+    setState(() {
+      _artistData = artistData;
+      _portfolioImages = portfolio ?? [];
+      _isLoading = false;
+    });
+>>>>>>> parent of 1a8214c (a)
   }
 
   @override
@@ -68,13 +90,19 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Información básica del artista
             _buildArtistInfo(),
+
             const SizedBox(height: 20),
 
+<<<<<<< HEAD
             _buildActionButtons(),
             const SizedBox(height: 20),
 
             // Portfolio
+=======
+            // Portfolio slider
+>>>>>>> parent of 1a8214c (a)
             if (_portfolioImages.isNotEmpty) ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -109,6 +137,12 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             ],
 
             const SizedBox(height: 30),
+<<<<<<< HEAD
+=======
+
+            // Botones de acción
+            _buildActionButtons(),
+>>>>>>> parent of 1a8214c (a)
           ],
         ),
       ),
@@ -253,6 +287,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
     );
   }
 
+<<<<<<< HEAD
   /// Grid de portfolio - al tocar una foto, abre TikTok Style en esa posición
   Widget _buildPortfolioGrid() {
     // Convertir a List<Map<String, dynamic>> para pasarlo al TikTokFeedView
@@ -300,6 +335,80 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
               errorBuilder: (context, error, stackTrace) => Container(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: const Icon(Icons.broken_image, color: Colors.white30),
+              ),
+              // Botón Probar AR
+              Container(
+                decoration: const BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 38,
+                  child: ElevatedButton.icon(
+                    onPressed: isLoadingThis ? null : () => _tryTattooAR(post),
+                    icon: isLoadingThis
+                        ? const SizedBox(width: 14, height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                        : const Icon(Icons.camera_alt, size: 16),
+                    label: Text(isLoadingThis ? 'Cargando…' : 'Probar tatuaje en AR',
+                        style: const TextStyle(fontSize: 13)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.tealAccent,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+=======
+  Widget _buildPortfolioSlider() {
+    return CarouselSlider(
+      options: CarouselOptions(
+        height: 300,
+        enlargeCenterPage: true,
+        enableInfiniteScroll: false,
+        viewportFraction: 0.8,
+      ),
+      items: _portfolioImages.map((image) {
+        return Container(
+          width: MediaQuery.of(context).size.width,
+          margin: const EdgeInsets.symmetric(horizontal: 5.0),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            image: DecorationImage(
+              image: NetworkImage(image['image_url']),
+              fit: BoxFit.cover,
+            ),
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (image['description'] != null && image['description'].isNotEmpty)
+                    Text(
+                      image['description'],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+>>>>>>> parent of 1a8214c (a)
+                    ),
+                  if (image['style_tag'] != null && image['style_tag'].isNotEmpty)
+                    Text(
+                      image['style_tag'],
+                      style: const TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                ],
               ),
             ),
           ),

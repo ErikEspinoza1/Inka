@@ -34,8 +34,11 @@ class Profile(Base):
     avatar_url = Column(String, nullable=True)
     role = Column(Enum(UserRole), default=UserRole.cliente)
     password = Column(String) 
+<<<<<<< HEAD
     preference_embedding = Column(Vector(768), nullable=True) # Para el algoritmo de Feed
     fcm_token = Column(String, nullable=True) # Token para notificaciones push
+=======
+>>>>>>> parent of 1a8214c (a)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     artist_profile = relationship("Artist", back_populates="profile", uselist=False)
@@ -68,10 +71,13 @@ class Artist(Base):
     longitude = Column(Float)
     workspace_type = Column(Enum(StudioType), default=StudioType.shop)
     show_exact_location = Column(Boolean, default=True) # False = Privacidad (Estudios privados)
+<<<<<<< HEAD
     
     # Horario Laboral
     working_hours_start = Column(String, default="09:00")
     working_hours_end = Column(String, default="18:00")
+=======
+>>>>>>> parent of 1a8214c (a)
 
     # Relaciones
     profile = relationship("Profile", back_populates="artist_profile")

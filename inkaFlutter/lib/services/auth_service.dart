@@ -603,6 +603,7 @@ class AuthService {
     }
     return null;
   }
+<<<<<<< HEAD
 
   // ==========================================================
   // 6. AVATARES
@@ -637,4 +638,6 @@ class AuthService {
     }
     return total;
   }
+=======
+>>>>>>> parent of 1a8214c (a)
 }

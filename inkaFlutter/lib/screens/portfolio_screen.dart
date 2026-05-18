@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/auth_service.dart';
+<<<<<<< HEAD
 import '../services/image_service.dart';
 import '../services/interaction_service.dart';
+=======
+>>>>>>> parent of 1a8214c (a)
 
 class PortfolioScreen extends StatefulWidget {
   const PortfolioScreen({super.key});
@@ -17,7 +20,10 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   final ImagePicker _picker = ImagePicker();
   final List<Map<String, dynamic>> _portfolioImages = [];
   bool _isLoading = false;
+<<<<<<< HEAD
   String _artistName = "Inka Artist"; // Nombre por defecto
+=======
+>>>>>>> parent of 1a8214c (a)
 
   @override
   void initState() {
@@ -489,6 +495,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                 ),
     );
   }
+<<<<<<< HEAD
 
   Future<void> _editPost(Map<String, dynamic> post) async {
     final titleController = TextEditingController(text: post['style_tag'] ?? '');
@@ -575,4 +582,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       },
     );
   }
+=======
+>>>>>>> parent of 1a8214c (a)
 }
