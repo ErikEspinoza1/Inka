@@ -52,12 +52,15 @@ class TattooPainter extends CustomPainter {
         ? size.height / absoluteImageSize.width
         : size.height / absoluteImageSize.height;
 
+    // El ancho real sobre el que se hace el espejo depende de si la imagen está rotada
+    final double widthToMirror = isRotated ? absoluteImageSize.height : absoluteImageSize.width;
+
     // --- CORRECCIÓN DEL ESPEJO (CAMERA MIRRORING) ---
     double rawStartX = isFrontCamera 
-        ? absoluteImageSize.width - startPoint!.x 
+        ? widthToMirror - startPoint!.x 
         : startPoint!.x;
     double rawEndX = isFrontCamera 
-        ? absoluteImageSize.width - endPoint!.x 
+        ? widthToMirror - endPoint!.x 
         : endPoint!.x;
 
     double sX = rawStartX * scX;
@@ -137,6 +140,7 @@ class TattooPainter extends CustomPainter {
       ..imageFilter = ui.ImageFilter.blur(sigmaX: 0.6, sigmaY: 0.6)
       ..colorFilter = const ui.ColorFilter.mode(ui.Color(0x224A2511), ui.BlendMode.srcOver)
       ..filterQuality = FilterQuality.high
+      ..blendMode = BlendMode.multiply  // 🔥 MAGIA: Funde cualquier residuo blanco con la piel de forma ultra realista
       ..isAntiAlias = true;
 
     canvas.save();

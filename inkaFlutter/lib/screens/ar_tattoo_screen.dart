@@ -13,6 +13,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 import 'package:gal/gal.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http_parser/http_parser.dart';
 
 import '../painters/tattoo_painter.dart';
 import '../utils/camera_utils.dart';
@@ -50,7 +51,7 @@ class ArTattooScreen extends StatefulWidget {
   State<ArTattooScreen> createState() => _ArTattooScreenState();
 }
 
-class _ArTattooScreenState extends State<ArTattooScreen> {
+class _ArTattooScreenState extends State<ArTattooScreen> with WidgetsBindingObserver {
   final GlobalKey _boundaryKey = GlobalKey();
   CameraController? _controller;
   PoseDetector? _poseDetector;
@@ -72,9 +73,11 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
 
   int _currentCountdown = 0;
   bool _isCountingDown = false;
+  bool _isPanelExpanded = true; // 🔥 UX Premium: Controla si el panel inferior de ajustes está expandido o colapsado
 
-  final OneEuroFilter _startFilter = OneEuroFilter(minCutoff: 0.05, beta: 0.005);
-  final OneEuroFilter _endFilter = OneEuroFilter(minCutoff: 0.05, beta: 0.005);
+  // 🔥 Optimización AR: Reducimos minCutoff y beta para estabilizar de forma mas agresiva los temblores en horizontal
+  final OneEuroFilter _startFilter = OneEuroFilter(minCutoff: 0.02, beta: 0.002);
+  final OneEuroFilter _endFilter = OneEuroFilter(minCutoff: 0.02, beta: 0.002);
 
   PoseLandmark? _stabilizedStart;
   PoseLandmark? _stabilizedEnd;
@@ -87,6 +90,7 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this); // Registrar observador del ciclo de vida
     _initializeAll();
   }
 
@@ -111,6 +115,7 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
         _tattooImage = await _loadUiImage('assets/images/tattoo.png');
       }
     } catch (e) {
+      debugPrint("🚨 ERROR CARGANDO IMAGEN TATUAJE EN AR: $e");
       _tattooImage = await _loadUiImage('assets/images/tattoo.png');
     } finally {
       if (mounted) setState(() => _isProcessing = false);
@@ -157,7 +162,12 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
     final String baseUrl = dotenv.env['API_URL'] ?? 'http://192.168.1.134:8000';
     final uri = Uri.parse('$baseUrl/tattoo/remove_bg');
     var request = http.MultipartRequest('POST', uri);
-    request.files.add(http.MultipartFile.fromBytes('file', originalBytes, filename: 'tattoo.jpg'));
+    request.files.add(http.MultipartFile.fromBytes(
+      'file', 
+      originalBytes, 
+      filename: 'tattoo.jpg',
+      contentType: MediaType('image', 'jpeg'),
+    ));
     var response = await request.send();
     if (response.statusCode == 200) return await response.stream.toBytes();
     throw Exception('Error removing background');
@@ -253,9 +263,29 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // Remover observador
     _controller?.dispose();
     _poseDetector?.close();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final CameraController? cameraController = _controller;
+
+    // Si la cámara no está lista, ignoramos transiciones
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return;
+    }
+
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      // Liberar cámara al salir a segundo plano
+      setState(() => _isCameraInitialized = false);
+      cameraController.dispose();
+    } else if (state == AppLifecycleState.resumed) {
+      // Volver a configurar al regresar a primer plano
+      _setupCamera();
+    }
   }
 
   @override
@@ -316,54 +346,100 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
             bottom: 0,
             left: 0,
             right: 0,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Colors.black87,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              padding: EdgeInsets.only(
+                left: 20, 
+                right: 20, 
+                top: 10, 
+                bottom: MediaQuery.of(context).padding.bottom + 15
+              ),
+              decoration: BoxDecoration(
+                color: _isPanelExpanded ? Colors.black87 : Colors.black54,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                border: Border.all(color: Colors.white10, width: 1),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildModeIcon(Icons.zoom_out_map, "Escala", ControlMode.size),
-                      _buildModeIcon(Icons.swap_horiz, "X", ControlMode.posX),
-                      _buildModeIcon(Icons.swap_vert, "Y", ControlMode.posY),
-                      _buildModeIcon(Icons.rotate_right, "Girar", ControlMode.rotation),
-                      _buildModeIcon(Icons.opacity, "Tinta", ControlMode.opacity),
-                      _buildModeIcon(Icons.timer, "Reloj", ControlMode.timer),
-                    ],
-                  ),
-                  const Divider(color: Colors.white24, height: 25),
-                  _buildActiveSlider(),
-                  const SizedBox(height: 15),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
+                  // Tirador táctil premium para colapsar/expandir el panel
+                  GestureDetector(
+                    onTap: () => setState(() => _isPanelExpanded = !_isPanelExpanded),
+                    behavior: HitTestBehavior.opaque,
+                    child: Column(
                       children: [
-                        _buildZoneButton("Cabeza", Icons.face, BodyZone.head),
-                        _buildZoneButton("Cuello", Icons.person, BodyZone.neck),
-                        _buildZoneButton("Pecho", Icons.accessibility_new, BodyZone.chest),
-                        _buildZoneButton("Espalda", Icons.accessibility_new, BodyZone.back),
-                        _buildZoneButton("Estómago", Icons.accessibility_new, BodyZone.stomach),
-                        _buildZoneButton("Mano I", Icons.back_hand, BodyZone.leftHand),
-                        _buildZoneButton("Mano D", Icons.back_hand, BodyZone.rightHand),
-                        _buildZoneButton("Antebrazo I", Icons.pan_tool, BodyZone.leftForearm),
-                        _buildZoneButton("Antebrazo D", Icons.pan_tool, BodyZone.rightForearm),
-                        _buildZoneButton("Bíceps I", Icons.fitness_center, BodyZone.leftBicep),
-                        _buildZoneButton("Bíceps D", Icons.fitness_center, BodyZone.rightBicep),
-                        _buildZoneButton("Muslo I", Icons.directions_walk, BodyZone.leftThigh),
-                        _buildZoneButton("Muslo D", Icons.directions_walk, BodyZone.rightThigh),
-                        _buildZoneButton("Gemelo I", Icons.directions_run, BodyZone.leftCalf),
-                        _buildZoneButton("Gemelo D", Icons.directions_run, BodyZone.rightCalf),
-                        _buildZoneButton("Pie I", Icons.pets, BodyZone.leftFoot),
-                        _buildZoneButton("Pie D", Icons.pets, BodyZone.rightFoot),
+                        Container(
+                          width: 40,
+                          height: 5,
+                          margin: const EdgeInsets.only(bottom: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.white38,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                        if (!_isPanelExpanded)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.keyboard_arrow_up, color: Colors.tealAccent, size: 16),
+                              const SizedBox(width: 5),
+                              Text(
+                                "Mostrar panel de edición",
+                                style: TextStyle(color: Colors.tealAccent[100], fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          )
+                        else
+                          const Icon(Icons.keyboard_arrow_down, color: Colors.white30, size: 16),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 10),
+                  
+                  if (_isPanelExpanded) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildModeIcon(Icons.zoom_out_map, "Escala", ControlMode.size),
+                        _buildModeIcon(Icons.swap_horiz, "X", ControlMode.posX),
+                        _buildModeIcon(Icons.swap_vert, "Y", ControlMode.posY),
+                        _buildModeIcon(Icons.rotate_right, "Girar", ControlMode.rotation),
+                        _buildModeIcon(Icons.opacity, "Tinta", ControlMode.opacity),
+                        _buildModeIcon(Icons.timer, "Reloj", ControlMode.timer),
+                      ],
+                    ),
+                    const Divider(color: Colors.white24, height: 25),
+                    _buildActiveSlider(),
+                    const SizedBox(height: 15),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildZoneButton("Cabeza", Icons.face, BodyZone.head),
+                          _buildZoneButton("Cuello", Icons.person, BodyZone.neck),
+                          _buildZoneButton("Pecho", Icons.accessibility_new, BodyZone.chest),
+                          _buildZoneButton("Espalda", Icons.accessibility_new, BodyZone.back),
+                          _buildZoneButton("Estómago", Icons.accessibility_new, BodyZone.stomach),
+                          _buildZoneButton("Mano I", Icons.back_hand, BodyZone.leftHand),
+                          _buildZoneButton("Mano D", Icons.back_hand, BodyZone.rightHand),
+                          _buildZoneButton("Antebrazo I", Icons.pan_tool, BodyZone.leftForearm),
+                          _buildZoneButton("Antebrazo D", Icons.pan_tool, BodyZone.rightForearm),
+                          _buildZoneButton("Bíceps I", Icons.fitness_center, BodyZone.leftBicep),
+                          _buildZoneButton("Bíceps D", Icons.fitness_center, BodyZone.rightBicep),
+                          _buildZoneButton("Muslo I", Icons.directions_walk, BodyZone.leftThigh),
+                          _buildZoneButton("Muslo D", Icons.directions_walk, BodyZone.rightThigh),
+                          _buildZoneButton("Gemelo I", Icons.directions_run, BodyZone.leftCalf),
+                          _buildZoneButton("Gemelo D", Icons.directions_run, BodyZone.rightCalf),
+                          _buildZoneButton("Pie I", Icons.pets, BodyZone.leftFoot),
+                          _buildZoneButton("Pie D", Icons.pets, BodyZone.rightFoot),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                  
+                  // Botón de la cámara siempre accesible
                   GestureDetector(
                     onTap: () async {
                       if (_isCountingDown) return;
@@ -388,6 +464,13 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white, width: 3),
                         color: Colors.tealAccent,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.tealAccent.withOpacity(0.4),
+                            blurRadius: 15,
+                            spreadRadius: 2,
+                          )
+                        ],
                       ),
                       child: const Icon(Icons.camera_alt, size: 30, color: Colors.black),
                     ),
@@ -396,6 +479,36 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
               ),
             ),
           ),
+          if (_tattooImage == null && _isProcessing)
+            Container(
+              color: Colors.black87,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(color: Colors.tealAccent),
+                    const SizedBox(height: 25),
+                    Text(
+                      "Quitando fondo al diseño...",
+                      style: TextStyle(
+                        color: Colors.tealAccent[100],
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Preparando experiencia AR en tiempo real",
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           Positioned(
             top: 50,
             left: 20,
