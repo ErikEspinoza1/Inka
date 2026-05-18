@@ -252,7 +252,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
               runSpacing: 8,
               children: _busquedasRecientes.map((reciente) {
                 return InputChip(
-                  backgroundColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
                   labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   label: Text(reciente),
@@ -306,7 +306,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text('Descubrir'),
         elevation: 0,
@@ -324,7 +324,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
               decoration: InputDecoration(
                 hintText: 'Busca ideas, estilos, animales...',
                 filled: true,
-                fillColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
                 prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 suffixIcon: _uxState != 0
                     ? IconButton(

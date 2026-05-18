@@ -186,7 +186,7 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
               if (!_isLogin) ...[
                 TextField(
                   controller: _nameCtrl,
-                  decoration: InputDecoration(labelText: 'Nombre Estudio / Artístico', prefixIcon: const Icon(Icons.store)),
+                  decoration: const InputDecoration(labelText: 'Nombre Estudio / Artístico', prefixIcon: Icon(Icons.store)),
                 ),
                 const SizedBox(height: 16),
                 TextField(

@@ -298,10 +298,10 @@ class _ChatScreenState extends State<ChatScreen> {
       location: 'Estudio de Tatuajes',
       startDate: startDate,
       endDate: endDate,
-      iosParams: IOSParams(
-        reminder: const Duration(hours: 1),
+      iosParams: const IOSParams(
+        reminder: Duration(hours: 1),
       ),
-      androidParams: AndroidParams(
+      androidParams: const AndroidParams(
         emailInvites: [], // Lista de invitados si fuera necesario
       ),
     );

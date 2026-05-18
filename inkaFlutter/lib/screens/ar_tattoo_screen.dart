@@ -1,6 +1,5 @@
 // lib/screens/ar_tattoo_screen.dart
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:camera/camera.dart';
@@ -42,8 +41,9 @@ enum ControlMode { size, posX, posY, rotation, opacity, timer }
 
 class ArTattooScreen extends StatefulWidget {
   final Uint8List? tattooBytes;
+  final String? imageUrl;
 
-  const ArTattooScreen({super.key, this.tattooBytes});
+  const ArTattooScreen({super.key, this.tattooBytes, this.imageUrl});
 
   @override
   State<ArTattooScreen> createState() => _ArTattooScreenState();
@@ -96,6 +96,11 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
       if (widget.tattooBytes != null) {
         setState(() => _isProcessing = true);
         final transparentBytes = await _removeBackgroundOnServer(widget.tattooBytes!);
+        _tattooImage = await _loadUiImageFromBytes(transparentBytes);
+      } else if (widget.imageUrl != null) {
+        setState(() => _isProcessing = true);
+        final response = await http.get(Uri.parse(widget.imageUrl!));
+        final transparentBytes = await _removeBackgroundOnServer(response.bodyBytes);
         _tattooImage = await _loadUiImageFromBytes(transparentBytes);
       } else {
         _tattooImage = await _loadUiImage('assets/images/tattoo.png');
