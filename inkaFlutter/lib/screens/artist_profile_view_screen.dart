@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:carousel_slider/carousel_slider.dart';
+import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../providers/interaction_provider.dart';
 import 'chat_screen.dart';
 import 'booking_screen.dart';
+import 'explore_screen.dart'; // Para FullScreenFeedScreen
 
 class ArtistProfileViewScreen extends StatefulWidget {
   final String artistId;
@@ -26,16 +28,20 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
   }
 
   Future<void> _loadArtistData() async {
-    // Cargar datos del artista
     final artistData = await _authService.getArtistById(widget.artistId);
-    // Cargar portfolio
     final portfolio = await _authService.getArtistPortfolio(widget.artistId);
 
-    setState(() {
-      _artistData = artistData;
-      _portfolioImages = portfolio ?? [];
-      _isLoading = false;
-    });
+    if (mounted) {
+      // Sincronizar el estado de follow desde el backend al Provider
+      if (artistData != null && artistData['is_following'] == true) {
+        context.read<InteractionProvider>().setFollowState(widget.artistId, true);
+      }
+      setState(() {
+        _artistData = artistData;
+        _portfolioImages = portfolio ?? [];
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -48,9 +54,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
 
     if (_artistData == null) {
       return const Scaffold(
-        body: Center(
-          child: Text('Error al cargar el perfil'),
-        ),
+        body: Center(child: Text('Error al cargar el perfil')),
       );
     }
 
@@ -63,12 +67,10 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Información básica del artista
             _buildArtistInfo(),
-
             const SizedBox(height: 20),
 
-            // Portfolio slider
+            // Portfolio
             if (_portfolioImages.isNotEmpty) ...[
               Text(
                 'Portfolio',
@@ -79,7 +81,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              _buildPortfolioSlider(),
+              _buildPortfolioGrid(),
             ] else ...[
               Text(
                 'Este artista aún no tiene fotos en su portfolio',
@@ -88,8 +90,6 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             ],
 
             const SizedBox(height: 30),
-
-            // Botones de acción
             _buildActionButtons(),
           ],
         ),
@@ -98,6 +98,8 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
   }
 
   Widget _buildArtistInfo() {
+    final avatarUrl = _artistData!['avatar_url'];
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -112,10 +114,13 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
               CircleAvatar(
                 radius: 30,
                 backgroundColor: Theme.of(context).colorScheme.primary,
-                child: Text(
-                  _artistData!['shop_name']?.substring(0, 1).toUpperCase() ?? 'A',
-                  style: TextStyle(fontSize: 24, color: Theme.of(context).colorScheme.onPrimary),
-                ),
+                backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                child: avatarUrl == null
+                  ? Text(
+                      _artistData!['shop_name']?.substring(0, 1).toUpperCase() ?? 'A',
+                      style: TextStyle(fontSize: 24, color: Theme.of(context).colorScheme.onPrimary),
+                    )
+                  : null,
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -157,8 +162,37 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             const SizedBox(height: 16),
           ],
           _buildContactInfo(),
+          const SizedBox(height: 20),
+          _buildFollowButton(),
         ],
       ),
+    );
+  }
+
+  Widget _buildFollowButton() {
+    return Consumer<InteractionProvider>(
+      builder: (context, provider, _) {
+        final isFollowing = provider.isFollowing(widget.artistId);
+        return SizedBox(
+          width: double.infinity,
+          height: 50, // Aumentado de 45 a 50 para evitar recortes
+          child: ElevatedButton(
+            onPressed: () => provider.toggleFollow(widget.artistId),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isFollowing ? Colors.transparent : Theme.of(context).colorScheme.primary,
+              foregroundColor: isFollowing ? Colors.white : Colors.black,
+              elevation: isFollowing ? 0 : 2,
+              side: isFollowing ? const BorderSide(color: Colors.grey, width: 1.5) : null,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: EdgeInsets.zero, // Quitamos el padding interno del tema para centrar bien el texto
+            ),
+            child: Text(
+              isFollowing ? 'Siguiendo' : 'Seguir',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -171,9 +205,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             children: [
               Icon(Icons.camera_alt, color: Theme.of(context).colorScheme.primary, size: 20),
               const SizedBox(width: 8),
-              Text(
-                '@${_artistData!['instagram_handle']}',
-              ),
+              Text('@${_artistData!['instagram_handle']}'),
             ],
           ),
           const SizedBox(height: 8),
@@ -183,11 +215,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             children: [
               Icon(Icons.location_on, color: Theme.of(context).colorScheme.primary, size: 20),
               const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  _artistData!['address'],
-                ),
-              ),
+              Expanded(child: Text(_artistData!['address'])),
             ],
           ),
         ],
@@ -195,60 +223,58 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
     );
   }
 
-  Widget _buildPortfolioSlider() {
-    return CarouselSlider(
-      options: CarouselOptions(
-        height: 300,
-        enlargeCenterPage: true,
-        enableInfiniteScroll: false,
-        viewportFraction: 0.8,
+  /// Grid de portfolio - al tocar una foto, abre TikTok Style en esa posición
+  Widget _buildPortfolioGrid() {
+    // Convertir a List<Map<String, dynamic>> para pasarlo al TikTokFeedView
+    final postsList = _portfolioImages.map<Map<String, dynamic>>((img) {
+      return {
+        'id': img['id']?.toString() ?? '',
+        'artist_id': widget.artistId,
+        'image_url': img['image_url'] ?? '',
+        'description': img['description'] ?? '',
+        'style_tag': img['style_tag'] ?? '',
+        'ar_image_url': img['ar_image_url'],
+        'artist_avatar': _artistData!['avatar_url'],
+      };
+    }).toList();
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 4,
+        mainAxisSpacing: 4,
       ),
-      items: _portfolioImages.map((image) {
-        return Container(
-          width: MediaQuery.of(context).size.width,
-          margin: const EdgeInsets.symmetric(horizontal: 5.0),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            image: DecorationImage(
-              image: NetworkImage(image['image_url']),
-              fit: BoxFit.cover,
-            ),
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-                colors: [Colors.black.withValues(alpha: 0.7), Colors.transparent],
+      itemCount: _portfolioImages.length,
+      itemBuilder: (context, index) {
+        final image = _portfolioImages[index];
+        return GestureDetector(
+          onTap: () {
+            // Abrir TikTok Style empezando en esta foto exacta
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => FullScreenFeedScreen(
+                  posts: postsList,
+                  initialIndex: index,
+                ),
               ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (image['description'] != null && image['description'].isNotEmpty)
-                    Text(
-                      image['description'],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  if (image['style_tag'] != null && image['style_tag'].isNotEmpty)
-                    Text(
-                      image['style_tag'],
-                      style: const TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
-                ],
+            );
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Image.network(
+              image['image_url'] ?? '',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: const Icon(Icons.broken_image, color: Colors.white30),
               ),
             ),
           ),
         );
-      }).toList(),
+      },
     );
   }
 

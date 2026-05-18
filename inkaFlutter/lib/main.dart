@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // Importar
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
 
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'services/auth_service.dart';
@@ -9,6 +10,7 @@ import 'screens/menu_inicio.dart';
 import 'screens/client_home_screen.dart';
 import 'screens/artist_home_screen.dart';
 import 'theme/app_theme.dart';
+import 'providers/interaction_provider.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -54,11 +56,23 @@ class MyApp extends StatelessWidget {
     // Eliminamos el splash nativo cuando el primer frame de la pantalla real se dibuje
     FlutterNativeSplash.remove();
 
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Inka',
-      theme: AppTheme.darkTheme,
-      home: initialScreen,
+    return ChangeNotifierProvider(
+      create: (_) => InteractionProvider(),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Inka',
+        theme: AppTheme.darkTheme,
+        builder: (context, child) {
+          return ScrollConfiguration(
+            behavior: const ScrollBehavior().copyWith(
+              overscroll: false,
+              physics: const BouncingScrollPhysics(),
+            ),
+            child: child!,
+          );
+        },
+        home: initialScreen,
+      ),
     );
   }
 }

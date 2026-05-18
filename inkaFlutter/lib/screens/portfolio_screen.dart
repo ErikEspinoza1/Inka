@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/auth_service.dart';
 import '../services/image_service.dart';
+import '../services/interaction_service.dart';
 
 class PortfolioScreen extends StatefulWidget {
   const PortfolioScreen({super.key});
@@ -470,12 +471,108 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                                 onPressed: () => _deletePost(post['id']),
                               ),
                             ),
+                            
+                            // Toque para editar
+                            Positioned.fill(
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () => _editPost(post),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     );
                   },
                 ),
+    );
+  }
+
+  Future<void> _editPost(Map<String, dynamic> post) async {
+    final titleController = TextEditingController(text: post['style_tag'] ?? '');
+    final descriptionController = TextEditingController(text: post['description'] ?? '');
+    bool isSaving = false;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 12,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('Editar Tatuaje', style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: 16),
+                    
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(labelText: 'Estilo o título', prefixIcon: Icon(Icons.style)),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    TextField(
+                      controller: descriptionController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(labelText: 'Descripción', prefixIcon: Padding(padding: EdgeInsets.only(bottom: 44), child: Icon(Icons.edit_note))),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: isSaving ? null : () async {
+                          setSheetState(() => isSaving = true);
+                          final interactionService = InteractionService();
+                          final success = await interactionService.updatePost(
+                            post['id'], 
+                            description: descriptionController.text.trim(), 
+                            styleTag: titleController.text.trim()
+                          );
+                          setSheetState(() => isSaving = false);
+                          
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (success) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Guardado correctamente'), backgroundColor: Colors.green));
+                            }
+                            _loadPortfolio();
+                          } else {
+                            if (mounted) {
+                              ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: const Text('Error al guardar'), backgroundColor: Theme.of(this.context).colorScheme.error));
+                            }
+                          }
+                        },
+                        child: Text(isSaving ? 'Guardando...' : 'Guardar Cambios'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

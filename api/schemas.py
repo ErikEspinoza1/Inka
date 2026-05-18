@@ -23,6 +23,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     full_name: str
     role: UserRole
+    avatar_url: Optional[str] = None
     class Config:
         from_attributes = True
 
@@ -119,6 +120,10 @@ class PostResponse(BaseModel):
     created_at: datetime
     class Config:
         from_attributes = True
+
+class PostUpdate(BaseModel):
+    description: Optional[str] = None
+    style_tag: Optional[str] = None
 
 class ReviewCreate(BaseModel):
     booking_id: UUID

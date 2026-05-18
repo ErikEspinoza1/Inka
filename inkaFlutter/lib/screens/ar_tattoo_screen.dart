@@ -17,7 +17,9 @@ enum BodyZone { leftArm, rightArm, chest }
 enum ControlMode { size, position, rotation, opacity }
 
 class ArTattooScreen extends StatefulWidget {
-  const ArTattooScreen({super.key});
+  final String? imageUrl; 
+
+  const ArTattooScreen({super.key, this.imageUrl});
 
   @override
   State<ArTattooScreen> createState() => _ArTattooScreenState();

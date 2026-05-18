@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from sqlalchemy.orm import Session
 from typing import List
 import database, models, schemas, auth
+from utils.storage import upload_file_to_supabase, delete_file_from_supabase
+import time
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -21,6 +23,29 @@ def get_my_favorites(
         models.Favorite.post_id == models.Post.id
     ).filter(models.Favorite.user_id == current_user.id).all()
     return favorites
+
+@router.get("/me/following")
+def get_my_following(
+    current_user: models.Profile = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    followed_artists = db.query(models.Artist).join(
+        models.Follow, models.Artist.id == models.Follow.followed_id
+    ).filter(models.Follow.follower_id == current_user.id).all()
+    
+    # Devolvemos datos serializables manualmente para incluir avatar
+    result = []
+    for artist in followed_artists:
+        profile = db.query(models.Profile).filter(models.Profile.id == artist.id).first()
+        result.append({
+            "id": str(artist.id),
+            "shop_name": artist.shop_name,
+            "bio": artist.bio,
+            "styles": artist.styles or [],
+            "avatar_url": profile.avatar_url if profile else None,
+            "is_verified": artist.is_verified,
+        })
+    return result
 
 # Obtener perfil público de otro usuario/artista por ID
 @router.get("/{user_id}", response_model=schemas.UserResponse)
@@ -55,4 +80,31 @@ def update_user_me(
     
     db.commit()
     db.refresh(current_user)
+    return current_user
+
+# Subir avatar
+@router.post("/me/avatar", response_model=schemas.UserResponse)
+async def upload_user_avatar(
+    file: UploadFile = File(...),
+    current_user: models.Profile = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    # Generar nombre único para el avatar
+    timestamp = int(time.time())
+    filename = f"avatar_{current_user.id}_{timestamp}.jpg"
+    file_bytes = await file.read()
+    
+    # Borrar avatar anterior si existe
+    if current_user.avatar_url:
+        delete_file_from_supabase(current_user.avatar_url, bucket="app-images")
+        
+    public_url = upload_file_to_supabase(file_bytes, filename, bucket="app-images", folder="avatars")
+    
+    if not public_url:
+        raise HTTPException(status_code=500, detail="Fallo al subir avatar a Supabase")
+        
+    current_user.avatar_url = public_url
+    db.commit()
+    db.refresh(current_user)
+    
     return current_user

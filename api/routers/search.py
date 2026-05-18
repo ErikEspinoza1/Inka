@@ -2,34 +2,95 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional
-import database, schemas, models
+import database, schemas, models, auth
 import os
 import requests
 
 router = APIRouter(prefix="/search", tags=["Search"])
 
-@router.get("/feed")
-def get_feed(limit: int = 30, db: Session = Depends(database.get_db)):
-    """
-    Endpoint para el 'Estado Inicial' de Descubrimiento (Muro de Inspiración).
-    Devuelve los tatuajes más frescos sin IA para que el usuario pueda hacer scroll.
-    """
-    # Ordenar por fecha de creación descendente para ver lo más nuevo
-    resultados = db.query(models.Post).order_by(models.Post.created_at.desc()).limit(limit).all()
+def armar_respuesta_feed(resultados, liked_ids=None, saved_ids=None, followed_ids=None):
+    """Formatea la respuesta del feed, incluyendo los estados de interacción si el usuario está logueado."""
+    liked_ids = liked_ids or set()
+    saved_ids = saved_ids or set()
+    followed_ids = followed_ids or set()
     
     lista_final = []
     for row in resultados:
+        post_id = str(row[0])
+        artist_id = str(row[1])
         lista_final.append({
-            "id": str(row.id),
-            "artist_id": str(row.artist_id),
-            "image_url": row.image_url,
-            "description": row.description,
-            "style_tag": row.style_tag,
-            "ar_image_url": row.ar_image_url,
-            "created_at": row.created_at.isoformat() if row.created_at else None
+            "id": post_id,
+            "artist_id": artist_id,
+            "image_url": row[2],
+            "description": row[3] if len(row) > 3 else "",
+            "style_tag": row[4] if len(row) > 4 else None,
+            "ar_image_url": row[5] if len(row) > 5 else None,
+            "artist_avatar": row[6] if len(row) > 6 else None,
+            "shop_name": row[7] if len(row) > 7 else "Artista",
+            "is_liked": post_id in liked_ids,
+            "is_saved": post_id in saved_ids,
+            "is_following_artist": artist_id in followed_ids,
         })
-    
     return {"results": lista_final}
+
+def _get_user_interaction_sets(user_id, db):
+    """Pre-carga en memoria los IDs de posts/artistas con los que el usuario ha interactuado."""
+    liked_ids = {str(r[0]) for r in db.execute(
+        text("SELECT post_id FROM likes WHERE user_id = :uid"), {"uid": str(user_id)}
+    ).fetchall()}
+    
+    saved_ids = {str(r[0]) for r in db.execute(
+        text("SELECT post_id FROM favorites WHERE user_id = :uid"), {"uid": str(user_id)}
+    ).fetchall()}
+    
+    followed_ids = {str(r[0]) for r in db.execute(
+        text("SELECT followed_id FROM follows WHERE follower_id = :uid"), {"uid": str(user_id)}
+    ).fetchall()}
+    
+    return liked_ids, saved_ids, followed_ids
+
+@router.get("/feed")
+def get_feed(
+    limit: int = 30, 
+    db: Session = Depends(database.get_db),
+    current_user: Optional[models.Profile] = Depends(auth.get_current_user_optional) 
+):
+    # Pre-cargar estados de interacción si hay usuario logueado
+    liked_ids, saved_ids, followed_ids = set(), set(), set()
+    if current_user:
+        liked_ids, saved_ids, followed_ids = _get_user_interaction_sets(current_user.id, db)
+
+    # Feed inteligente si tiene embedding
+    if current_user and current_user.preference_embedding is not None:
+        vector_str = str(current_user.preference_embedding).replace("'", "")
+        resultados = db.execute(
+            text(f"""
+                SELECT p.id, p.artist_id, p.image_url, p.description, p.style_tag, p.ar_image_url, u.avatar_url, a.shop_name 
+                FROM posts p
+                LEFT JOIN profiles u ON p.artist_id = u.id
+                LEFT JOIN artists a ON p.artist_id = a.id
+                ORDER BY p.embedding <=> '{vector_str}'
+                LIMIT :limite
+            """),
+            {"limite": limit}
+        ).fetchall()
+        
+        return armar_respuesta_feed(resultados, liked_ids, saved_ids, followed_ids)
+
+    # Feed cronológico (fallback)
+    resultados = db.execute(
+        text("""
+            SELECT p.id, p.artist_id, p.image_url, p.description, p.style_tag, p.ar_image_url, u.avatar_url, a.shop_name
+            FROM posts p
+            LEFT JOIN profiles u ON p.artist_id = u.id
+            LEFT JOIN artists a ON p.artist_id = a.id
+            ORDER BY p.created_at DESC
+            LIMIT :limite
+        """),
+        {"limite": limit}
+    ).fetchall()
+    
+    return armar_respuesta_feed(resultados, liked_ids, saved_ids, followed_ids)
 
 @router.get("/popular")
 def get_popular_searches(limit: int = 6, db: Session = Depends(database.get_db)):

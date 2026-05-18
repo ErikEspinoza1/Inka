@@ -387,15 +387,18 @@ class _MapScreenState extends State<MapScreen> {
                               ),
                               child: CircleAvatar(
                                 backgroundColor: const Color(0xFF1A1A1A),
-                                child: Text(
-                                  artist.name.isNotEmpty
-                                      ? artist.name[0].toUpperCase()
-                                      : '?',
-                                  style: TextStyle(
-                                    color: artist.imageColor,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                backgroundImage: artist.avatarUrl != null ? NetworkImage(artist.avatarUrl!) : null,
+                                child: artist.avatarUrl == null
+                                  ? Text(
+                                      artist.name.isNotEmpty
+                                          ? artist.name[0].toUpperCase()
+                                          : '?',
+                                      style: TextStyle(
+                                        color: artist.imageColor,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    )
+                                  : null,
                               ),
                             ),
 
@@ -523,6 +526,7 @@ class TattooArtist {
   final String specialty; // Mapped from 'styles'
   final LatLng position; // Mapped from lat/lng
   final Color imageColor; // Generado aleatoriamente para UI
+  final String? avatarUrl;
 
   TattooArtist({
     required this.id,
@@ -530,6 +534,7 @@ class TattooArtist {
     required this.specialty,
     required this.position,
     this.imageColor = Colors.purpleAccent, // Color por defecto
+    this.avatarUrl,
   });
 
   // Factory para convertir el JSON de la API en Objeto Dart
@@ -553,6 +558,7 @@ class TattooArtist {
         (json['longitude'] as num).toDouble(),
       ),
       imageColor: Colors.purpleAccent, // Usamos color por defecto ya que no hay context en factory
+      avatarUrl: json['avatar_url'],
     );
   }
 }

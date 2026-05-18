@@ -600,4 +600,28 @@ class AuthService {
     }
     return null;
   }
+
+  // ==========================================================
+  // 6. AVATARES
+  // ==========================================================
+  Future<bool> uploadAvatar(String imagePath) async {
+    try {
+      final token = await getToken();
+      if (token == null) return false;
+
+      final url = Uri.parse('$baseUrl/users/me/avatar');
+      var request = http.MultipartRequest('POST', url);
+      
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(await http.MultipartFile.fromPath('file', imagePath));
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error uploading avatar: $e');
+      return false;
+    }
+  }
 }

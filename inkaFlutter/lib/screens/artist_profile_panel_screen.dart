@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
 import 'artist_profile_screen.dart';
 import 'menu_inicio.dart';
@@ -40,6 +41,37 @@ class _ArtistProfilePanelScreenState extends State<ArtistProfilePanelScreen> {
     }
   }
 
+  Future<void> _pickAndUploadAvatar() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      imageQuality: 80,
+    );
+
+    if (pickedFile != null) {
+      setState(() => _isLoading = true);
+      
+      final success = await _authService.uploadAvatar(pickedFile.path);
+      
+      if (success) {
+        await _loadProfile(); // Recargar el perfil para mostrar la nueva foto
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Foto de perfil actualizada'), backgroundColor: Colors.green),
+          );
+        }
+      } else {
+        setState(() => _isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: const Text('Error al subir la foto'), backgroundColor: Theme.of(context).colorScheme.error),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -57,12 +89,32 @@ class _ArtistProfilePanelScreenState extends State<ArtistProfilePanelScreen> {
                     children: [
                       // Foto de perfil o avatar
                       Center(
-                        child: CircleAvatar(
-                          radius: 50,
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          child: Text(
-                            _profileData!['shop_name']?.substring(0, 1).toUpperCase() ?? 'A',
-                            style: TextStyle(fontSize: 40, color: Theme.of(context).colorScheme.onPrimary),
+                        child: GestureDetector(
+                          onTap: _pickAndUploadAvatar,
+                          child: Stack(
+                            alignment: Alignment.bottomRight,
+                            children: [
+                              CircleAvatar(
+                                radius: 50,
+                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                backgroundImage: _profileData!['avatar_url'] != null ? NetworkImage(_profileData!['avatar_url']) : null,
+                                child: _profileData!['avatar_url'] == null
+                                  ? Text(
+                                      _profileData!['shop_name']?.substring(0, 1).toUpperCase() ?? 'A',
+                                      style: TextStyle(fontSize: 40, color: Theme.of(context).colorScheme.onPrimary),
+                                    )
+                                  : null,
+                              ),
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.secondary,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.black, width: 2),
+                                ),
+                                child: const Icon(Icons.camera_alt, size: 20, color: Colors.black),
+                              ),
+                            ],
                           ),
                         ),
                       ),

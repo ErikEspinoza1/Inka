@@ -40,6 +40,11 @@ class InteractionService {
     return result['success'];
   }
 
+  Future<bool> toggleFollow(String artistId) async {
+    final result = await _toggleAction('follow', artistId);
+    return result['success'];
+  }
+
   Future<List<Map<String, dynamic>>> getMyFavorites() async {
     try {
       final token = await _authService.getToken();
@@ -58,5 +63,50 @@ class InteractionService {
       debugPrint("Error fetching favorites: $e");
     }
     return [];
+  }
+
+  Future<List<Map<String, dynamic>>> getMyFollowing() async {
+    try {
+      final token = await _authService.getToken();
+      if (token == null) return [];
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/me/following'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data);
+      }
+    } catch (e) {
+      debugPrint("Error fetching following: $e");
+    }
+    return [];
+  }
+
+  Future<bool> updatePost(String postId, {String? description, String? styleTag}) async {
+    try {
+      final token = await _authService.getToken();
+      if (token == null) return false;
+
+      final body = <String, dynamic>{};
+      if (description != null) body['description'] = description;
+      if (styleTag != null) body['style_tag'] = styleTag;
+
+      final response = await http.patch(
+        Uri.parse('$baseUrl/content/posts/$postId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(body),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint("Error updating post: $e");
+      return false;
+    }
   }
 }

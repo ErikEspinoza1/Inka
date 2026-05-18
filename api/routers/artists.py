@@ -25,20 +25,44 @@ router = APIRouter(prefix="/artists", tags=["Artists"])
 
 # 1. Obtener artistas (Solo VERIFICADOS)
 # Añadimos filtros opcionales por si quieres buscar por ciudad o estilo
-@router.get("/", response_model=List[schemas.ArtistResponse])
+@router.get("/")
 def get_all_artists(
     style: Optional[str] = None,
     db: Session = Depends(database.get_db)
 ):
     # Base query: Solo artistas verificados
-    query = db.query(models.Artist).filter(models.Artist.is_verified == True)
+    query = db.query(models.Artist, models.Profile.avatar_url).join(
+        models.Profile, models.Artist.id == models.Profile.id
+    ).filter(models.Artist.is_verified == True)
     
     if style:
-        # Filtro básico de array (Postgres specific syntax might differ, this is simple python filter equivalent logic for ORM)
-        # Para arrays en PG se suele usar: models.Artist.styles.any(style)
+        # Filtro básico de array
         query = query.filter(models.Artist.styles.any(style))
         
-    return query.all()
+    results = query.all()
+    
+    # Mapear a diccionarios para inyectar avatar_url
+    formatted_results = []
+    for artist, avatar_url in results:
+        artist_dict = {
+            "id": str(artist.id),
+            "shop_name": artist.shop_name,
+            "bio": artist.bio,
+            "styles": artist.styles or [],
+            "address": artist.address,
+            "latitude": artist.latitude,
+            "longitude": artist.longitude,
+            "workspace_type": artist.workspace_type,
+            "show_exact_location": artist.show_exact_location,
+            "instagram_handle": artist.instagram_handle,
+            "whatsapp_number": artist.whatsapp_number,
+            "website_url": artist.website_url,
+            "is_verified": artist.is_verified,
+            "avatar_url": avatar_url
+        }
+        formatted_results.append(artist_dict)
+        
+    return formatted_results
 
 # 2. Endpoint para Admin (Ver todos, incluidos pendientes de revisión)
 @router.get("/admin/pending", response_model=List[schemas.ArtistResponse])
@@ -101,7 +125,7 @@ def update_artist_profile(
     db.refresh(artist)
     return artist
 
-@router.get("/me", response_model=schemas.ArtistResponse)
+@router.get("/me")
 def get_my_artist_profile(
     current_user: models.Profile = Depends(auth.get_current_user),
     db: Session = Depends(database.get_db)
@@ -110,7 +134,24 @@ def get_my_artist_profile(
     if not current_user.artist_profile:
         raise HTTPException(status_code=404, detail="No artist profile found")
     
-    return current_user.artist_profile
+    artist = current_user.artist_profile
+    return {
+        "id": str(artist.id),
+        "shop_name": artist.shop_name,
+        "bio": artist.bio,
+        "styles": artist.styles or [],
+        "address": artist.address,
+        "latitude": artist.latitude,
+        "longitude": artist.longitude,
+        "workspace_type": artist.workspace_type,
+        "show_exact_location": artist.show_exact_location,
+        "instagram_handle": artist.instagram_handle,
+        "whatsapp_number": artist.whatsapp_number,
+        "website_url": artist.website_url,
+        "is_verified": artist.is_verified,
+        "avatar_url": current_user.avatar_url,
+        "is_following": False, # no se sigue a sí mismo
+    }
 
 
 @router.post("/upload-certificate")
@@ -470,12 +511,45 @@ def delete_post(
 
 # --- CLIENT ENDPOINTS ---
 
-@router.get("/{artist_id}", response_model=schemas.ArtistResponse)
-def get_artist_by_id(artist_id: str, db: Session = Depends(database.get_db)):
+@router.get("/{artist_id}")
+def get_artist_by_id(
+    artist_id: str, 
+    db: Session = Depends(database.get_db),
+    current_user: Optional[models.Profile] = Depends(auth.get_current_user_optional)
+):
     artist = db.query(models.Artist).filter(models.Artist.id == artist_id).first()
     if not artist:
         raise HTTPException(status_code=404, detail="Artist not found")
-    return artist
+    
+    # Comprobar si el usuario actual sigue a este artista
+    is_following = False
+    if current_user:
+        follow = db.query(models.Follow).filter_by(
+            follower_id=current_user.id,
+            followed_id=artist.id
+        ).first()
+        is_following = follow is not None
+
+    # Obtener avatar del profile
+    profile = db.query(models.Profile).filter(models.Profile.id == artist.id).first()
+    
+    return {
+        "id": str(artist.id),
+        "shop_name": artist.shop_name,
+        "bio": artist.bio,
+        "styles": artist.styles or [],
+        "address": artist.address,
+        "latitude": artist.latitude,
+        "longitude": artist.longitude,
+        "workspace_type": artist.workspace_type,
+        "show_exact_location": artist.show_exact_location,
+        "instagram_handle": artist.instagram_handle,
+        "whatsapp_number": artist.whatsapp_number,
+        "website_url": artist.website_url,
+        "is_verified": artist.is_verified,
+        "avatar_url": profile.avatar_url if profile else None,
+        "is_following": is_following,
+    }
 
 @router.get("/{artist_id}/posts", response_model=List[schemas.PostResponse])
 def get_artist_posts(artist_id: str, db: Session = Depends(database.get_db)):
