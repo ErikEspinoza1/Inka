@@ -135,7 +135,7 @@ class TattooPainter extends CustomPainter {
     final paint = Paint()
       ..shader = ui.ImageShader(tattooImage!, ui.TileMode.clamp, ui.TileMode.clamp, identityMatrix)
       ..imageFilter = ui.ImageFilter.blur(sigmaX: 0.6, sigmaY: 0.6)
-      ..colorFilter = const ui.ColorFilter.mode(ui.Color(0x224A2511), ui.BlendMode.srcOver)
+      ..colorFilter = const ui.ColorFilter.mode(ui.Color(0x224A2511), ui.BlendMode.multiply)
       ..filterQuality = FilterQuality.high
       ..isAntiAlias = true;
 

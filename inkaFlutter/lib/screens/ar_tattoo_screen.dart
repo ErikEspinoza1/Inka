@@ -95,18 +95,24 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
     try {
       if (widget.tattooBytes != null) {
         setState(() => _isProcessing = true);
-        final transparentBytes = await _removeBackgroundOnServer(widget.tattooBytes!);
-        _tattooImage = await _loadUiImageFromBytes(transparentBytes);
+        _tattooImage = await _loadUiImageFromBytes(widget.tattooBytes!);
       } else if (widget.imageUrl != null) {
         setState(() => _isProcessing = true);
         final response = await http.get(Uri.parse(widget.imageUrl!));
-        final transparentBytes = await _removeBackgroundOnServer(response.bodyBytes);
-        _tattooImage = await _loadUiImageFromBytes(transparentBytes);
+        _tattooImage = await _loadUiImageFromBytes(response.bodyBytes);
       } else {
-        _tattooImage = await _loadUiImage('assets/images/tattoo.png');
+        try {
+          _tattooImage = await _loadUiImage('assets/images/tattoo.png');
+        } catch (e) {
+          debugPrint('No tattoo image found to fallback to.');
+        }
       }
     } catch (e) {
-      _tattooImage = await _loadUiImage('assets/images/tattoo.png');
+      try {
+        _tattooImage = await _loadUiImage('assets/images/tattoo.png');
+      } catch (_) {
+        debugPrint('Fallback image not found');
+      }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
