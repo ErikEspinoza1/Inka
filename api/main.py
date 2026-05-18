@@ -15,7 +15,7 @@ if "SSL_CERT_FILE" in os.environ:
     del os.environ["SSL_CERT_FILE"]
 
 # Importamos TODOS los routers
-from routers import auth, artists, bookings, users, content, messages
+from routers import auth, artists, bookings, users, content, messages, tattoo_ar
 
 Base.metadata.create_all(bind=engine)
 
@@ -36,6 +36,7 @@ app.include_router(bookings.router)
 app.include_router(content.router)
 app.include_router(messages.router)
 app.include_router(search.router) 
+app.include_router(tattoo_ar.router) 
 
 # --- NUESTRO ENDPOINT NUCLEAR Y AUTOPILOTO DE IA ---
 @app.get("/buscar-tatuajes-ia")

@@ -11,9 +11,9 @@ cred_path = os.path.join(os.path.dirname(__file__), "..", "firebase-adminsdk.jso
 if os.path.exists(cred_path):
     cred = credentials.Certificate(cred_path)
     firebase_admin.initialize_app(cred)
-    print("✅ Firebase Admin inicializado correctamente")
+    print("[OK] Firebase Admin inicializado correctamente")
 else:
-    print("⚠️ No se encontró firebase-adminsdk.json. Las notificaciones push no funcionarán.")
+    print("[WARNING] No se encontro firebase-adminsdk.json. Las notificaciones push no funcionaran.")
 
 def send_push_notification(receiver_id: str, title: str, body: str, db: Session):
     """
@@ -22,7 +22,7 @@ def send_push_notification(receiver_id: str, title: str, body: str, db: Session)
     user = db.query(models.Profile).filter(models.Profile.id == receiver_id).first()
     
     if not user or not user.fcm_token:
-        print(f"🚫 No se puede enviar notificación: Usuario {receiver_id} no tiene fcm_token")
+        print(f"[INFO] No se puede enviar notificacion: Usuario {receiver_id} no tiene fcm_token")
         return
 
     message = messaging.Message(
@@ -40,6 +40,6 @@ def send_push_notification(receiver_id: str, title: str, body: str, db: Session)
 
     try:
         response = messaging.send(message)
-        print(f"🚀 Notificación enviada con éxito: {response}")
+        print(f"[OK] Notificacion enviada con exito: {response}")
     except Exception as e:
-        print(f"❌ Error al enviar notificación: {e}")
+        print(f"[ERROR] Error al enviar notificacion: {e}")
