@@ -1,6 +1,6 @@
 {
-    "name": "inka_final",
-    "short_name": "inka_final",
+    "name": "inka",
+    "short_name": "inka",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

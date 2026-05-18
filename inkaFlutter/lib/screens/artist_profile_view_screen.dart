@@ -1,16 +1,21 @@
-// lib/screens/artist_profile_view_screen.dart
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+<<<<<<< HEAD
 import 'package:provider/provider.dart';
+=======
+import 'package:carousel_slider/carousel_slider.dart';
+>>>>>>> parent of 1a8214c (a)
 import '../services/auth_service.dart';
 import '../providers/interaction_provider.dart';
 import 'chat_screen.dart';
 import 'booking_screen.dart';
+<<<<<<< HEAD
 import 'explore_screen.dart'; // Para FullScreenFeedScreen
+=======
+>>>>>>> parent of 1a8214c (a)
 
 class ArtistProfileViewScreen extends StatefulWidget {
   final String artistId;
+
   const ArtistProfileViewScreen({super.key, required this.artistId});
 
   @override
@@ -22,7 +27,10 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
   Map<String, dynamic>? _artistData;
   List<dynamic> _portfolioImages = [];
   bool _isLoading = true;
+<<<<<<< HEAD
   bool _isNewestFirst = true;
+=======
+>>>>>>> parent of 1a8214c (a)
 
   @override
   void initState() {
@@ -31,7 +39,9 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
   }
 
   Future<void> _loadArtistData() async {
+    // Cargar datos del artista
     final artistData = await _authService.getArtistById(widget.artistId);
+<<<<<<< HEAD
     final portfolio = await _authService.getArtistPortfolio(widget.artistId);
 
     if (mounted) {
@@ -45,54 +55,16 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
         _isLoading = false;
       });
     }
-  }
+=======
+    // Cargar portfolio
+    final portfolio = await _authService.getArtistPortfolio(widget.artistId);
 
-  Future<void> _tryTattooAR(Map<String, dynamic> post) async {
-    if (kIsWeb) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('La prueba AR solo está disponible en la app móvil'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    final postId      = post['id'] as String?;
-    final cleanUrl    = post['clean_image_url'] as String?;
-    final originalUrl = post['image_url'] as String?;
-
-    setState(() => _loadingPostId = postId);
-    Uint8List? imageBytes;
-
-    if (cleanUrl != null && cleanUrl.isNotEmpty) {
-      try {
-        final res = await http.get(Uri.parse(cleanUrl)).timeout(const Duration(seconds: 15));
-        if (res.statusCode == 200) imageBytes = res.bodyBytes;
-      } catch (_) {}
-    }
-
-    if (imageBytes == null && originalUrl != null && originalUrl.isNotEmpty) {
-      try {
-        final res = await http.get(Uri.parse(originalUrl)).timeout(const Duration(seconds: 15));
-        if (res.statusCode == 200) imageBytes = res.bodyBytes;
-      } catch (_) {}
-    }
-
-    setState(() => _loadingPostId = null);
-
-    if (imageBytes == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo cargar el diseño'), backgroundColor: Colors.red),
-      );
-      return;
-    }
-
-    if (!mounted) return;
-    Navigator.push(context, MaterialPageRoute(
-      builder: (_) => ArTattooScreen(tattooBytes: imageBytes),
-    ));
+    setState(() {
+      _artistData = artistData;
+      _portfolioImages = portfolio ?? [];
+      _isLoading = false;
+    });
+>>>>>>> parent of 1a8214c (a)
   }
 
   @override
@@ -102,6 +74,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
+
     if (_artistData == null) {
       return const Scaffold(
         body: Center(child: Text('Error al cargar el perfil')),
@@ -117,13 +90,19 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Información básica del artista
             _buildArtistInfo(),
+
             const SizedBox(height: 20),
 
+<<<<<<< HEAD
             _buildActionButtons(),
             const SizedBox(height: 20),
 
             // Portfolio
+=======
+            // Portfolio slider
+>>>>>>> parent of 1a8214c (a)
             if (_portfolioImages.isNotEmpty) ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -158,6 +137,12 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             ],
 
             const SizedBox(height: 30),
+<<<<<<< HEAD
+=======
+
+            // Botones de acción
+            _buildActionButtons(),
+>>>>>>> parent of 1a8214c (a)
           ],
         ),
       ),
@@ -302,6 +287,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
     );
   }
 
+<<<<<<< HEAD
   /// Grid de portfolio - al tocar una foto, abre TikTok Style en esa posición
   Widget _buildPortfolioGrid() {
     // Convertir a List<Map<String, dynamic>> para pasarlo al TikTokFeedView
@@ -372,11 +358,59 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
                       backgroundColor: Colors.tealAccent,
                       foregroundColor: Colors.black,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                  ),
-                ),
+=======
+  Widget _buildPortfolioSlider() {
+    return CarouselSlider(
+      options: CarouselOptions(
+        height: 300,
+        enlargeCenterPage: true,
+        enableInfiniteScroll: false,
+        viewportFraction: 0.8,
+      ),
+      items: _portfolioImages.map((image) {
+        return Container(
+          width: MediaQuery.of(context).size.width,
+          margin: const EdgeInsets.symmetric(horizontal: 5.0),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            image: DecorationImage(
+              image: NetworkImage(image['image_url']),
+              fit: BoxFit.cover,
+            ),
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [Colors.black.withOpacity(0.7), Colors.transparent],
               ),
-            ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (image['description'] != null && image['description'].isNotEmpty)
+                    Text(
+                      image['description'],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+>>>>>>> parent of 1a8214c (a)
+                    ),
+                  if (image['style_tag'] != null && image['style_tag'].isNotEmpty)
+                    Text(
+                      image['style_tag'],
+                      style: const TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                ],
+              ),
+            ),
           ),
         );
       },
@@ -389,12 +423,17 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => ChatScreen(
-                artistId: widget.artistId,
-                artistName: _artistData!['shop_name'] ?? 'Artista',
-              ),
-            )),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChatScreen(
+                    artistId: widget.artistId,
+                    artistName: _artistData!['shop_name'] ?? 'Artista',
+                  ),
+                ),
+              );
+            },
             icon: const Icon(Icons.message),
             label: const Text('Contactar Artista'),
             style: ElevatedButton.styleFrom(
@@ -406,12 +445,17 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => BookingScreen(
-                artistId: widget.artistId,
-                artistName: _artistData!['shop_name'] ?? 'Artista',
-              ),
-            )),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BookingScreen(
+                    artistId: widget.artistId,
+                    artistName: _artistData!['shop_name'] ?? 'Artista',
+                  ),
+                ),
+              );
+            },
             icon: const Icon(Icons.calendar_today),
             label: const Text('Reservar Cita'),
             style: OutlinedButton.styleFrom(

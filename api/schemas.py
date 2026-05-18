@@ -1,10 +1,10 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
-from models import UserRole, BookingStatus, StudioType
+from models import UserRole, BookingStatus, StudioType # Importamos el nuevo Enum
 
-# --- USUARIOS ---
+# ... (User schemas se quedan igual) ...
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
@@ -31,23 +31,29 @@ class UserResponse(BaseModel):
     email: EmailStr
     full_name: str
     role: UserRole
+<<<<<<< HEAD
     avatar_url: Optional[str] = None
     created_at: datetime
+=======
+>>>>>>> parent of 1a8214c (a)
     class Config:
         from_attributes = True
 
 # --- ARTISTS ---
 
-# --- ARTISTAS ---
 class ArtistCreate(BaseModel):
     shop_name: str
     bio: str
     styles: List[str]
+    
+    # Ubicación y Geolocalización (Flutter enviará esto)
     address: str
     latitude: float
     longitude: float
-    workspace_type: StudioType
+    workspace_type: StudioType # 'shop', 'private', 'mobile'
     show_exact_location: bool
+    
+    # Contacto
     instagram_handle: str
     whatsapp_number: Optional[str] = None
     website_url: Optional[str] = None
@@ -55,29 +61,37 @@ class ArtistCreate(BaseModel):
     # Documentación para verificar
     business_license_id: str # DNI/NIF
     business_document_url: Optional[str] = None # URL de la foto del certificado
+<<<<<<< HEAD
     
     # Horario
     working_hours_start: Optional[str] = "09:00"
     working_hours_end: Optional[str] = "18:00"
+=======
+>>>>>>> parent of 1a8214c (a)
 
 class ArtistResponse(BaseModel):
     id: UUID
     shop_name: str
-    bio: Optional[str] = None
-    styles: List[str] = []
-    latitude: float  # Crucial para el pin del mapa
-    longitude: float # Crucial para el pin del mapa
-    address: Optional[str] = None
-    workspace_type: Optional[StudioType] = None 
-    instagram_handle: Optional[str] = None
-    whatsapp_number: Optional[str] = None
-    website_url: Optional[str] = None
-    avatar_url: Optional[str] = None 
+    bio: str
+    styles: List[str]
+    
+    # Datos públicos seguros
+    address: str # Quizás quieras ocultar esto si es 'private' y show_exact_location es False
+    latitude: float
+    longitude: float
+    workspace_type: StudioType
+    show_exact_location: bool
+    
+    instagram_handle: str
+    whatsapp_number: Optional[str]
+    website_url: Optional[str]
+    
     is_verified: bool
     
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
-# --- RESERVAS (Bookings) ---
+# ... (Bookings, Posts, Reviews, AI Designs se quedan igual) ...
 class BookingCreate(BaseModel):
     artist_id: UUID
     idea_description: str
@@ -104,17 +118,16 @@ class BookingResponse(BaseModel):
     status: BookingStatus
     idea_description: str
     body_part: str
-    size_cm: Optional[str] = None
-    booking_date: Optional[datetime] = None
-    price_quote: Optional[float] = None
+    size_cm: Optional[str]
+    booking_date: Optional[datetime]
+    price_quote: Optional[float]
     client_accepted: bool
     artist_accepted: bool
     duration_hours: Optional[float] = None
     created_at: datetime
-    
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
-# --- POSTS, REVIEWS, AI & MENSAJES ---
 class PostCreate(BaseModel):
     image_url: str
     description: Optional[str] = None
@@ -127,8 +140,8 @@ class PostResponse(BaseModel):
     description: Optional[str]
     style_tag: Optional[str] = None
     created_at: datetime
-    
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 class PostUpdate(BaseModel):
     description: Optional[str] = None
@@ -144,8 +157,9 @@ class ReviewResponse(BaseModel):
     reviewer_id: UUID
     artist_id: UUID
     rating: int
-    comment: Optional[str] = None
+    comment: Optional[str]
     created_at: datetime
+<<<<<<< HEAD
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -171,6 +185,10 @@ class MessageResponse(BaseModel):
     working_hours_end: Optional[str] = None
 
 # --- DISEÑOS DE IA (Añadir esto a api/schemas.py) ---
+=======
+    class Config:
+        from_attributes = True
+>>>>>>> parent of 1a8214c (a)
 
 class AIDesignCreate(BaseModel):
     prompt_text: str
@@ -179,10 +197,57 @@ class AIDesignCreate(BaseModel):
 
 class AIDesignResponse(BaseModel):
     id: UUID
+<<<<<<< HEAD
     shop_name: str
     bio: Optional[str] = None
     styles: Optional[List[str]] = []
     
+=======
+    prompt_text: str
+    image_url: str
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+# Mensajería 
+class MessageCreate(BaseModel):
+    receiver_id: UUID
+    content: str
+    booking_id: Optional[UUID] = None
+
+class MessageResponse(BaseModel):
+    id: UUID
+    booking_id: Optional[UUID]
+    sender_id: UUID
+    receiver_id: UUID
+    content: str
+    is_read: bool
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class ArtistUpdate(BaseModel):
+    shop_name: Optional[str] = None
+    bio: Optional[str] = None
+    styles: Optional[List[str]] = None
+    instagram_handle: Optional[str] = None
+    
+    # Ubicación
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    workspace_type: Optional[StudioType] = None
+    
+    # Documentos
+    business_document_url: Optional[str] = None # Aquí irá la URL de la foto del certificado
+
+class ArtistResponse(BaseModel):
+    id: UUID
+    shop_name: str
+    bio: Optional[str] = None
+    styles: Optional[List[str]] = []
+    
+>>>>>>> parent of 1a8214c (a)
     # --- CAMPOS QUE FALTABAN ---
     latitude: float   # <--- IMPORTANTE: Sin esto, el mapa no sabe dónde poner el pin
     longitude: float  # <--- IMPORTANTE
@@ -192,6 +257,7 @@ class AIDesignResponse(BaseModel):
     workspace_type: Optional[str] = None 
     instagram_handle: Optional[str] = None
     
+<<<<<<< HEAD
     is_verified: bool
     business_license_id: Optional[str] = None
     business_document_url: Optional[str] = None
@@ -201,3 +267,12 @@ class AIDesignResponse(BaseModel):
 
     class Config:
         from_attributes = True
+=======
+    # URLs de imágenes (opcional, para el futuro)
+    avatar_url: Optional[str] = None 
+    
+    is_verified: bool
+    
+    class Config:
+        from_attributes = True
+>>>>>>> parent of 1a8214c (a)

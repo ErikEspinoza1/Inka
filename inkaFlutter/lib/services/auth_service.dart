@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; 
@@ -18,7 +17,7 @@ class AuthService {
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'email': email.trim(),
+          'email': email,
           'password': password,
           'full_name': fullName,
         }),
@@ -26,7 +25,7 @@ class AuthService {
       // Solo devuelve TRUE si se creó (200). Si devuelve 400 (ya existe), devuelve false.
       return response.statusCode == 200;
     } catch (e) {
-      debugPrint('Error conexión register: $e');
+      print('Error conexión register: $e');
       return false;
     }
   }
@@ -90,28 +89,21 @@ class AuthService {
 
       return response.statusCode == 200;
     } catch (e) {
-      debugPrint('Error become-artist: $e');
+      print('Error become-artist: $e');
       return false;
     }
   }
 
   // ==========================================================
-  // 3. LOGIN & TOKENS (CORREGIDO PARA JSON)
+  // 3. LOGIN & TOKENS
   // ==========================================================
   Future<String?> login(String email, String password) async {
     final url = Uri.parse('$baseUrl/auth/login');
     try {
       final response = await http.post(
         url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        // Enviamos 'email' en lugar de 'username' y usamos jsonEncode
-        body: jsonEncode({
-          'email': email.trim(), 
-          'password': password
-        }),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {'username': email, 'password': password},
       );
 
       if (response.statusCode == 200) {
@@ -120,10 +112,9 @@ class AuthService {
         await _saveToken(token);
         return token;
       }
-      debugPrint('Error login: ${response.statusCode} - ${response.body}');
       return null;
     } catch (e) {
-      debugPrint('Error login conexión: $e');
+      print('Error login: $e');
       return null;
     }
   }
@@ -143,11 +134,11 @@ class AuthService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = jsonDecode(response.body);
         return data['role']; 
       }
     } catch (e) {
-      debugPrint("Error obteniendo rol: $e");
+      print("Error obteniendo rol: $e");
     }
     return null;
   }
@@ -195,6 +186,7 @@ class AuthService {
   // 4. GESTIÓN DEL PERFIL DE ARTISTA
   // ==========================================================
   
+  // Actualizar datos (PATCH)
   Future<bool> updateArtistProfile(Map<String, dynamic> data) async {
     final token = await getToken();
     if (token == null) return false;
@@ -216,6 +208,7 @@ class AuthService {
     }
   }
 
+  // Obtener mis datos (GET)
   Future<Map<String, dynamic>?> getArtistProfile() async {
     final token = await getToken();
     if (token == null) return null;
@@ -231,6 +224,7 @@ class AuthService {
       );
 
       if (response.statusCode == 200) {
+        // Decodificamos UTF-8 para evitar problemas con tildes
         return jsonDecode(utf8.decode(response.bodyBytes));
       }
     } catch (e) {
@@ -239,6 +233,8 @@ class AuthService {
     return null;
   }
 
+  // Subir Certificado (POST Multipart)
+  // Devuelve el JSON completo con el análisis de la IA
   Future<Map<String, dynamic>?> uploadCertificate(String filePath) async {
     final token = await getToken();
     if (token == null) return null;
@@ -247,13 +243,19 @@ class AuthService {
     
     try {
       var request = http.MultipartRequest('POST', url);
+      
+      // Headers
       request.headers['Authorization'] = 'Bearer $token';
+      
+      // Archivo
       request.files.add(await http.MultipartFile.fromPath('file', filePath));
 
+      // Enviar
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
+        // Devolvemos todo el JSON (status, ai_analysis, url...)
         return jsonDecode(utf8.decode(response.bodyBytes)); 
       } else {
         print("Error subida: ${response.body}");
@@ -297,6 +299,7 @@ class AuthService {
     request.headers['Authorization'] = 'Bearer $token';
     request.fields['description'] = description;
     request.fields['style_tag'] = styleTag;
+    
     request.files.add(await http.MultipartFile.fromPath('file', imagePath));
 
     try {
@@ -359,7 +362,7 @@ class AuthService {
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
-        return jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonDecode(response.body);
       }
     } catch (e) {
       print('Error getVerifiedArtists: $e');
@@ -600,6 +603,7 @@ class AuthService {
     }
     return null;
   }
+<<<<<<< HEAD
 
   // ==========================================================
   // 6. AVATARES
@@ -634,4 +638,6 @@ class AuthService {
     }
     return total;
   }
+=======
+>>>>>>> parent of 1a8214c (a)
 }

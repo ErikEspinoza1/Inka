@@ -1,9 +1,8 @@
-// lib/painters/tattoo_painter.dart
 import 'dart:math';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
+<<<<<<< HEAD
 import '../screens/ar_tattoo_screen.dart';
 
 class TattooPainter extends CustomPainter {
@@ -22,6 +21,21 @@ class TattooPainter extends CustomPainter {
   final double opacity;
   final double rotationOffset;
   final BodyZone selectedZone;
+=======
+
+class TattooPainter extends CustomPainter {
+  final ui.Image? tattooImage;
+  final PoseLandmark? startPoint; // Ej: Codo
+  final PoseLandmark? endPoint;   // Ej: Muñeca
+  final Size absoluteImageSize;
+  
+  // --- VARIABLES DE AJUSTE ---
+  final double scaleFactor;    // Tamaño
+  final double positionFactor; // Posición (0.0 a 1.0)
+  final double rotationManual; // Rotación extra del usuario
+  final double opacity;        // Transparencia (Realismo)
+  final double rotationOffset; // Offset de la zona (Pecho vs Brazo)
+>>>>>>> parent of 1a8214c (a)
 
   TattooPainter({
     required this.tattooImage,
@@ -35,15 +49,13 @@ class TattooPainter extends CustomPainter {
     required this.rotationManual,
     required this.opacity,
     required this.rotationOffset,
-    required this.selectedZone,
-    this.sensorOrientation = 90,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     if (tattooImage == null || startPoint == null || endPoint == null) return;
-    if (absoluteImageSize.width == 0 || absoluteImageSize.height == 0) return;
 
+<<<<<<< HEAD
     final bool isRotated = sensorOrientation == 90 || sensorOrientation == 270;
     final double scX = isRotated
         ? size.width / absoluteImageSize.height
@@ -115,10 +127,46 @@ class TattooPainter extends CustomPainter {
 
     double cX = bX;
     double cY = bY + (isFlat ? (distance * gravityDrop) : 0.0) + verticalScreenOffset;
+=======
+    final paint = Paint()
+      ..filterQuality = FilterQuality.high
+      ..isAntiAlias = true
+      ..color = Colors.white.withOpacity(opacity); // Aquí aplicamos la transparencia
+
+    // 1. Escalar coordenadas
+    final double scaleX = size.width / absoluteImageSize.height;
+    final double scaleY = size.height / absoluteImageSize.width;
+
+    final startX = startPoint!.x * scaleX;
+    final startY = startPoint!.y * scaleY;
+    final endX = endPoint!.x * scaleX;
+    final endY = endPoint!.y * scaleY;
+
+    // 2. MATEMÁTICA DE POSICIÓN (Interpolación Lineal)
+    // En lugar de dividir entre 2, nos movemos un porcentaje del camino
+    final centerX = startX + (endX - startX) * positionFactor;
+    final centerY = startY + (endY - startY) * positionFactor;
+    
+    // Ángulo automático de la IA + Rotación Manual del usuario - Offset de zona
+    final angle = atan2(endY - startY, endX - startX) - rotationOffset + rotationManual;
+    
+    // Distancia para calcular la base del tamaño
+    final distance = sqrt(pow(endX - startX, 2) + pow(endY - startY, 2));
+
+    // 3. Tamaño
+    final double desiredSize = distance * scaleFactor;
+    final double imageScale = desiredSize / tattooImage!.width.toDouble();
+
+    canvas.save();
+    canvas.translate(centerX, centerY);
+    canvas.rotate(angle); 
+    canvas.scale(imageScale, imageScale);
+>>>>>>> parent of 1a8214c (a)
 
     final angle = atan2(eY - sY, eX - sX) - rotationOffset + rotationManual;
     final double imgW = tattooImage!.width.toDouble();
     final double imgH = tattooImage!.height.toDouble();
+<<<<<<< HEAD
 
     final double stableScale = pow(distance / size.width, 0.85) * size.width;
     final double imageScale = (stableScale * scaleFactor) / imgH;
@@ -201,11 +249,16 @@ class TattooPainter extends CustomPainter {
         ui.BlendMode.modulate,
         paint);
         
+=======
+    
+    canvas.drawImage(tattooImage!, Offset(-imgW / 2, -imgH / 2), paint);
+>>>>>>> parent of 1a8214c (a)
     canvas.restore();
   }
 
   @override
   bool shouldRepaint(covariant TattooPainter oldDelegate) {
+<<<<<<< HEAD
     return oldDelegate.startPoint      != startPoint      ||
            oldDelegate.endPoint        != endPoint        ||
            oldDelegate.positionX       != positionX       ||
@@ -216,5 +269,12 @@ class TattooPainter extends CustomPainter {
            oldDelegate.selectedZone    != selectedZone    ||
            oldDelegate.isFrontCamera   != isFrontCamera   ||
            oldDelegate.sensorOrientation != sensorOrientation;
+=======
+    return oldDelegate.positionFactor != positionFactor || 
+           oldDelegate.scaleFactor != scaleFactor ||
+           oldDelegate.rotationManual != rotationManual ||
+           oldDelegate.opacity != opacity ||
+           oldDelegate.startPoint != startPoint;
+>>>>>>> parent of 1a8214c (a)
   }
 }

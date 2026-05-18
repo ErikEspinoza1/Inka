@@ -7,9 +7,14 @@
     <uses-feature android:name="android.hardware.camera.autofocus" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+<<<<<<< HEAD
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="Inka"
+=======
+    <application
+        android:label="inka"
+>>>>>>> parent of 1a8214c (a)
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity

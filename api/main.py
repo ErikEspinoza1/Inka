@@ -1,146 +1,105 @@
 import os
 import requests 
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
-from fastapi.responses import Response
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware  
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from rembg import remove  # AI background removal
 from database import engine, Base, get_db
-from dotenv import load_dotenv
-from PIL import Image
-import io
+from dotenv import load_dotenv # <--- IMPORTANTE: Añadido para leer el .env
 
-# Load secret variables
+# Cargar las variables secretas del .env
 load_dotenv()
 
-# --- SSL PATCH ---
+# --- PARCHE PARA EL ERROR DE SSL ---
 if "SSL_CERT_FILE" in os.environ:
     del os.environ["SSL_CERT_FILE"]
 
-# Import all routers
-from routers import auth, artists, bookings, users, content, messages, tattoo_ar
+# Importamos TODOS los routers
+from routers import auth, artists, bookings, users, content, messages
 
-# Create tables in the database (Supabase)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Tattoo Art API with Supabase")
 
-# --- CORS CONFIGURATION ---
-# IMPORTANT: allow_credentials MUST be False if allow_origins is ["*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  
-    allow_credentials=False, 
+    allow_credentials=True,
     allow_methods=["*"],  
     allow_headers=["*"],  
 )
 
-# Include routers
 app.include_router(auth.router)
-app.include_router(users.router)
+app.include_router(users.router)  
 app.include_router(artists.router)
 app.include_router(bookings.router)
 app.include_router(content.router)
 app.include_router(messages.router)
-app.include_router(tattoo_ar.router)
 
-# --- AI AUTOPILOT ENDPOINT ---
+# --- NUESTRO ENDPOINT NUCLEAR Y AUTOPILOTO DE IA ---
 @app.get("/buscar-tatuajes-ia")
-def search_tattoos_ai(idea: str, db: Session = Depends(get_db)):
+def buscar_tatuajes_ia(idea: str, db: Session = Depends(get_db)):
     try:
-        print(f"🧠 Searching for idea: {idea}")
+        print(f"🧠 Buscando idea: {idea}")
         
-        # 👇 MAGIC: Read the new key from .env without exposing it 👇
+        # 👇 MAGIA: Ahora lee la clave nueva del .env sin exponerla 👇
         api_key = os.getenv("GEMINI_API_KEY")
         
         if not api_key:
-            raise Exception("🚨 GEMINI_API_KEY not found in the .env file")
+            raise Exception("🚨 No se encontró la GEMINI_API_KEY en el archivo .env")
 
-        # 1. Ask Google which models are actually enabled
+        # 1. Le preguntamos a Google qué modelos tienes habilitados de verdad
         url_models = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
         res_models = requests.get(url_models)
         
         if res_models.status_code != 200:
-            raise Exception(f"Failed to query Google: {res_models.text}")
+            raise Exception(f"No se pudo consultar a Google: {res_models.text}")
         
-        available_models = res_models.json().get("models", [])
+        modelos_disponibles = res_models.json().get("models", [])
         
-        # Automatically find the first model that supports text-to-numbers (embeddings)
-        embedding_model = None
-        for m in available_models:
+        # Buscamos automáticamente el primero que sirva para convertir texto a números
+        modelo_embedding = None
+        for m in modelos_disponibles:
             if "embedContent" in m.get("supportedGenerationMethods", []):
-                embedding_model = m["name"]
+                modelo_embedding = m["name"]
                 break
                 
-        if not embedding_model:
-            raise Exception("🚨 YOUR API KEY HAS NO SEARCH MODEL ENABLED.")
+        if not modelo_embedding:
+            raise Exception("🚨 TU API KEY NO TIENE NINGÚN MODELO DE BÚSQUEDA ACTIVADO.")
             
-        print(f"✅ Hack successful! Google tells us to use hidden model: {embedding_model}")
+        print(f"✅ ¡Hack superado! Google nos dice que usemos el modelo oculto: {modelo_embedding}")
         
-        # 2. Fire the request with the exact model
-        url_embed = f"https://generativelanguage.googleapis.com/v1beta/{embedding_model}:embedContent?key={api_key}"
+        # 2. Ahora sí, disparamos la petición con el modelo exacto
+        url_embed = f"https://generativelanguage.googleapis.com/v1beta/{modelo_embedding}:embedContent?key={api_key}"
         
         payload = {
-            "model": embedding_model,
+            "model": modelo_embedding,
             "content": {
                 "parts": [{"text": idea}]
             }
         }
         
-        response = requests.post(url_embed, json=payload)
+        respuesta = requests.post(url_embed, json=payload)
         
-        if response.status_code != 200:
-            raise Exception(f"Failed to generate vector: {response.text}")
+        if respuesta.status_code != 200:
+            raise Exception(f"Fallo al generar el vector: {respuesta.text}")
             
-        # Extract the list and EXACTLY trim it to 768 dimensions ✂️
-        data = response.json()
-        search_vector = data['embedding']['values'][:768]
+        # Extraemos la lista y LA RECORTAMOS a 768 exactos ✂️
+        datos = respuesta.json()
+        vector_busqueda = datos['embedding']['values'][:768]
         
-        print("✅ Numbers generated! Searching for tattoos in Supabase...")
+        print("✅ ¡Números generados! Buscando tatuajes en Supabase...")
         
-        # 3. Search in Supabase using CAST to prevent Python confusion
+        # 3. Buscamos en Supabase usando CAST para que Python no se confunda
         query = text("SELECT * FROM buscar_tatuajes(CAST(:vector AS vector(768)), 3)")
-        results = db.execute(query, {"vector": str(search_vector)}).mappings().all()
+        resultados = db.execute(query, {"vector": str(vector_busqueda)}).mappings().all()
         
-        return [dict(row) for row in results]
+        return [dict(row) for row in resultados]
     except Exception as e:
-        print(f"❌ AI Error: {e}")
+        print(f"❌ Error en la IA: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# --- ORIGINAL TEST ROUTE ---
+# --- RUTA DE PRUEBA ORIGINAL ---
 @app.get("/")
 def read_root():
-    return {"status": "online", "db": "supabase", "version": "1.0.0"}
-
-
-# --- NUEVO ENDPOINT PARA REALIDAD AUMENTADA (Transparencia Total) ---
-@app.post("/api/remove-background")
-async def remove_background(file: UploadFile = File(...)):
-    try:
-        input_image = await file.read()
-        
-        # 1. Abrimos la imagen y la convertimos a formato con Transparencia (RGBA)
-        img = Image.open(io.BytesIO(input_image)).convert("RGBA")
-        data = img.getdata()
-        
-        new_data = []
-        
-        # 2. Filtro de Umbral (Thresholding)
-        # Si el píxel es mayormente blanco/claro (R>200, G>200, B>200), lo volvemos invisible.
-        # Si es tinta negra/oscura, lo dejamos intacto.
-        for item in data:
-            if item[0] > 200 and item[1] > 200 and item[2] > 200:
-                new_data.append((255, 255, 255, 0)) # Alpha = 0 (Transparente)
-            else:
-                new_data.append(item)
-                
-        img.putdata(new_data)
-        
-        # 3. Guardamos y enviamos a Flutter
-        img_byte_arr = io.BytesIO()
-        img.save(img_byte_arr, format='PNG')
-        
-        return Response(content=img_byte_arr.getvalue(), media_type="image/png")
-    except Exception as e:
-        return {"error": str(e)}
+    return {"status": "online", "db": "supabase"}
