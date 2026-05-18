@@ -6,30 +6,38 @@ import 'dart:ui' as ui;
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart'; // Required for RepaintBoundary
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:http/http.dart' as http; 
+import 'package:http/http.dart' as http;
+import 'package:gal/gal.dart';
 
 import '../painters/tattoo_painter.dart';
 import '../utils/camera_utils.dart';
 import '../utils/one_euro_filter.dart';
 
-import 'package:gal/gal.dart';
-
-// Expanded Body Zones covering the whole body
-enum BodyZone { 
-  head, neck, chest, back, stomach,
-  leftForearm, rightForearm, 
-  leftBicep, rightBicep, 
-  leftHand, rightHand,
-  leftThigh, rightThigh, 
-  leftCalf, rightCalf,
-  leftFoot, rightFoot
+enum BodyZone {
+  head,
+  neck,
+  chest,
+  back,
+  stomach,
+  leftForearm,
+  rightForearm,
+  leftBicep,
+  rightBicep,
+  leftHand,
+  rightHand,
+  leftThigh,
+  rightThigh,
+  leftCalf,
+  rightCalf,
+  leftFoot,
+  rightFoot
 }
 
-enum ControlMode { size, position, rotation, opacity, timer }
+enum ControlMode { size, posX, posY, rotation, opacity, timer }
 
 class ArTattooScreen extends StatefulWidget {
   final Uint8List? tattooBytes;
@@ -41,28 +49,31 @@ class ArTattooScreen extends StatefulWidget {
 }
 
 class _ArTattooScreenState extends State<ArTattooScreen> {
-  final GlobalKey _boundaryKey = GlobalKey(); // Key for capturing the screen
+  final GlobalKey _boundaryKey = GlobalKey();
   CameraController? _controller;
   PoseDetector? _poseDetector;
   bool _isCameraInitialized = false;
-  bool _isProcessing = false; 
+  bool _isProcessing = false;
+
+  bool _isFrontCamera = true; 
 
   BodyZone _selectedZone = BodyZone.leftForearm;
   ControlMode _activeControl = ControlMode.size;
 
-  double _sizeValue = 0.5;
-  double _posValue = 0.5;
+  // Valores predeterminados en el punto medio
+  double _sizeValue = 0.8;
+  double _posXValue = 0.5;
+  double _posYValue = 0.5;
   double _rotValue = 0.0;
-  double _opacityValue = 0.9;
-  
-  // Timer settings
-  double _timerSetting = 3.0; 
+  double _opacityValue = 0.55;
+  double _timerSetting = 3.0;
+
   int _currentCountdown = 0;
   bool _isCountingDown = false;
 
   final OneEuroFilter _startFilter = OneEuroFilter(minCutoff: 0.05, beta: 0.005);
   final OneEuroFilter _endFilter = OneEuroFilter(minCutoff: 0.05, beta: 0.005);
-  
+
   PoseLandmark? _stabilizedStart;
   PoseLandmark? _stabilizedEnd;
 
@@ -78,7 +89,6 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
   }
 
   Future<void> _initializeAll() async {
-    // Request both camera and storage permissions
     await [Permission.camera, Permission.storage].request();
 
     try {
@@ -90,33 +100,32 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
         _tattooImage = await _loadUiImage('assets/images/tattoo.png');
       }
     } catch (e) {
-      debugPrint("Error processing image: $e");
       _tattooImage = await _loadUiImage('assets/images/tattoo.png');
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
 
-    final options = PoseDetectorOptions(mode: PoseDetectionMode.stream);
-    _poseDetector = PoseDetector(options: options);
+    _poseDetector = PoseDetector(options: PoseDetectorOptions(mode: PoseDetectionMode.stream));
 
+    await _setupCamera();
+  }
+
+  Future<void> _setupCamera() async {
     final cameras = await availableCameras();
     if (cameras.isNotEmpty) {
+      // Forzamos buscar la cámara frontal como principal
       _cameraDescription = cameras.firstWhere(
         (c) => c.lensDirection == CameraLensDirection.front,
         orElse: () => cameras.first,
       );
-
+      
+      _isFrontCamera = _cameraDescription!.lensDirection == CameraLensDirection.front;
       _sensorOrientation = _cameraDescription!.sensorOrientation;
-
+      
       _controller = CameraController(
         _cameraDescription!,
-        ResolutionPreset.high, // Set to high for better photo quality
+        ResolutionPreset.high,
         enableAudio: false,
-        imageFormatGroup: kIsWeb
-            ? ImageFormatGroup.jpeg
-            : (defaultTargetPlatform == TargetPlatform.android
-                ? ImageFormatGroup.nv21
-                : ImageFormatGroup.bgra8888),
       );
 
       await _controller!.initialize();
@@ -125,24 +134,27 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
     }
   }
 
+  // Lógica de imantación (Magnetic Snapping)
+  double _snapValue(double value, double target, {double threshold = 0.04}) {
+    if ((value - target).abs() < threshold) {
+      return target;
+    }
+    return value;
+  }
+
   Future<Uint8List> _removeBackgroundOnServer(Uint8List originalBytes) async {
-    final uri = Uri.parse('http://172.17.33.7:8000/api/remove-background'); 
+    final uri = Uri.parse('http://172.17.33.7:8000/api/remove-background');
     var request = http.MultipartRequest('POST', uri);
     request.files.add(http.MultipartFile.fromBytes('file', originalBytes, filename: 'tattoo.jpg'));
     var response = await request.send();
-
-    if (response.statusCode == 200) {
-      return await response.stream.toBytes();
-    } else {
-      throw Exception('Failed to remove background: ${response.statusCode}');
-    }
+    if (response.statusCode == 200) return await response.stream.toBytes();
+    throw Exception('Error removing background');
   }
 
   Future<ui.Image> _loadUiImage(String path) async {
     final data = await rootBundle.load(path);
-    final list = Uint8List.view(data.buffer);
     final completer = Completer<ui.Image>();
-    ui.decodeImageFromList(list, (img) => completer.complete(img));
+    ui.decodeImageFromList(Uint8List.view(data.buffer), (img) => completer.complete(img));
     return completer.future;
   }
 
@@ -152,7 +164,6 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
     return completer.future;
   }
 
-  // Mapping all Body Zones to ML Kit Landmarks
   (PoseLandmarkType, PoseLandmarkType, double) _getZoneConfig() {
     switch (_selectedZone) {
       case BodyZone.head: return (PoseLandmarkType.leftEar, PoseLandmarkType.rightEar, 0.0);
@@ -177,7 +188,6 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
 
   Future<void> _processCameraImage(CameraImage image) async {
     if (_isProcessing || _poseDetector == null) return;
-    
     _isProcessing = true;
     try {
       final inputImage = CameraUtils.convertCameraImageToInputImage(image, _cameraDescription!);
@@ -191,90 +201,42 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
         final rawEnd = pose.landmarks[endType];
 
         if (rawStart != null && rawEnd != null && rawStart.likelihood > 0.3) {
-          final int timestamp = DateTime.now().millisecondsSinceEpoch;
-
-          final startOffset = _startFilter.filter(Offset(rawStart.x, rawStart.y), timestamp);
-          final endOffset = _endFilter.filter(Offset(rawEnd.x, rawEnd.y), timestamp);
+          final timestamp = DateTime.now().millisecondsSinceEpoch;
+          final sOff = _startFilter.filter(Offset(rawStart.x, rawStart.y), timestamp);
+          final eOff = _endFilter.filter(Offset(rawEnd.x, rawEnd.y), timestamp);
 
           if (mounted) {
             setState(() {
               _stabilizedStart = PoseLandmark(
-                type: rawStart.type, x: startOffset.dx, y: startOffset.dy, z: rawStart.z, likelihood: rawStart.likelihood,
-              );
+                  type: rawStart.type, x: sOff.dx, y: sOff.dy, z: rawStart.z, likelihood: rawStart.likelihood);
               _stabilizedEnd = PoseLandmark(
-                type: rawEnd.type, x: endOffset.dx, y: endOffset.dy, z: rawEnd.z, likelihood: rawEnd.likelihood,
-              );
+                  type: rawEnd.type, x: eOff.dx, y: eOff.dy, z: rawEnd.z, likelihood: rawEnd.likelihood);
             });
           }
         }
-      } else {
-        _startFilter.reset(); _endFilter.reset();
-        if (mounted) setState(() { _stabilizedStart = null; _stabilizedEnd = null; });
       }
-    } catch (e) {
-      debugPrint("Pose error: $e");
     } finally {
       _isProcessing = false;
     }
   }
 
-  // Photo Capture Logic
-  Future<void> _startCaptureWorkflow() async {
-    if (_isCountingDown) return;
-    
-    setState(() {
-      _isCountingDown = true;
-      _currentCountdown = _timerSetting.toInt();
-    });
-
-    Timer.periodic(const Duration(seconds: 1), (timer) async {
-      if (_currentCountdown > 1) {
-        if (mounted) setState(() => _currentCountdown--);
-      } else {
-        timer.cancel();
-        await _takePhoto();
-        if (mounted) setState(() => _isCountingDown = false);
-      }
-    });
-  }
-
-  // Photo Capture Logic
   Future<void> _takePhoto() async {
     try {
       RenderRepaintBoundary boundary = _boundaryKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-      ui.Image image = await boundary.toImage(pixelRatio: 3.0); // High quality capture
+      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
       ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
-      // Check permissions using gal
-      final hasAccess = await Gal.hasAccess();
-      if (!hasAccess) {
-        await Gal.requestAccess();
-      }
+      if (!await Gal.hasAccess()) await Gal.requestAccess();
+      await Gal.putImageBytes(pngBytes, name: "Inka_${DateTime.now().millisecondsSinceEpoch}");
 
-      // Save the image using the modern gal package
-      await Gal.putImageBytes(
-        pngBytes, 
-        name: "Inka_Tattoo_${DateTime.now().millisecondsSinceEpoch}"
-      );
-      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("¡Foto guardada en la galería!"), backgroundColor: Colors.teal)
-        );
+            const SnackBar(content: Text("¡Foto guardada en la galería!"), backgroundColor: Colors.teal));
       }
     } catch (e) {
-      debugPrint("Error taking photo: $e");
+      debugPrint("Error guardando foto: $e");
     }
-  }
-
-  void _changeZone(BodyZone newZone) {
-    setState(() {
-      _selectedZone = newZone;
-      _startFilter.reset(); _endFilter.reset();
-      _stabilizedStart = null; _stabilizedEnd = null;
-      _posValue = 0.5;
-    });
   }
 
   @override
@@ -286,23 +248,6 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isProcessing && !_isCameraInitialized) {
-      return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(color: Colors.tealAccent),
-              SizedBox(height: 20),
-              Text("Procesando tatuaje con IA...\nEliminando fondo",
-                textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 16)),
-            ],
-          ),
-        ),
-      );
-    }
-
     if (!_isCameraInitialized || _controller == null) {
       return const Scaffold(backgroundColor: Colors.black, body: Center(child: CircularProgressIndicator()));
     }
@@ -314,7 +259,6 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // RepaintBoundary encapsulates the camera and the tattoo for the photo
           RepaintBoundary(
             key: _boundaryKey,
             child: Center(
@@ -330,13 +274,15 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
                         startPoint: _stabilizedStart,
                         endPoint: _stabilizedEnd,
                         absoluteImageSize: _inputImageSize,
+                        isFrontCamera: _isFrontCamera,
                         scaleFactor: _sizeValue,
-                        positionFactor: _posValue,
+                        positionX: _posXValue,
+                        positionY: _posYValue,
                         rotationManual: _rotValue,
                         opacity: _opacityValue,
                         rotationOffset: rotationOffset,
                         sensorOrientation: _sensorOrientation,
-                        selectedZone: _selectedZone, 
+                        selectedZone: _selectedZone,
                       ),
                     ),
                   ],
@@ -344,23 +290,22 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
               ),
             ),
           ),
-
-          // Countdown Overlay
+          
           if (_isCountingDown)
             Container(
               color: Colors.black45,
               child: Center(
-                child: Text(
-                  "$_currentCountdown", 
-                  style: const TextStyle(color: Colors.tealAccent, fontSize: 120, fontWeight: FontWeight.bold)
-                ),
+                child: Text("$_currentCountdown",
+                    style: const TextStyle(color: Colors.tealAccent, fontSize: 120, fontWeight: FontWeight.bold)),
               ),
             ),
-
+            
           Positioned(
-            bottom: 0, left: 0, right: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
             child: Container(
-              padding: const EdgeInsets.only(top: 15, bottom: 20, left: 20, right: 20),
+              padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
                 color: Colors.black87,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -372,19 +317,16 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _buildModeIcon(Icons.zoom_out_map, "Escala", ControlMode.size),
-                      _buildModeIcon(Icons.linear_scale, "Mover", ControlMode.position),
+                      _buildModeIcon(Icons.swap_horiz, "X", ControlMode.posX),
+                      _buildModeIcon(Icons.swap_vert, "Y", ControlMode.posY),
                       _buildModeIcon(Icons.rotate_right, "Girar", ControlMode.rotation),
                       _buildModeIcon(Icons.opacity, "Tinta", ControlMode.opacity),
                       _buildModeIcon(Icons.timer, "Reloj", ControlMode.timer),
                     ],
                   ),
-                  const Divider(color: Colors.white24, height: 20),
-                  Row(
-                    children: [
-                      Expanded(child: _buildActiveSlider()),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
+                  const Divider(color: Colors.white24, height: 25),
+                  _buildActiveSlider(),
+                  const SizedBox(height: 15),
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -409,16 +351,31 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 15),
-                  // Capture Button
+                  const SizedBox(height: 20),
                   GestureDetector(
-                    onTap: _startCaptureWorkflow,
+                    onTap: () async {
+                      if (_isCountingDown) return;
+                      setState(() {
+                        _isCountingDown = true;
+                        _currentCountdown = _timerSetting.toInt();
+                      });
+                      Timer.periodic(const Duration(seconds: 1), (t) async {
+                        if (_currentCountdown > 1) {
+                          setState(() => _currentCountdown--);
+                        } else {
+                          t.cancel();
+                          await _takePhoto();
+                          setState(() => _isCountingDown = false);
+                        }
+                      });
+                    },
                     child: Container(
-                      height: 60, width: 60,
+                      height: 65,
+                      width: 65,
                       decoration: BoxDecoration(
-                        shape: BoxShape.circle, 
-                        border: Border.all(color: Colors.white, width: 3), 
-                        color: Colors.tealAccent
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        color: Colors.tealAccent,
                       ),
                       child: const Icon(Icons.camera_alt, size: 30, color: Colors.black),
                     ),
@@ -427,12 +384,15 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
               ),
             ),
           ),
-
           Positioned(
-            top: 50, left: 20,
+            top: 50,
+            left: 20,
             child: CircleAvatar(
               backgroundColor: Colors.black54,
-              child: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
             ),
           ),
         ],
@@ -442,40 +402,71 @@ class _ArTattooScreenState extends State<ArTattooScreen> {
 
   Widget _buildActiveSlider() {
     switch (_activeControl) {
-      case ControlMode.size: return Slider(value: _sizeValue, min: 0.1, max: 1.5, activeColor: Colors.tealAccent, onChanged: (v) => setState(() => _sizeValue = v));
-      case ControlMode.position: return Slider(value: _posValue, min: 0.0, max: 1.0, activeColor: Colors.orangeAccent, onChanged: (v) => setState(() => _posValue = v));
-      case ControlMode.rotation: return Slider(value: _rotValue, min: -3.14, max: 3.14, activeColor: Colors.purpleAccent, onChanged: (v) => setState(() => _rotValue = v));
-      case ControlMode.opacity: return Slider(value: _opacityValue, min: 0.1, max: 1.0, activeColor: Colors.blueAccent, onChanged: (v) => setState(() => _opacityValue = v));
-      case ControlMode.timer: return Slider(value: _timerSetting, min: 0, max: 10, divisions: 10, label: "${_timerSetting.toInt()}s", activeColor: Colors.redAccent, onChanged: (v) => setState(() => _timerSetting = v));
+      case ControlMode.size:
+        return Slider(
+          value: _sizeValue, min: 0.1, max: 1.5, activeColor: Colors.tealAccent,
+          onChanged: (v) => setState(() => _sizeValue = _snapValue(v, 0.8)),
+        );
+      case ControlMode.posX:
+        return Slider(
+          value: _posXValue, min: 0.0, max: 1.0, activeColor: Colors.orangeAccent,
+          onChanged: (v) => setState(() => _posXValue = _snapValue(v, 0.5)),
+        );
+      case ControlMode.posY:
+        return Slider(
+          value: _posYValue, min: 0.0, max: 1.0, activeColor: Colors.deepOrangeAccent,
+          onChanged: (v) => setState(() => _posYValue = _snapValue(v, 0.5)),
+        );
+      case ControlMode.rotation:
+        return Slider(
+          value: _rotValue, min: -3.14, max: 3.14, activeColor: Colors.purpleAccent,
+          onChanged: (v) => setState(() => _rotValue = _snapValue(v, 0.0)),
+        );
+      case ControlMode.opacity:
+        return Slider(
+          value: _opacityValue, min: 0.1, max: 1.0, activeColor: Colors.blueAccent,
+          onChanged: (v) => setState(() => _opacityValue = _snapValue(v, 0.55)),
+        );
+      case ControlMode.timer:
+        return Slider(
+          value: _timerSetting, min: 0, max: 10, divisions: 10,
+          label: "${_timerSetting.toInt()}s", activeColor: Colors.redAccent,
+          onChanged: (v) => setState(() => _timerSetting = v),
+        );
     }
   }
 
   Widget _buildModeIcon(IconData icon, String label, ControlMode mode) {
     bool sel = _activeControl == mode;
     return GestureDetector(
-      onTap: () => setState(() => _activeControl = mode), 
-      child: Column(children: [
-        Icon(icon, color: sel ? Colors.tealAccent : Colors.white54, size: 28), 
-        const SizedBox(height: 4), 
-        Text(label, style: TextStyle(color: sel ? Colors.tealAccent : Colors.white54, fontSize: 12))
-      ])
+      onTap: () => setState(() => _activeControl = mode),
+      child: Column(
+        children: [
+          Icon(icon, color: sel ? Colors.tealAccent : Colors.white54, size: 26),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(color: sel ? Colors.tealAccent : Colors.white54, fontSize: 10)),
+        ],
+      ),
     );
   }
 
   Widget _buildZoneButton(String label, IconData icon, BodyZone zone) {
     bool sel = _selectedZone == zone;
     return Padding(
-      padding: const EdgeInsets.only(right: 8), 
+      padding: const EdgeInsets.only(right: 8),
       child: ElevatedButton.icon(
         style: ElevatedButton.styleFrom(
-          backgroundColor: sel ? Colors.tealAccent : Colors.grey[800], 
+          backgroundColor: sel ? Colors.tealAccent : Colors.grey[800],
           foregroundColor: sel ? Colors.black : Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
-        ), 
-        onPressed: () => _changeZone(zone), 
-        icon: Icon(icon, size: 14), 
-        label: Text(label, style: const TextStyle(fontSize: 11))
-      )
+        ),
+        onPressed: () => setState(() {
+          _selectedZone = zone;
+          _posXValue = 0.5;
+          _posYValue = 0.5;
+        }),
+        icon: Icon(icon, size: 14),
+        label: Text(label, style: const TextStyle(fontSize: 11)),
+      ),
     );
   }
 }
