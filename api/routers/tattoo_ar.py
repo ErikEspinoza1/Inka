@@ -16,7 +16,8 @@ async def remove_bg(file: UploadFile = File(...)):
     """
     Recibe imagen PNG o JPG, devuelve PNG con fondo transparente.
     """
-    if file.content_type not in ("image/png", "image/jpeg", "image/jpg", "image/webp"):
+    content_type = file.content_type or ""
+    if content_type not in ("image/png", "image/jpeg", "image/jpg", "image/webp", "application/octet-stream", ""):
         raise HTTPException(
             status_code=400,
             detail=f"Formato no soportado: {file.content_type}. Usa PNG o JPG."
