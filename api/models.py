@@ -35,6 +35,7 @@ class Profile(Base):
     role = Column(Enum(UserRole), default=UserRole.cliente)
     password = Column(String) 
     preference_embedding = Column(Vector(768), nullable=True) # Para el algoritmo de Feed
+    fcm_token = Column(String, nullable=True) # Token para notificaciones push
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     artist_profile = relationship("Artist", back_populates="profile", uselist=False)
@@ -67,6 +68,10 @@ class Artist(Base):
     longitude = Column(Float)
     workspace_type = Column(Enum(StudioType), default=StudioType.shop)
     show_exact_location = Column(Boolean, default=True) # False = Privacidad (Estudios privados)
+    
+    # Horario Laboral
+    working_hours_start = Column(String, default="09:00")
+    working_hours_end = Column(String, default="18:00")
 
     # Relaciones
     profile = relationship("Profile", back_populates="artist_profile")
@@ -97,6 +102,7 @@ class Booking(Base):
     size_cm = Column(String)
     price_quote = Column(Numeric, nullable=True)
     booking_date = Column(DateTime(timezone=True), nullable=True)
+    duration_hours = Column(Float, nullable=True)
     client_accepted = Column(Boolean, default=False)
     artist_accepted = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

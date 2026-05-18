@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 import 'feed_screen.dart';       // <-- El Feed Principal (TikTok Flow)
 import 'map_screen.dart';
 import 'client_profile_screen.dart';
@@ -12,7 +14,43 @@ class ClientHomeScreen extends StatefulWidget {
 }
 
 class _ClientHomeScreenState extends State<ClientHomeScreen> {
+  final AuthService _authService = AuthService();
+  Timer? _notificationTimer;
+  int _lastUnreadCount = 0;
   int _selectedIndex = 0; 
+
+  @override
+  void initState() {
+    super.initState();
+    _startNotificationCheck();
+  }
+
+  @override
+  void dispose() {
+    _notificationTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startNotificationCheck() {
+    _notificationTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
+      final newCount = await _authService.getTotalUnreadCount();
+      if (newCount > _lastUnreadCount) {
+        if (mounted && _selectedIndex != 2) { // 2 es el índice de Chats
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('💬 Tienes nuevos mensajes pendientes'),
+              behavior: SnackBarBehavior.floating,
+              action: SnackBarAction(
+                label: 'Ver',
+                onPressed: () => setState(() => _selectedIndex = 2),
+              ),
+            ),
+          );
+        }
+      }
+      _lastUnreadCount = newCount;
+    });
+  }
 
   static const List<Widget> _screens = <Widget>[
     FeedScreen(),           // 0: Feed (TikTok)

@@ -29,6 +29,10 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
   final _zipCtrl = TextEditingController();
   final _cityCtrl = TextEditingController();
 
+  // Controladores Horario
+  final _startHourCtrl = TextEditingController(text: "09:00");
+  final _endHourCtrl = TextEditingController(text: "18:00");
+
   // Estado
   bool _hasPhysicalShop = true; 
   String _certificateStatus = "Pendiente"; 
@@ -52,6 +56,8 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
       _bioCtrl.text = data['bio'] ?? '';
       _instaCtrl.text = data['instagram_handle'] ?? '';
       _licenseCtrl.text = data['business_license_id'] ?? '';
+      _startHourCtrl.text = data['working_hours_start'] ?? "09:00";
+      _endHourCtrl.text = data['working_hours_end'] ?? "18:00";
       
       // 2. Estado de verificación inicial
       if (data['is_verified'] == true) {
@@ -130,6 +136,8 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
       'longitude': lng,
       'workspace_type': _hasPhysicalShop ? 'shop' : 'mobile',
       'show_exact_location': _hasPhysicalShop,
+      'working_hours_start': _startHourCtrl.text,
+      'working_hours_end': _endHourCtrl.text,
     };
 
     // 4. Enviar
@@ -252,6 +260,48 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                 ),
 
                 const SizedBox(height: 30),
+                _sectionTitle("Horario Laboral"),
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay(
+                              hour: int.parse(_startHourCtrl.text.split(":")[0]),
+                              minute: int.parse(_startHourCtrl.text.split(":")[1]),
+                            ),
+                          );
+                          if (picked != null) {
+                            setState(() => _startHourCtrl.text = "${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}");
+                          }
+                        },
+                        child: _inputField("Hora Inicio", _startHourCtrl, Icons.access_time, enabled: false),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay(
+                              hour: int.parse(_endHourCtrl.text.split(":")[0]),
+                              minute: int.parse(_endHourCtrl.text.split(":")[1]),
+                            ),
+                          );
+                          if (picked != null) {
+                            setState(() => _endHourCtrl.text = "${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}");
+                          }
+                        },
+                        child: _inputField("Hora Fin", _endHourCtrl, Icons.access_time_filled, enabled: false),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 30),
                 _sectionTitle("Certificación Higiénico Sanitaria"),
                 
                 Container(
@@ -339,12 +389,13 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
     );
   }
 
-  Widget _inputField(String label, TextEditingController ctrl, IconData icon, {int maxLines = 1}) {
+  Widget _inputField(String label, TextEditingController ctrl, IconData icon, {int maxLines = 1, bool enabled = true}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
         controller: ctrl,
         maxLines: maxLines,
+        enabled: enabled,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon),

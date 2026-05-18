@@ -58,25 +58,34 @@ def read_user(user_id: str, db: Session = Depends(database.get_db)):
 # Actualizar mi avatar o nombre
 @router.patch("/me", response_model=schemas.UserResponse)
 def update_user_me(
-    full_name: str = None,
-    email: str = None,
-    avatar_url: str = None,
+    update_data: schemas.UserUpdate,
     current_user: models.Profile = Depends(auth.get_current_user),
     db: Session = Depends(database.get_db)
 ):
-    if full_name:
-        current_user.full_name = full_name
-    if email:
+    print(f"DEBUG: Actualizando usuario {current_user.id} con datos: {update_data.dict(exclude_unset=True)}")
+    if update_data.full_name:
+        current_user.full_name = update_data.full_name
+    if update_data.email:
         # Verificar que el email no esté en uso por otro usuario
         existing_user = db.query(models.Profile).filter(
-            models.Profile.email == email,
+            models.Profile.email == update_data.email,
             models.Profile.id != current_user.id
         ).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already in use")
-        current_user.email = email
-    if avatar_url:
-        current_user.avatar_url = avatar_url
+        current_user.email = update_data.email
+    if update_data.avatar_url:
+        current_user.avatar_url = update_data.avatar_url
+    
+    if update_data.new_password:
+        if not update_data.current_password:
+            raise HTTPException(status_code=400, detail="Current password is required to set a new one")
+        if not auth.verify_password(update_data.current_password, current_user.password):
+            raise HTTPException(status_code=403, detail="Incorrect current password")
+        current_user.password = auth.get_password_hash(update_data.new_password)
+    
+    if update_data.fcm_token:
+        current_user.fcm_token = update_data.fcm_token
     
     db.commit()
     db.refresh(current_user)

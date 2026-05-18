@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from sqlalchemy.orm import Session
 from typing import List, Set
 import database, models, schemas, auth
+from utils.notifications import send_push_notification
 
 router = APIRouter(prefix="/messages", tags=["Messages"])
 
@@ -117,6 +118,18 @@ def send_message(
     db.add(new_message)
     db.commit()
     db.refresh(new_message)
+    
+    # Enviar notificación push al receptor
+    try:
+        send_push_notification(
+            receiver_id=str(new_message.receiver_id),
+            title=f"Nuevo mensaje de {current_user.full_name}",
+            body=new_message.content if len(new_message.content) < 100 else f"{new_message.content[:97]}...",
+            db=db
+        )
+    except Exception as e:
+        print(f"Error enviando push: {e}")
+        
     return new_message
 
 @router.post("/upload_image")

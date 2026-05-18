@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'auth_screen.dart';
 import 'artist_auth_screen.dart';
-import 'watermark_test_screen.dart';
 
 class MenuInicio extends StatelessWidget {
   const MenuInicio({super.key});
@@ -12,72 +11,67 @@ class MenuInicio extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 40),
-                // Logo principal
-                Image.asset(
-                  'assets/images/inka_logo.png',
-                  height: 80,
-                  fit: BoxFit.contain,
-                ),
-                const SizedBox(height: 10), 
-                // Subtítulo
-                Text(
-                  'Choose how you want to continue',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 30),
-                // Primera tarjeta - Buscar tatuajes
-                _buildOptionCard(
-                  context,
-                  icon: Icons.search,
-                  title: 'Looking to Get Tattooed?',
-                  subtitle: 'Discover artists, save inspiration, and book\nyour next piece',
-                  onTap: () {
-                    // Navegar a pantalla de mapa directamente (Bypass Login)
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const AuthScreen()),
-                    );
-                  },
-                ),
-                const SizedBox(height: 20),
-                // Segunda tarjeta - Soy artista
-                _buildOptionCard(
-                  context,
-                  icon: Icons.palette,
-                  title: 'Are You a Tattoo Artist?',
-                  subtitle: 'Showcase your portfolio and manage\nclient requests',
-                  onTap: () {
-                    // Navegar a pantalla de registro de artista
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ArtistAuthScreen()),
-                    );
-                  },
-                ),
-                const SizedBox(height: 20),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const WatermarkTestScreen()),
-                    );
-                  },
-                  child: const Text("🛠️ Probar Marca de Agua (Test)", 
-                    style: TextStyle(color: Colors.white24)),
-                ),
-              ],
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 40),
+              // Logo principal
+              Image.asset(
+                'assets/images/inka_logo.png',
+                height: 80,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(height: 10),
+              // Subtítulo
+              Text(
+                'Elige cómo quieres continuar',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.7),
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 30),
+              // Primera tarjeta - Buscar tatuajes
+              _buildOptionCard(
+                context,
+                icon: Icons.search,
+                title: '¿Buscas tatuarte?',
+                subtitle:
+                    'Descubre artistas, guarda inspiración\ny reserva tu próxima pieza',
+                onTap: () {
+                  // Navegar a pantalla de mapa directamente (Bypass Login)
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AuthScreen()),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+              // Segunda tarjeta - Soy artista
+              _buildOptionCard(
+                context,
+                icon: Icons.palette,
+                title: '¿Eres tatuador?',
+                subtitle:
+                    'Muestra tu portfolio y gestiona\nsolicitudes de clientes',
+                onTap: () {
+                  // Navegar a pantalla de registro de artista
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const ArtistAuthScreen()),
+                  );
+                },
+              ),
+            ],
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
   Widget _buildOptionCard(
     BuildContext context, {
@@ -87,7 +81,7 @@ class MenuInicio extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     final theme = Theme.of(context);
-    
+
     return Card(
       child: InkWell(
         onTap: onTap,

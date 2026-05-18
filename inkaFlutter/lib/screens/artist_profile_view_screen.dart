@@ -218,7 +218,19 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
               Expanded(child: Text(_artistData!['address'])),
             ],
           ),
+          const SizedBox(height: 8),
         ],
+        // Horario
+        Row(
+          children: [
+            Icon(Icons.access_time, color: Theme.of(context).colorScheme.primary, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Horario: ${_artistData!['working_hours_start'] ?? '09:00'} - ${_artistData!['working_hours_end'] ?? '18:00'}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
       ],
     );
   }
