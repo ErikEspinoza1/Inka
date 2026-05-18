@@ -3,6 +3,12 @@ import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
+# ==========================================
+# 🛠️ PARCHE PARA ERROR SSL DE WINDOWS
+# ==========================================
+if "SSL_CERT_FILE" in os.environ:
+    del os.environ["SSL_CERT_FILE"]
+
 # Cargamos las variables del .env (por si este módulo se importa antes que main.py)
 load_dotenv()
 

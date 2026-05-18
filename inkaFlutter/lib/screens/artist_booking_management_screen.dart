@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'chat_screen.dart';
+import 'package:add_2_calendar/add_2_calendar.dart';
 
 class ArtistBookingManagementScreen extends StatefulWidget {
   const ArtistBookingManagementScreen({super.key});
@@ -59,7 +60,7 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
           booking['status'] = 'contactado';
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Cliente contactado'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('Cliente contactado'), backgroundColor: Colors.green),
         );
       }
     }
@@ -79,6 +80,48 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
     }
   }
 
+  Future<void> _addToCalendar(Map<String, dynamic> booking) async {
+    final idea = booking['idea_description']?.toString() ?? 'Sesión de Tatuaje';
+    final part = booking['body_part']?.toString() ?? 'Cuerpo';
+    final price = booking['price_quote']?.toString() ?? '0';
+    final dateStr = booking['booking_date']?.toString();
+    
+    if (dateStr == null || dateStr.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('La reserva no tiene una fecha válida')),
+        );
+      }
+      return;
+    }
+    
+    final startDate = DateTime.parse(dateStr).toLocal();
+    final duration = double.tryParse(booking['duration_hours']?.toString() ?? '2') ?? 2.0;
+    final endDate = startDate.add(Duration(minutes: (duration * 60).toInt()));
+
+    final clientName = _clientNames[booking['client_id']] ?? 'Cliente';
+    final Event event = Event(
+      title: 'Tatuaje de $clientName',
+      description: 'Zona: $part\nIdea: $idea\nPrecio Estimado: $price €\nGestion desde Inka',
+      location: 'Estudio de Tatuajes',
+      startDate: startDate,
+      endDate: endDate,
+      iosParams: const IOSParams(reminder: Duration(hours: 1)),
+      androidParams: const AndroidParams(emailInvites: []),
+    );
+
+    try {
+      await Add2Calendar.addEvent2Cal(event);
+    } catch (e) {
+      print('Error al agregar al calendario: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo abrir el calendario: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -92,7 +135,7 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
                 ? Center(
                     child: Text(
                       'No tienes reservas pendientes',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                     ),
                   )
                 : ListView.builder(
@@ -100,9 +143,9 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
                     itemCount: _bookings.length,
                     itemBuilder: (context, index) {
                       final booking = _bookings[index];
-                      final status = booking['status'] as String;
-                      final clientAccepted = booking['client_accepted'] as bool;
-                      final artistAccepted = booking['artist_accepted'] as bool;
+                      final status = (booking['status'] ?? 'pendiente').toString();
+                      final clientAccepted = booking['client_accepted'] == true;
+                      final artistAccepted = booking['artist_accepted'] == true;
 
                       return Card(
                         color: Theme.of(context).colorScheme.surface,
@@ -143,21 +186,25 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
                               // Detalles del tatuaje
                                 Text(
                                   'Idea: ${booking['idea_description']}',
-                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                                 ),
                                 Text(
                                   'Parte del cuerpo: ${booking['body_part']}',
-                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                                 ),
                                 if (booking['size_cm'] != null)
                                   Text(
                                     'Tamaño: ${booking['size_cm']} cm',
-                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                                   ),
-                                if (booking['booking_date'] != null)
                                   Text(
-                                    'Fecha preferida: ${_formatDate(booking['booking_date'])}',
-                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                                    'Fecha preferida: ${booking['booking_date'] != null ? _formatDate(booking['booking_date']) : "Sin fecha todavía"}',
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+                                  ),
+                                if (booking['duration_hours'] != null)
+                                  Text(
+                                    'Duración estimada: ${booking['duration_hours']} h',
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                                   ),
 
                               const SizedBox(height: 16),
@@ -212,6 +259,22 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
                                   ),
                                 ),
                               ),
+                              if (status == 'aceptado' && booking['booking_date'] != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton.icon(
+                                      onPressed: () => _addToCalendar(booking),
+                                      icon: const Icon(Icons.calendar_today, size: 18),
+                                      label: const Text('Agregar al Calendario'),
+                                      style: OutlinedButton.styleFrom(
+                                        side: BorderSide(color: Theme.of(context).colorScheme.primary),
+                                        foregroundColor: Theme.of(context).colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -254,8 +317,14 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
     }
   }
 
-  String _formatDate(String dateString) {
-    final date = DateTime.parse(dateString);
-    return '${date.day}/${date.month}/${date.year}';
+  String _formatDate(dynamic dateString) {
+    if (dateString == null) return "Sin fecha";
+    try {
+      final date = DateTime.parse(dateString.toString()).toLocal();
+      final time = '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+      return '${date.day}/${date.month}/${date.year} a las $time';
+    } catch (e) {
+      return "Fecha inválida";
+    }
   }
 }

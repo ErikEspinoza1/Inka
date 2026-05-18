@@ -25,20 +25,44 @@ router = APIRouter(prefix="/artists", tags=["Artists"])
 
 # 1. Obtener artistas (Solo VERIFICADOS)
 # Añadimos filtros opcionales por si quieres buscar por ciudad o estilo
-@router.get("/", response_model=List[schemas.ArtistResponse])
+@router.get("/")
 def get_all_artists(
     style: Optional[str] = None,
     db: Session = Depends(database.get_db)
 ):
     # Base query: Solo artistas verificados
-    query = db.query(models.Artist).filter(models.Artist.is_verified == True)
+    query = db.query(models.Artist, models.Profile.avatar_url).join(
+        models.Profile, models.Artist.id == models.Profile.id
+    ).filter(models.Artist.is_verified == True)
     
     if style:
-        # Filtro básico de array (Postgres specific syntax might differ, this is simple python filter equivalent logic for ORM)
-        # Para arrays en PG se suele usar: models.Artist.styles.any(style)
+        # Filtro básico de array
         query = query.filter(models.Artist.styles.any(style))
         
-    return query.all()
+    results = query.all()
+    
+    # Mapear a diccionarios para inyectar avatar_url
+    formatted_results = []
+    for artist, avatar_url in results:
+        artist_dict = {
+            "id": str(artist.id),
+            "shop_name": artist.shop_name,
+            "bio": artist.bio,
+            "styles": artist.styles or [],
+            "address": artist.address,
+            "latitude": artist.latitude,
+            "longitude": artist.longitude,
+            "workspace_type": artist.workspace_type,
+            "show_exact_location": artist.show_exact_location,
+            "instagram_handle": artist.instagram_handle,
+            "whatsapp_number": artist.whatsapp_number,
+            "website_url": artist.website_url,
+            "is_verified": artist.is_verified,
+            "avatar_url": avatar_url
+        }
+        formatted_results.append(artist_dict)
+        
+    return formatted_results
 
 # 2. Endpoint para Admin (Ver todos, incluidos pendientes de revisión)
 @router.get("/admin/pending", response_model=List[schemas.ArtistResponse])
@@ -101,7 +125,7 @@ def update_artist_profile(
     db.refresh(artist)
     return artist
 
-@router.get("/me", response_model=schemas.ArtistResponse)
+@router.get("/me")
 def get_my_artist_profile(
     current_user: models.Profile = Depends(auth.get_current_user),
     db: Session = Depends(database.get_db)
@@ -110,7 +134,24 @@ def get_my_artist_profile(
     if not current_user.artist_profile:
         raise HTTPException(status_code=404, detail="No artist profile found")
     
-    return current_user.artist_profile
+    artist = current_user.artist_profile
+    return {
+        "id": str(artist.id),
+        "shop_name": artist.shop_name,
+        "bio": artist.bio,
+        "styles": artist.styles or [],
+        "address": artist.address,
+        "latitude": artist.latitude,
+        "longitude": artist.longitude,
+        "workspace_type": artist.workspace_type,
+        "show_exact_location": artist.show_exact_location,
+        "instagram_handle": artist.instagram_handle,
+        "whatsapp_number": artist.whatsapp_number,
+        "website_url": artist.website_url,
+        "is_verified": artist.is_verified,
+        "avatar_url": current_user.avatar_url,
+        "is_following": False, # no se sigue a sí mismo
+    }
 
 
 @router.post("/upload-certificate")
@@ -158,15 +199,27 @@ async def upload_certificate(
         img = Image.open(io.BytesIO(file_bytes))
         model = genai.GenerativeModel('gemini-flash-latest')
         
+        # Obtenemos los datos que el usuario declaró en su registro para contrastar
+        user_legal_name = current_user.full_name or ""
+        studio_name = artist.shop_name or ""
+        license_id = artist.business_license_id or ""
+
         prompt_cert = (
             "Analiza esta imagen y determina si es un certificado oficial de Higiénico Sanitario "
-            "válido para profesionales del tatuaje, piercing o micropigmentación. "
+            "válido para profesionales del tatuaje, piercing o micropigmentación.\n\n"
+            "DATOS DECLARADOS POR EL USUARIO (para contrastar):\n"
+            f"- Nombre del Estudio: {studio_name}\n"
+            f"- Nombre del Titular: {user_legal_name}\n"
+            f"- CIF/DNI del Titular: {license_id}\n\n"
+            "REGLAS DE VALIDACIÓN:\n"
+            "1. El documento debe ser un certificado higiénico-sanitario real.\n"
+            "2. El nombre o el CIF/DNI que aparece en el certificado DEBE COINCIDIR con alguno de los datos declarados arriba.\n"
+            "3. Si el nombre en el certificado es diferente al del titular o estudio, pero el CIF/DNI coincide, es VÁLIDO.\n"
+            "4. Si NO coincide ni el nombre ni el CIF/DNI, o la imagen es basura/internet, marca 'es_valido' como false.\n\n"
             "Responde ÚNICAMENTE con un JSON válido (sin formato Markdown, solo texto plano). "
             "El JSON debe tener esta estructura:\n"
-            '{"es_valido": boolean, "explicacion": "string"}\n\n'
-            "REGLAS:\n"
-            "- 'es_valido' es true solo si el documento es claramente un certificado de higiene sanitaria.\n"
-            "- En 'explicacion' justifica MUY brevemente (máximo 5-7 palabras). Ejemplo: 'Es una foto de un coche' o 'Certificado sanitario válido'."
+            '{"es_valido": boolean, "explicacion": "string", "nombre_detectado": "string", "documento_detectado": "string"}\n\n'
+            "En 'explicacion' justifica brevemente por qué es válido o por qué se rechaza."
         )
         
         response = model.generate_content([prompt_cert, img])
@@ -181,9 +234,13 @@ async def upload_certificate(
         analisis = json_lib.loads(texto_ia)
         is_ai_verified = analisis.get("es_valido", False)
         explicacion = analisis.get("explicacion", "")
+        nombre_detectado = analisis.get("nombre_detectado", "No detectado")
         
         print(f"🕵️ Resultado Gemini: {is_ai_verified} - {explicacion}")
-        verification_status = "Verificado (IA)" if is_ai_verified else f"Rechazado (IA): {explicacion}"
+        if is_ai_verified:
+            verification_status = f"Verificado (IA): Coincide con {nombre_detectado}"
+        else:
+            verification_status = f"Rechazado (IA): {explicacion}"
         
     except Exception as e:
         print(f"Error Gemini: {e}")
@@ -454,12 +511,45 @@ def delete_post(
 
 # --- CLIENT ENDPOINTS ---
 
-@router.get("/{artist_id}", response_model=schemas.ArtistResponse)
-def get_artist_by_id(artist_id: str, db: Session = Depends(database.get_db)):
+@router.get("/{artist_id}")
+def get_artist_by_id(
+    artist_id: str, 
+    db: Session = Depends(database.get_db),
+    current_user: Optional[models.Profile] = Depends(auth.get_current_user_optional)
+):
     artist = db.query(models.Artist).filter(models.Artist.id == artist_id).first()
     if not artist:
         raise HTTPException(status_code=404, detail="Artist not found")
-    return artist
+    
+    # Comprobar si el usuario actual sigue a este artista
+    is_following = False
+    if current_user:
+        follow = db.query(models.Follow).filter_by(
+            follower_id=current_user.id,
+            followed_id=artist.id
+        ).first()
+        is_following = follow is not None
+
+    # Obtener avatar del profile
+    profile = db.query(models.Profile).filter(models.Profile.id == artist.id).first()
+    
+    return {
+        "id": str(artist.id),
+        "shop_name": artist.shop_name,
+        "bio": artist.bio,
+        "styles": artist.styles or [],
+        "address": artist.address,
+        "latitude": artist.latitude,
+        "longitude": artist.longitude,
+        "workspace_type": artist.workspace_type,
+        "show_exact_location": artist.show_exact_location,
+        "instagram_handle": artist.instagram_handle,
+        "whatsapp_number": artist.whatsapp_number,
+        "website_url": artist.website_url,
+        "is_verified": artist.is_verified,
+        "avatar_url": profile.avatar_url if profile else None,
+        "is_following": is_following,
+    }
 
 @router.get("/{artist_id}/posts", response_model=List[schemas.PostResponse])
 def get_artist_posts(artist_id: str, db: Session = Depends(database.get_db)):

@@ -17,7 +17,24 @@ class _BookingScreenState extends State<BookingScreen> {
   final TextEditingController _bodyPartCtrl = TextEditingController();
   final TextEditingController _sizeCtrl = TextEditingController();
   DateTime? _selectedDate;
+  TimeOfDay? _selectedTime;
   bool _isLoading = false;
+  Map<String, dynamic>? _artistData;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadArtistData();
+  }
+
+  Future<void> _loadArtistData() async {
+    final data = await _authService.getArtistById(widget.artistId);
+    if (mounted) {
+      setState(() {
+        _artistData = data;
+      });
+    }
+  }
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -25,14 +42,55 @@ class _BookingScreenState extends State<BookingScreen> {
       initialDate: DateTime.now().add(const Duration(days: 7)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) {
-        return child!;
-      },
     );
 
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
+      });
+    }
+  }
+
+  Future<void> _selectTime(BuildContext context) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: const TimeOfDay(hour: 10, minute: 0),
+    );
+
+    if (picked != null) {
+      // Validar contra el horario del artista si está disponible
+      if (_artistData != null) {
+        final startStr = _artistData!['working_hours_start'] ?? "09:00";
+        final endStr = _artistData!['working_hours_end'] ?? "18:00";
+        
+        final start = TimeOfDay(
+          hour: int.parse(startStr.split(":")[0]),
+          minute: int.parse(startStr.split(":")[1]),
+        );
+        final end = TimeOfDay(
+          hour: int.parse(endStr.split(":")[0]),
+          minute: int.parse(endStr.split(":")[1]),
+        );
+
+        final pickedMinutes = picked.hour * 60 + picked.minute;
+        final startMinutes = start.hour * 60 + start.minute;
+        final endMinutes = end.hour * 60 + end.minute;
+
+        if (pickedMinutes < startMinutes || pickedMinutes > endMinutes) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('El artista trabaja de $startStr a $endStr. Por favor elige una hora válida.'),
+                backgroundColor: Colors.orangeAccent,
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      setState(() {
+        _selectedTime = picked;
       });
     }
   }
@@ -55,13 +113,24 @@ class _BookingScreenState extends State<BookingScreen> {
 
     setState(() => _isLoading = true);
 
+    DateTime? finalDate = _selectedDate;
+    if (finalDate != null && _selectedTime != null) {
+      finalDate = DateTime(
+        finalDate.year,
+        finalDate.month,
+        finalDate.day,
+        _selectedTime!.hour,
+        _selectedTime!.minute,
+      );
+    }
+
     // Llamar a la API para enviar la reserva
     final success = await _authService.submitBooking(
       artistId: widget.artistId,
       ideaDescription: _ideaCtrl.text.trim(),
       bodyPart: _bodyPartCtrl.text.trim(),
       sizeCm: _sizeCtrl.text.isNotEmpty ? _sizeCtrl.text.trim() : null,
-      bookingDate: _selectedDate,
+      bookingDate: finalDate,
     );
 
     setState(() => _isLoading = false);
@@ -77,8 +146,8 @@ class _BookingScreenState extends State<BookingScreen> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Reserva enviada correctamente. El artista se pondrá en contacto contigo.'),
+          const SnackBar(
+            content: Text('Reserva enviada correctamente. El artista se pondrá en contacto contigo.'),
             backgroundColor: Colors.green,
           ),
       );
@@ -133,7 +202,7 @@ class _BookingScreenState extends State<BookingScreen> {
                           Text(
                             'Artista Profesional',
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
                             ),
                           ),
                         ],
@@ -164,9 +233,9 @@ class _BookingScreenState extends State<BookingScreen> {
 
               const SizedBox(height: 24),
 
-              // Selector de fecha
+              // Selector de fecha y hora
               Text(
-                'Fecha preferida',
+                'Fecha y Hora preferida',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.primary,
                   fontSize: 18,
@@ -174,31 +243,68 @@ class _BookingScreenState extends State<BookingScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              InkWell(
-                onTap: () => _selectDate(context),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Theme.of(context).colorScheme.primary),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.calendar_today, color: Theme.of(context).colorScheme.primary),
-                      const SizedBox(width: 12),
-                      Text(
-                        _selectedDate != null
-                            ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
-                            : 'Seleccionar fecha',
-                        style: TextStyle(
-                          color: _selectedDate != null ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-                          fontSize: 16,
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: InkWell(
+                      onTap: () => _selectDate(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Theme.of(context).colorScheme.primary),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.calendar_today, color: Theme.of(context).colorScheme.primary, size: 20),
+                            const SizedBox(width: 12),
+                            Text(
+                              _selectedDate != null
+                                  ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
+                                  : 'Fecha',
+                              style: TextStyle(
+                                color: _selectedDate != null ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: InkWell(
+                      onTap: () => _selectTime(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Theme.of(context).colorScheme.primary),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.access_time, color: Theme.of(context).colorScheme.primary, size: 20),
+                            const SizedBox(width: 12),
+                            Text(
+                              _selectedTime != null
+                                  ? _selectedTime!.format(context)
+                                  : 'Hora',
+                              style: TextStyle(
+                                color: _selectedTime != null ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 32),
@@ -207,7 +313,7 @@ class _BookingScreenState extends State<BookingScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   border: Border.all(color: Colors.orangeAccent),
                   borderRadius: BorderRadius.circular(12),
                 ),

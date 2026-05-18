@@ -161,7 +161,7 @@ class _MapScreenState extends State<MapScreen> {
                                 Text(
                                   artist.specialty,
                                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                                   ),
                                 ),
                               ],
@@ -312,9 +312,11 @@ class _MapScreenState extends State<MapScreen> {
   void _centerOnUser() async {
     try {
       final pos = await _determinePosition();
-      final userPos = LatLng(pos.latitude, pos.longitude);
-      setState(() => _currentPosition = userPos);
-      _mapController.move(userPos, 16.0);
+      if (mounted) {
+        final userPos = LatLng(pos.latitude, pos.longitude);
+        setState(() => _currentPosition = userPos);
+        _mapController.move(userPos, 16.0);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
@@ -385,15 +387,18 @@ class _MapScreenState extends State<MapScreen> {
                               ),
                               child: CircleAvatar(
                                 backgroundColor: const Color(0xFF1A1A1A),
-                                child: Text(
-                                  artist.name.isNotEmpty
-                                      ? artist.name[0].toUpperCase()
-                                      : '?',
-                                  style: TextStyle(
-                                    color: artist.imageColor,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                backgroundImage: artist.avatarUrl != null ? NetworkImage(artist.avatarUrl!) : null,
+                                child: artist.avatarUrl == null
+                                  ? Text(
+                                      artist.name.isNotEmpty
+                                          ? artist.name[0].toUpperCase()
+                                          : '?',
+                                      style: TextStyle(
+                                        color: artist.imageColor,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    )
+                                  : null,
                               ),
                             ),
 
@@ -521,6 +526,7 @@ class TattooArtist {
   final String specialty; // Mapped from 'styles'
   final LatLng position; // Mapped from lat/lng
   final Color imageColor; // Generado aleatoriamente para UI
+  final String? avatarUrl;
 
   TattooArtist({
     required this.id,
@@ -528,6 +534,7 @@ class TattooArtist {
     required this.specialty,
     required this.position,
     this.imageColor = Colors.purpleAccent, // Color por defecto
+    this.avatarUrl,
   });
 
   // Factory para convertir el JSON de la API en Objeto Dart
@@ -540,14 +547,6 @@ class TattooArtist {
 
     // 2. Determinar un color aleatorio o basado en el ID para que no sean todos iguales
     // Esto es puramente estético para el mapa
-    final colors = [
-      Colors.purpleAccent,
-      Colors.tealAccent,
-      Colors.orangeAccent,
-      Colors.redAccent,
-      Colors.blueAccent
-    ];
-    // final colorIndex = (json['shop_name'] ?? "").length % colors.length;
 
     return TattooArtist(
       id: json['id'].toString(),
@@ -559,6 +558,7 @@ class TattooArtist {
         (json['longitude'] as num).toDouble(),
       ),
       imageColor: Colors.purpleAccent, // Usamos color por defecto ya que no hay context en factory
+      avatarUrl: json['avatar_url'],
     );
   }
 }

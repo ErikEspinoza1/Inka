@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
 import database, models, schemas, auth
@@ -169,3 +169,137 @@ def get_my_ai_designs(
     db: Session = Depends(database.get_db)
 ):
     return db.query(models.AIDesign).filter(models.AIDesign.user_id == current_user.id).all()
+
+import uuid
+
+# ================= LIKES Y FAVORITOS (Flujo TikTok) =================
+
+def actualizar_vector_usuario(user_uuid, post_uuid, db: Session):
+    try:
+        post = db.query(models.Post).filter_by(id=post_uuid).first()
+        if not post or not post.embedding: return
+
+        perfil = db.query(models.Profile).filter_by(id=user_uuid).first()
+        if not perfil:
+            # En teoría el perfil siempre existe por el token, pero es buena práctica
+            perfil = models.Profile(id=user_uuid, preference_embedding=post.embedding)
+            db.add(perfil)
+        elif not perfil.preference_embedding:
+            perfil.preference_embedding = post.embedding
+        else:
+            # MEDIA MÓVIL: 90% pasado + 10% presente
+            vector_actualizado = [
+                (viejo * 0.9) + (nuevo * 0.1) 
+                for viejo, nuevo in zip(perfil.preference_embedding, post.embedding)
+            ]
+            perfil.preference_embedding = vector_actualizado
+
+        db.commit()
+    except Exception as e:
+        print(f"Error en worker asíncrono: {e}")
+
+@router.post("/likes/{post_id}")
+def toggle_like(
+    post_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: models.Profile = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    try:
+        post_uuid = uuid.UUID(post_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid post_id format")
+
+    like = db.query(models.Like).filter_by(user_id=current_user.id, post_id=post_uuid).first()
+    if like:
+        db.delete(like)
+        db.commit()
+        return {"status": "unliked"}
+    else:
+        new_like = models.Like(user_id=current_user.id, post_id=post_uuid)
+        db.add(new_like)
+        db.commit()
+        
+        # Disparamos el trabajador en la sombra para la Fase 3
+        background_tasks.add_task(actualizar_vector_usuario, current_user.id, post_uuid, db)
+        
+        return {"status": "liked"}
+
+@router.post("/favorites/{post_id}")
+def toggle_favorite(
+    post_id: str,
+    current_user: models.Profile = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    try:
+        post_uuid = uuid.UUID(post_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid post_id format")
+
+    fav = db.query(models.Favorite).filter_by(user_id=current_user.id, post_id=post_uuid).first()
+    if fav:
+        db.delete(fav)
+        db.commit()
+        return {"status": "unfavorited"}
+    else:
+        new_fav = models.Favorite(user_id=current_user.id, post_id=post_uuid)
+        db.add(new_fav)
+        db.commit()
+        return {"status": "favorited"}
+
+# ================= SEGUIDORES =================
+@router.post("/follow/{artist_id}")
+def toggle_follow(
+    artist_id: str,
+    current_user: models.Profile = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    try:
+        artist_uuid = uuid.UUID(artist_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID de artista inválido")
+
+    follow = db.query(models.Follow).filter_by(
+        follower_id=current_user.id, followed_id=artist_uuid
+    ).first()
+
+    if follow:
+        db.delete(follow)
+        db.commit()
+        return {"status": "unfollowed"}
+    else:
+        new_follow = models.Follow(follower_id=current_user.id, followed_id=artist_uuid)
+        db.add(new_follow)
+        db.commit()
+        return {"status": "followed"}
+
+# ================= EDICIÓN DE POSTS =================
+@router.patch("/posts/{post_id}")
+def update_post(
+    post_id: str,
+    post_update: schemas.PostUpdate,
+    current_user: models.Profile = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    try:
+        post_uuid = uuid.UUID(post_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID de post inválido")
+
+    post = db.query(models.Post).filter(models.Post.id == post_uuid).first()
+    
+    if not post:
+        raise HTTPException(status_code=404, detail="Post no encontrado")
+    
+    # Seguridad: Solo el dueño del post puede editarlo
+    if post.artist_id != current_user.id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para editar este post")
+    
+    if post_update.description is not None:
+        post.description = post_update.description
+    if post_update.style_tag is not None:
+        post.style_tag = post_update.style_tag
+        
+    db.commit()
+    db.refresh(post)
+    return {"status": "updated", "post_id": str(post.id)}

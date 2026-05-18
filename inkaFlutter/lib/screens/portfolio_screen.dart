@@ -6,7 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../services/auth_service.dart';
-import 'ar_tattoo_screen.dart';
+import '../services/image_service.dart';
+import '../services/interaction_service.dart';
 
 class PortfolioScreen extends StatefulWidget {
   final String? artistId;
@@ -27,12 +28,22 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   final ImagePicker _picker = ImagePicker();
   final List<Map<String, dynamic>> _portfolioImages = [];
   bool _isLoading = false;
-  String? _loadingPostId;
+  String _artistName = "Inka Artist"; // Nombre por defecto
 
   @override
   void initState() {
     super.initState();
     _loadPortfolio();
+    _loadArtistInfo();
+  }
+
+  Future<void> _loadArtistInfo() async {
+    final profile = await _authService.getArtistProfile();
+    if (profile != null && profile['shop_name'] != null) {
+      setState(() {
+        _artistName = profile['shop_name'];
+      });
+    }
   }
 
   Future<void> _loadPortfolio() async {
@@ -85,7 +96,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                 border: Border(
                   top: BorderSide(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                     width: 1,
                   ),
                 ),
@@ -160,9 +171,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                         labelText: 'Estilo o título',
                         hintText: 'Ej: Realismo, Neotradicional, Blackwork...',
                         prefixIcon: Icon(Icons.style, 
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.7)),
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7)),
                         counterStyle: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                           fontSize: 11,
                         ),
                       ),
@@ -182,10 +193,10 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                         prefixIcon: Padding(
                           padding: const EdgeInsets.only(bottom: 44),
                           child: Icon(Icons.edit_note, 
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.7)),
+                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7)),
                         ),
                         counterStyle: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                           fontSize: 11,
                         ),
                       ),
@@ -196,10 +207,10 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
                         ),
                       ),
                       child: Row(
@@ -211,7 +222,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                             child: Text(
                               'La IA analizará la imagen y el texto para garantizar la calidad del contenido.',
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
                                 fontSize: 11,
                               ),
                             ),
@@ -230,8 +241,15 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                             : () async {
                                 setSheetState(() => isUploading = true);
 
+                                // 1. Aplicar marca de agua antes de subir
+                                final File watermarkedFile = await ImageService.applyWatermark(
+                                  imagePath: image.path,
+                                  artistName: _artistName,
+                                );
+
+                                // 2. Subir la imagen con marca de agua
                                 final result = await _authService.uploadPortfolioImage(
-                                  image.path,
+                                  watermarkedFile.path,
                                   description: descriptionController.text.trim(),
                                   styleTag: titleController.text.trim(),
                                 );
@@ -313,14 +331,18 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
     final success = await _authService.deletePortfolioPost(postId);
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Imagen eliminada'), backgroundColor: Color(0xFF2E7D32)),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Imagen eliminada'), backgroundColor: Color(0xFF2E7D32)),
+        );
+      }
       _loadPortfolio();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Error al eliminar'), backgroundColor: Theme.of(context).colorScheme.error),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('Error al eliminar'), backgroundColor: Theme.of(context).colorScheme.error),
+        );
+      }
     }
   }
 
@@ -394,7 +416,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.photo_library_outlined, size: 80, 
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)),
                         const SizedBox(height: 16),
                         Text(
                           'Tu portfolio está vacío',
@@ -404,7 +426,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                         Text(
                           'Agrega fotos de tus tatuajes para mostrar tu trabajo a clientes potenciales',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -437,7 +459,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                           width: 1,
                         ),
                       ),
@@ -469,7 +491,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                                       begin: Alignment.bottomCenter,
                                       end: Alignment.topCenter,
                                       colors: [
-                                        Colors.black.withOpacity(0.85),
+                                        Colors.black.withValues(alpha: 0.85),
                                         Colors.transparent,
                                       ],
                                     ),
@@ -493,7 +515,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                                         Text(
                                           description,
                                           style: TextStyle(
-                                            color: Colors.white.withOpacity(0.7),
+                                            color: Colors.white.withValues(alpha: 0.7),
                                             fontSize: 10,
                                           ),
                                           maxLines: 2,
@@ -506,19 +528,20 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
                             // Botón eliminar
                             Positioned(
-                              top: 6,
-                              right: 6,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.5),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: IconButton(
-                                  icon: Icon(Icons.delete_outline, 
-                                    color: Theme.of(context).colorScheme.error, size: 20),
-                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                                  padding: const EdgeInsets.all(4),
-                                  onPressed: () => _deletePost(post['id']),
+                              top: 8,
+                              right: 8,
+                              child: IconButton(
+                                icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+                                onPressed: () => _deletePost(post['id']),
+                              ),
+                            ),
+                            
+                            // Toque para editar
+                            Positioned.fill(
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () => _editPost(post),
                                 ),
                               ),
                             ),
@@ -531,31 +554,89 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     );
   }
 
-  Widget _buildEmpty() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.photo_library, size: 80, color: Colors.grey),
-          const SizedBox(height: 16),
-          Text(
-            widget.isOwnPortfolio ? 'Tu portfolio está vacío' : 'Este artista no tiene diseños aún',
-            style: const TextStyle(color: Colors.white, fontSize: 18),
-          ),
-          if (widget.isOwnPortfolio) ...[
-            const SizedBox(height: 8),
-            const Text('Agrega fotos de tus tatuajes',
-                style: TextStyle(color: Colors.grey), textAlign: TextAlign.center),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _pickAndUploadImage,
-              icon: const Icon(Icons.upload),
-              label: const Text('Subir primera foto'),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.purple, foregroundColor: Colors.white),
-            ),
-          ],
-        ],
-      ),
+  Future<void> _editPost(Map<String, dynamic> post) async {
+    final titleController = TextEditingController(text: post['style_tag'] ?? '');
+    final descriptionController = TextEditingController(text: post['description'] ?? '');
+    bool isSaving = false;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 12,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('Editar Tatuaje', style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: 16),
+                    
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(labelText: 'Estilo o título', prefixIcon: Icon(Icons.style)),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    TextField(
+                      controller: descriptionController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(labelText: 'Descripción', prefixIcon: Padding(padding: EdgeInsets.only(bottom: 44), child: Icon(Icons.edit_note))),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: isSaving ? null : () async {
+                          setSheetState(() => isSaving = true);
+                          final interactionService = InteractionService();
+                          final success = await interactionService.updatePost(
+                            post['id'], 
+                            description: descriptionController.text.trim(), 
+                            styleTag: titleController.text.trim()
+                          );
+                          setSheetState(() => isSaving = false);
+                          
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (success) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Guardado correctamente'), backgroundColor: Colors.green));
+                            }
+                            _loadPortfolio();
+                          } else {
+                            if (mounted) {
+                              ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: const Text('Error al guardar'), backgroundColor: Theme.of(this.context).colorScheme.error));
+                            }
+                          }
+                        },
+                        child: Text(isSaving ? 'Guardando...' : 'Guardar Cambios'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

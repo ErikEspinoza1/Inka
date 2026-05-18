@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
+import 'package:add_2_calendar/add_2_calendar.dart';
+import 'artist_profile_view_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final String artistId;
@@ -27,19 +30,28 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoading = true;
   bool _isUploadingImage = false;
   bool _isArtist = false;
+  Timer? _pollingTimer;
   
   // Controladores dinámicos para los campos en las tarjetas de oferta
   final Map<String, Map<String, TextEditingController>> _bookingControllers = {};
   final Map<String, DateTime?> _selectedDates = {};
 
+  String? _otherUserAvatarUrl;
+  bool _avatarLoaded = false;
+
   @override
   void initState() {
     super.initState();
     _loadMessages();
+    // Iniciar polling cada 3 segundos
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      _loadMessages(quietly: true);
+    });
   }
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     _messageCtrl.dispose();
     _scrollController.dispose();
     for (var innerMap in _bookingControllers.values) {
@@ -50,34 +62,61 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  Future<void> _loadMessages() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadMessages({bool quietly = false}) async {
+    if (!quietly) setState(() => _isLoading = true);
 
     final role = await _authService.getUserRole();
     if (mounted) {
       _isArtist = role == 'artista';
+      if (!_avatarLoaded && !_isArtist) {
+        _avatarLoaded = true;
+        _authService.getArtistById(widget.artistId).then((data) {
+          if (mounted && data != null && data['avatar_url'] != null) {
+            setState(() {
+              _otherUserAvatarUrl = data['avatar_url'];
+            });
+          }
+        });
+      }
     }
 
     final currentUserId = await _authService.getCurrentUserId();
     final messages = await _authService.getMessagesWithArtist(widget.artistId);
 
     if (messages != null && currentUserId != null) {
-      setState(() {
-        _messages = messages.map((m) {
-          return {
-            'id': m['id'],
-            'content': m['content'],
-            'sender_id': m['sender_id'],
-            'created_at': DateTime.parse(m['created_at']),
-            'is_mine': m['sender_id'] == currentUserId,
-            'is_read': m['is_read'],
-          };
-        }).toList();
-      });
+      final newMessages = messages.map((m) {
+        return {
+          'id': m['id'],
+          'content': m['content'],
+          'sender_id': m['sender_id'],
+          'created_at': DateTime.parse(m['created_at']),
+          'is_mine': m['sender_id'] == currentUserId,
+          'is_read': m['is_read'],
+        };
+      }).toList();
+
+      // Solo actualizar si hay cambios (para evitar saltos visuales)
+      if (newMessages.length != _messages.length || 
+          newMessages.last['id'] != _messages.last['id'] ||
+          newMessages.any((m) => m['is_read'] == true) != _messages.any((m) => m['is_read'] == true)) {
+        setState(() {
+          _messages = newMessages;
+        });
+        if (!quietly) {
+           WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+        } else {
+           // Si es en background y hay mensaje nuevo de la otra persona, hacer scroll
+           if (newMessages.length > _messages.length && !newMessages.last['is_mine']) {
+             _scrollToBottom();
+           }
+        }
+      }
     }
 
-    setState(() => _isLoading = false);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    if (!quietly) {
+      setState(() => _isLoading = false);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    }
   }
 
   Future<void> _sendMessage() async {
@@ -102,9 +141,11 @@ class _ChatScreenState extends State<ChatScreen> {
     // Enviar mensaje a la API
     final success = await _authService.sendMessageToArtist(widget.artistId, content);
     if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error enviando mensaje'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error enviando mensaje'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -165,14 +206,18 @@ class _ChatScreenState extends State<ChatScreen> {
       
       final success = await _authService.sendMessageToArtist(widget.artistId, jsonMsg);
       if (!success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error enviando imagen'), backgroundColor: Colors.red),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error enviando imagen'), backgroundColor: Colors.red),
+          );
+        }
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error subiendo imagen'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error subiendo imagen'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -182,33 +227,40 @@ class _ChatScreenState extends State<ChatScreen> {
     required String part,
     required String size,
     required String priceText,
+    required String durationText,
     DateTime? date,
   }) async {
     final price = double.tryParse(priceText);
+    final duration = double.tryParse(durationText);
     
     final Map<String, dynamic> updateData = {
       'idea_description': idea,
       'body_part': part,
       'size_cm': size,
       'price_quote': price,
+      'duration_hours': duration,
       'artist_accepted': true,
       'client_accepted': false,
     };
 
     if (date != null) {
-      updateData['booking_date'] = date.toIso8601String();
+      updateData['booking_date'] = date.toUtc().toIso8601String();
     }
 
     final success = await _authService.updateBooking(bookingId, updateData);
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Propuesta enviada'), backgroundColor: Colors.green),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Propuesta enviada'), backgroundColor: Colors.green),
+        );
+      }
       _loadMessages(); // Recargar para ver el nuevo mensaje
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al enviar propuesta'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al enviar propuesta'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -218,14 +270,65 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!_isArtist) 'client_accepted': true,
     });
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Propuesta aceptada'), backgroundColor: Colors.green),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Propuesta aceptada'), backgroundColor: Colors.green),
+        );
+      }
       _loadMessages();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al aceptar'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al aceptar'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _addToCalendar(Map<String, dynamic> data) async {
+    final idea = data['idea_description']?.toString() ?? 'Sesión de Tatuaje';
+    final part = data['body_part']?.toString() ?? 'Cuerpo';
+    final price = data['price_quote']?.toString() ?? '0';
+    final dateStr = data['booking_date']?.toString();
+    
+    if (dateStr == null || dateStr.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('La reserva no tiene una fecha válida')),
+        );
+      }
+      return;
+    }
+    
+    final startDate = DateTime.parse(dateStr).toLocal();
+    final duration = double.tryParse(data['duration_hours']?.toString() ?? '2') ?? 2.0;
+    
+    // Calcular fin basado en la duración (convertir horas a minutos)
+    final endDate = startDate.add(Duration(minutes: (duration * 60).toInt()));
+
+    final Event event = Event(
+      title: 'Tatuaje de ${widget.artistName}',
+      description: 'Zona: $part\nIdea: $idea\nPrecio Estimado: $price €\nGestion desde Inka',
+      location: 'Estudio de Tatuajes',
+      startDate: startDate,
+      endDate: endDate,
+      iosParams: const IOSParams(
+        reminder: Duration(hours: 1),
+      ),
+      androidParams: const AndroidParams(
+        emailInvites: [], // Lista de invitados si fuera necesario
+      ),
+    );
+
+    try {
+      await Add2Calendar.addEvent2Cal(event);
+    } catch (e) {
+      print('Error al agregar al calendario: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo abrir el calendario: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -234,18 +337,40 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: Text('Chat con ${widget.artistName}'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.phone, color: Theme.of(context).colorScheme.primary),
-            onPressed: () {
-              // TODO: Implementar llamada
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Función de llamada próximamente')),
+        title: GestureDetector(
+          onTap: () {
+            if (!_isArtist) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ArtistProfileViewScreen(artistId: widget.artistId),
+                ),
               );
-            },
+            }
+          },
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                radius: 18,
+                backgroundImage: _otherUserAvatarUrl != null ? NetworkImage(_otherUserAvatarUrl!) : null,
+                child: _otherUserAvatarUrl == null
+                    ? Text(
+                        widget.artistName.isNotEmpty ? widget.artistName[0].toUpperCase() : 'A',
+                        style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 16),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  widget.artistName,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
       body: SafeArea(
         child: Column(
@@ -408,18 +533,22 @@ class _ChatScreenState extends State<ChatScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                   _formatTime(timestamp),
+                  '${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}',
                   style: TextStyle(
-                    color: isMine ? Theme.of(context).colorScheme.onPrimary.withOpacity(0.7) : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                    fontSize: 12,
+                    fontSize: 10,
+                    color: isMine 
+                        ? Theme.of(context).colorScheme.onPrimary.withOpacity(0.7)
+                        : Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
                   ),
                 ),
                 if (isMine) ...[
                   const SizedBox(width: 4),
                   Icon(
-                    Icons.done_all,
+                    isRead ? Icons.done_all : Icons.done,
                     size: 14,
-                    color: isRead ? Colors.blue[300] : Theme.of(context).colorScheme.onPrimary.withOpacity(0.5),
+                    color: isRead 
+                        ? Colors.blueAccent 
+                        : Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
                   ),
                 ]
               ],
@@ -437,8 +566,9 @@ class _ChatScreenState extends State<ChatScreen> {
     final part = data['body_part']?.toString() ?? '';
     final size = data['size_cm']?.toString() ?? '';
     final price = data['price_quote'];
+    final duration = data['duration_hours'];
     final dateStr = data['booking_date']?.toString();
-    DateTime? bookingDate = dateStr != null ? DateTime.parse(dateStr) : null;
+    DateTime? bookingDate = dateStr != null ? DateTime.parse(dateStr).toLocal() : null;
     
     final clientAcc = data['client_accepted'] as bool? ?? false;
     final artistAcc = data['artist_accepted'] as bool? ?? false;
@@ -450,6 +580,7 @@ class _ChatScreenState extends State<ChatScreen> {
         'part': TextEditingController(text: part),
         'size': TextEditingController(text: size),
         'price': TextEditingController(text: price?.toString() ?? ''),
+        'duration': TextEditingController(text: duration?.toString() ?? '2'),
       };
       _selectedDates[msgId] = bookingDate;
     }
@@ -463,7 +594,7 @@ class _ChatScreenState extends State<ChatScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.5)),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -477,8 +608,8 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: Theme.of(context).colorScheme.background, borderRadius: BorderRadius.circular(8)),
-                child: Text(status.toUpperCase(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7), fontSize: 10)),
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(8)),
+                child: Text(status.toUpperCase(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 10)),
               )
             ],
           ),
@@ -506,7 +637,7 @@ class _ChatScreenState extends State<ChatScreen> {
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(color: Theme.of(context).colorScheme.background, borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(8)),
                 child: Text(
                   selectedDate != null ? '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}' : 'Seleccionar fecha',
                 ),
@@ -514,6 +645,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             const SizedBox(height: 12),
             _buildEditField('Precio (€):', ctrls?['price'], isNumber: true),
+            _buildEditField('Duración estimada (h):', ctrls?['duration'], isNumber: true),
             
             const SizedBox(height: 16),
             ElevatedButton(
@@ -523,6 +655,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 part: ctrls?['part']?.text ?? '',
                 size: ctrls?['size']?.text ?? '',
                 priceText: ctrls?['price']?.text ?? '0',
+                durationText: ctrls?['duration']?.text ?? '2',
                 date: selectedDate,
               ),
               child: const Text('Enviar Propuesta Actualizada'),
@@ -542,12 +675,14 @@ class _ChatScreenState extends State<ChatScreen> {
             Text('Zona: $part'),
             if (size.isNotEmpty) Text('Tamaño: $size cm'),
             if (bookingDate != null) 
-              Text('Fecha: ${bookingDate.day}/${bookingDate.month}/${bookingDate.year}'),
+              Text('Fecha: ${bookingDate.day}/${bookingDate.month}/${bookingDate.year} a las ${_formatTimeOnly(bookingDate)}'),
+            if (duration != null)
+              Text('Duración: $duration h'),
             
             const Divider(height: 24),
             
             if (price != null) ...[
-              Text('${price} €', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 22, fontWeight: FontWeight.bold)),
+              Text('$price €', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               if (status != 'aceptado') ...[
                 if (!_isArtist && !clientAcc)
@@ -564,7 +699,17 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: const Text('Confirmar Trato'),
                   )
               ] else ...[
-                Text('¡Trato cerrado!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                const Text('¡Trato cerrado!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: () => _addToCalendar(data),
+                  icon: const Icon(Icons.calendar_today, size: 18),
+                  label: const Text('Agregar al Calendario'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueGrey[800],
+                    foregroundColor: Colors.white,
+                  ),
+                ),
               ]
             ] else ...[
               Text('Esperando oferta del artista...', style: TextStyle(color: Theme.of(context).colorScheme.secondary, fontStyle: FontStyle.italic)),
@@ -613,6 +758,10 @@ class _ChatScreenState extends State<ChatScreen> {
     } else {
       return 'Ahora';
     }
+  }
+
+  String _formatTimeOnly(DateTime time) {
+    return '${time.hour}:${time.minute.toString().padLeft(2, '0')}';
   }
 
   void _showFullScreenImage(String imageUrl) {

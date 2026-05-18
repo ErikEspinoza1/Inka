@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import 'client_home_screen.dart'; 
 
 class AuthScreen extends StatefulWidget {
@@ -66,6 +67,12 @@ class _AuthScreenState extends State<AuthScreen> {
         return;
       }
 
+      if (!_isPasswordSecure(pass)) {
+        _showError('La contraseña debe tener al menos 8 caracteres, una mayúscula y un símbolo');
+        setState(() => _isLoading = false);
+        return;
+      }
+
       final success = await _authService.register(email, pass, name);
       if (success) {
         // Si se registra bien, hacemos login automático
@@ -79,7 +86,15 @@ class _AuthScreenState extends State<AuthScreen> {
     if (mounted) setState(() => _isLoading = false);
   }
 
+  bool _isPasswordSecure(String pass) {
+    if (pass.length < 8) return false;
+    if (!pass.contains(RegExp(r'[A-Z]'))) return false;
+    if (!pass.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) return false;
+    return true;
+  }
+
   void _goToHome() {
+    NotificationService.initialize();
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const ClientHomeScreen()),
@@ -97,6 +112,10 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -106,7 +125,7 @@ class _AuthScreenState extends State<AuthScreen> {
               Icon(Icons.fingerprint, size: 80, color: Theme.of(context).colorScheme.primary),
               const SizedBox(height: 20),
               Text(
-                _isLogin ? 'INKA LOGIN' : 'CREAR CUENTA',
+                _isLogin ? 'INICIAR SESIÓN' : 'CREAR CUENTA',
                 style: Theme.of(context).textTheme.displaySmall,
               ),
               const SizedBox(height: 40),
@@ -115,14 +134,14 @@ class _AuthScreenState extends State<AuthScreen> {
               if (!_isLogin)
                 TextField(
                   controller: _nameCtrl,
-                  decoration: InputDecoration(labelText: 'Nombre Completo', prefixIcon: const Icon(Icons.person)),
+                  decoration: const InputDecoration(labelText: 'Nombre Completo', prefixIcon: Icon(Icons.person)),
                 ),
               if (!_isLogin) const SizedBox(height: 16),
 
               // Campo Email
               TextField(
                 controller: _emailCtrl,
-                decoration: InputDecoration(labelText: 'Email', prefixIcon: const Icon(Icons.email)),
+                decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email)),
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
@@ -130,7 +149,7 @@ class _AuthScreenState extends State<AuthScreen> {
               // Campo Password
               TextField(
                 controller: _passCtrl,
-                decoration: InputDecoration(labelText: 'Contraseña', prefixIcon: const Icon(Icons.lock)),
+                decoration: const InputDecoration(labelText: 'Contraseña', prefixIcon: Icon(Icons.lock)),
                 obscureText: true,
               ),
               const SizedBox(height: 30),

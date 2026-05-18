@@ -2,12 +2,12 @@
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:carousel_slider/carousel_slider.dart';
-import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../providers/interaction_provider.dart';
 import 'chat_screen.dart';
 import 'booking_screen.dart';
-import 'ar_tattoo_screen.dart';
+import 'explore_screen.dart'; // Para FullScreenFeedScreen
 
 class ArtistProfileViewScreen extends StatefulWidget {
   final String artistId;
@@ -22,7 +22,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
   Map<String, dynamic>? _artistData;
   List<dynamic> _portfolioImages = [];
   bool _isLoading = true;
-  String? _loadingPostId;
+  bool _isNewestFirst = true;
 
   @override
   void initState() {
@@ -32,12 +32,19 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
 
   Future<void> _loadArtistData() async {
     final artistData = await _authService.getArtistById(widget.artistId);
-    final portfolio  = await _authService.getArtistPortfolio(widget.artistId);
-    setState(() {
-      _artistData      = artistData;
-      _portfolioImages = portfolio ?? [];
-      _isLoading       = false;
-    });
+    final portfolio = await _authService.getArtistPortfolio(widget.artistId);
+
+    if (mounted) {
+      // Sincronizar el estado de follow desde el backend al Provider
+      if (artistData != null && artistData['is_following'] == true) {
+        context.read<InteractionProvider>().setFollowState(widget.artistId, true);
+      }
+      setState(() {
+        _artistData = artistData;
+        _portfolioImages = portfolio ?? [];
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _tryTattooAR(Map<String, dynamic> post) async {
@@ -97,9 +104,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
     }
     if (_artistData == null) {
       return const Scaffold(
-        body: Center(
-          child: Text('Error al cargar el perfil'),
-        ),
+        body: Center(child: Text('Error al cargar el perfil')),
       );
     }
 
@@ -114,26 +119,45 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
           children: [
             _buildArtistInfo(),
             const SizedBox(height: 20),
+
+            _buildActionButtons(),
+            const SizedBox(height: 20),
+
+            // Portfolio
             if (_portfolioImages.isNotEmpty) ...[
-              Text(
-                'Portfolio',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Portfolio',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _isNewestFirst = !_isNewestFirst;
+                        _portfolioImages = _portfolioImages.reversed.toList();
+                      });
+                    },
+                    icon: Icon(_isNewestFirst ? Icons.arrow_downward : Icons.arrow_upward, size: 16),
+                    label: Text(_isNewestFirst ? 'Más nuevas' : 'Más antiguas'),
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
-              _buildPortfolioSlider(),
+              _buildPortfolioGrid(),
             ] else ...[
               Text(
                 'Este artista aún no tiene fotos en su portfolio',
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
               ),
             ],
 
             const SizedBox(height: 30),
-            _buildActionButtons(),
           ],
         ),
       ),
@@ -141,6 +165,8 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
   }
 
   Widget _buildArtistInfo() {
+    final avatarUrl = _artistData!['avatar_url'];
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -155,10 +181,13 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
               CircleAvatar(
                 radius: 30,
                 backgroundColor: Theme.of(context).colorScheme.primary,
-                child: Text(
-                  _artistData!['shop_name']?.substring(0, 1).toUpperCase() ?? 'A',
-                  style: TextStyle(fontSize: 24, color: Theme.of(context).colorScheme.onPrimary),
-                ),
+                backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                child: avatarUrl == null
+                  ? Text(
+                      _artistData!['shop_name']?.substring(0, 1).toUpperCase() ?? 'A',
+                      style: TextStyle(fontSize: 24, color: Theme.of(context).colorScheme.onPrimary),
+                    )
+                  : null,
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -172,7 +201,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
                     Text(
                       _artistData!['styles']?.join(' • ') ?? 'Sin especialidad',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
                       ),
                     ),
                   ],
@@ -200,8 +229,37 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             const SizedBox(height: 16),
           ],
           _buildContactInfo(),
+          const SizedBox(height: 20),
+          _buildFollowButton(),
         ],
       ),
+    );
+  }
+
+  Widget _buildFollowButton() {
+    return Consumer<InteractionProvider>(
+      builder: (context, provider, _) {
+        final isFollowing = provider.isFollowing(widget.artistId);
+        return SizedBox(
+          width: double.infinity,
+          height: 50, // Aumentado de 45 a 50 para evitar recortes
+          child: ElevatedButton(
+            onPressed: () => provider.toggleFollow(widget.artistId),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isFollowing ? Colors.transparent : Theme.of(context).colorScheme.primary,
+              foregroundColor: isFollowing ? Colors.white : Colors.black,
+              elevation: isFollowing ? 0 : 2,
+              side: isFollowing ? const BorderSide(color: Colors.grey, width: 1.5) : null,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: EdgeInsets.zero, // Quitamos el padding interno del tema para centrar bien el texto
+            ),
+            child: Text(
+              isFollowing ? 'Siguiendo' : 'Seguir',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -214,9 +272,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             children: [
               Icon(Icons.camera_alt, color: Theme.of(context).colorScheme.primary, size: 20),
               const SizedBox(width: 8),
-              Text(
-                '@${_artistData!['instagram_handle']}',
-              ),
+              Text('@${_artistData!['instagram_handle']}'),
             ],
           ),
           const SizedBox(height: 8),
@@ -226,92 +282,73 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             children: [
               Icon(Icons.location_on, color: Theme.of(context).colorScheme.primary, size: 20),
               const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  _artistData!['address'],
-                ),
-              ),
+              Expanded(child: Text(_artistData!['address'])),
             ],
           ),
+          const SizedBox(height: 8),
         ],
+        // Horario
+        Row(
+          children: [
+            Icon(Icons.access_time, color: Theme.of(context).colorScheme.primary, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Horario: ${_artistData!['working_hours_start'] ?? '09:00'} - ${_artistData!['working_hours_end'] ?? '18:00'}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _buildPortfolioSlider() {
-    return CarouselSlider(
-      options: CarouselOptions(
-        height: 360,
-        enlargeCenterPage: true,
-        enableInfiniteScroll: false,
-        viewportFraction: 0.8,
-      ),
-      items: _portfolioImages.map((image) {
-        final post        = image as Map<String, dynamic>;
-        final postId      = post['id'] as String?;
-        final bgRemoved   = post['bg_removed'] as bool? ?? false;
-        final isLoadingThis = _loadingPostId == postId;
+  /// Grid de portfolio - al tocar una foto, abre TikTok Style en esa posición
+  Widget _buildPortfolioGrid() {
+    // Convertir a List<Map<String, dynamic>> para pasarlo al TikTokFeedView
+    final postsList = _portfolioImages.map<Map<String, dynamic>>((img) {
+      return {
+        'id': img['id']?.toString() ?? '',
+        'artist_id': widget.artistId,
+        'image_url': img['image_url'] ?? '',
+        'description': img['description'] ?? '',
+        'style_tag': img['style_tag'] ?? '',
+        'ar_image_url': img['ar_image_url'],
+        'artist_avatar': _artistData!['avatar_url'],
+      };
+    }).toList();
 
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 5.0),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
-          child: Column(
-            children: [
-              // Imagen
-              Expanded(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                      child: Image.network(
-                        post['image_url'] ?? '',
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: Colors.grey[900],
-                          child: const Icon(Icons.broken_image, color: Colors.white38, size: 48),
-                        ),
-                      ),
-                    ),
-                    // Info texto
-                    Positioned(
-                      bottom: 0, left: 0, right: 0,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter, end: Alignment.topCenter,
-                            colors: [Colors.black.withOpacity(0.8), Colors.transparent],
-                          ),
-                        ),
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (post['description'] != null && post['description'].isNotEmpty)
-                              Text(post['description'],
-                                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-                            if (post['style_tag'] != null && post['style_tag'].isNotEmpty)
-                              Text(post['style_tag'],
-                                  style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Badge AR
-                    if (bgRemoved)
-                      Positioned(
-                        top: 8, right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(color: Colors.tealAccent, borderRadius: BorderRadius.circular(6)),
-                          child: const Text('AR',
-                              style: TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                  ],
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 4,
+        mainAxisSpacing: 4,
+      ),
+      itemCount: _portfolioImages.length,
+      itemBuilder: (context, index) {
+        final image = _portfolioImages[index];
+        return GestureDetector(
+          onTap: () {
+            // Abrir TikTok Style empezando en esta foto exacta
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => FullScreenFeedScreen(
+                  posts: postsList,
+                  initialIndex: index,
                 ),
+              ),
+            );
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Image.network(
+              image['image_url'] ?? '',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: const Icon(Icons.broken_image, color: Colors.white30),
               ),
               // Botón Probar AR
               Container(
@@ -342,7 +379,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             ],
           ),
         );
-      }).toList(),
+      },
     );
   }
 
@@ -384,7 +421,6 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 60),
       ],
     );
   }

@@ -42,6 +42,7 @@ class AuthService {
     required String address,
     required double lat,
     required double lng,
+    required String businessLicenseId,
   }) async {
     
     // PASO A: Crear usuario base
@@ -83,7 +84,7 @@ class AuthService {
           'workspace_type': 'shop',
           'show_exact_location': true,
           'instagram_handle': 'pendiente', 
-          'business_license_id': 'pendiente',
+          'business_license_id': businessLicenseId,
         }),
       );
 
@@ -471,6 +472,9 @@ class AuthService {
 
     final url = Uri.parse('$baseUrl/users/me');
     try {
+      // Limpiamos los nulos para no enviarlos
+      data.removeWhere((key, value) => value == null);
+      
       final response = await http.patch(
         url,
         headers: {
@@ -528,7 +532,7 @@ class AuthService {
           'idea_description': ideaDescription,
           'body_part': bodyPart,
           if (sizeCm != null && sizeCm.isNotEmpty) 'size_cm': sizeCm,
-          if (bookingDate != null) 'booking_date': bookingDate.toIso8601String(),
+          if (bookingDate != null) 'booking_date': bookingDate.toUtc().toIso8601String(),
         }),
       );
       return response.statusCode == 200;
@@ -595,5 +599,39 @@ class AuthService {
       print('Error getUserById: $e');
     }
     return null;
+  }
+
+  // ==========================================================
+  // 6. AVATARES
+  // ==========================================================
+  Future<bool> uploadAvatar(String imagePath) async {
+    try {
+      final token = await getToken();
+      if (token == null) return false;
+
+      final url = Uri.parse('$baseUrl/users/me/avatar');
+      var request = http.MultipartRequest('POST', url);
+      
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(await http.MultipartFile.fromPath('file', imagePath));
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error uploading avatar: $e');
+      return false;
+    }
+  }
+
+  Future<int> getTotalUnreadCount() async {
+    final contacts = await getMessageContacts();
+    if (contacts == null) return 0;
+    int total = 0;
+    for (var contact in contacts) {
+      total += (contact['unread_count'] as int? ?? 0);
+    }
+    return total;
   }
 }

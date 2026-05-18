@@ -2,3 +2,9 @@ api/venv/
 api/.env
 inkaFlutter/.env
 **/__pycache__/
+api/firebase-adminsdk.json
+inkaFlutter/android/app/google-services.json
+api/test_push.py
+api/simular_mensaje.py
+api/simular_reserva.py
+api/simular_presupuesto.py

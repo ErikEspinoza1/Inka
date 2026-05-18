@@ -21,12 +21,17 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
   final _shopNameCtrl = TextEditingController();
   final _bioCtrl = TextEditingController();
   final _instaCtrl = TextEditingController();
+  final _licenseCtrl = TextEditingController();
 
   // Controladores Dirección
   final _streetCtrl = TextEditingController();
   final _numberCtrl = TextEditingController();
   final _zipCtrl = TextEditingController();
   final _cityCtrl = TextEditingController();
+
+  // Controladores Horario
+  final _startHourCtrl = TextEditingController(text: "09:00");
+  final _endHourCtrl = TextEditingController(text: "18:00");
 
   // Estado
   bool _hasPhysicalShop = true; 
@@ -50,6 +55,9 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
       _shopNameCtrl.text = data['shop_name'] ?? '';
       _bioCtrl.text = data['bio'] ?? '';
       _instaCtrl.text = data['instagram_handle'] ?? '';
+      _licenseCtrl.text = data['business_license_id'] ?? '';
+      _startHourCtrl.text = data['working_hours_start'] ?? "09:00";
+      _endHourCtrl.text = data['working_hours_end'] ?? "18:00";
       
       // 2. Estado de verificación inicial
       if (data['is_verified'] == true) {
@@ -113,7 +121,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
         lng = locations.first.longitude;
       }
     } catch (e) {
-      print("Error geo: $e");
+      debugPrint("Error geo: $e");
     }
 
     // 3. JSON Data
@@ -121,12 +129,15 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
       if (_shopNameCtrl.text.isNotEmpty) 'shop_name': _shopNameCtrl.text,
       if (_bioCtrl.text.isNotEmpty) 'bio': _bioCtrl.text,
       if (_instaCtrl.text.isNotEmpty) 'instagram_handle': _instaCtrl.text,
+      if (_licenseCtrl.text.isNotEmpty) 'business_license_id': _licenseCtrl.text,
       
       'address': finalAddress,
       'latitude': lat,
       'longitude': lng,
       'workspace_type': _hasPhysicalShop ? 'shop' : 'mobile',
       'show_exact_location': _hasPhysicalShop,
+      'working_hours_start': _startHourCtrl.text,
+      'working_hours_end': _endHourCtrl.text,
     };
 
     // 4. Enviar
@@ -136,10 +147,10 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Perfil actualizado correctamente ✅'), backgroundColor: Colors.green),
+        const SnackBar(content: Text('Perfil actualizado correctamente ✅'), backgroundColor: Colors.green),
       );
       Navigator.pop(context);
-    } else {
+    } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: const Text('Error al guardar'), backgroundColor: Theme.of(context).colorScheme.error),
       );
@@ -172,17 +183,21 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
             
         if (verified) _loadCurrentData(); // Recargar si se aprobó
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Resultado IA: $analysisText"),
-            backgroundColor: verified ? Colors.green : Theme.of(context).colorScheme.secondary,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Resultado IA: $analysisText"),
+              backgroundColor: verified ? Colors.green : Theme.of(context).colorScheme.secondary,
+            ),
+          );
+        }
       } else {
         _certificateStatus = "❌ Error al subir";
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text("Error al subir imagen"), backgroundColor: Theme.of(context).colorScheme.error),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: const Text("Error al subir imagen"), backgroundColor: Theme.of(context).colorScheme.error),
+          );
+        }
       }
     });
   }
@@ -209,6 +224,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                 _sectionTitle("Datos del Estudio"),
                 _inputField("Nombre del Estudio / Artista", _shopNameCtrl, Icons.store),
                 _inputField("Instagram (@usuario)", _instaCtrl, Icons.camera_alt),
+                _inputField("CIF / DNI del Titular", _licenseCtrl, Icons.badge_outlined),
                 _inputField("Biografía corta", _bioCtrl, Icons.text_fields, maxLines: 3),
 
                 const SizedBox(height: 30),
@@ -220,7 +236,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                     _hasPhysicalShop ? "La dirección exacta será pública" : "Modo Viajero/Privado (Solo se muestra ciudad)",
                   ),
                   value: _hasPhysicalShop,
-                  activeColor: Theme.of(context).colorScheme.primary,
+                  activeThumbColor: Theme.of(context).colorScheme.primary,
                   onChanged: (val) => setState(() => _hasPhysicalShop = val),
                 ),
                 
@@ -244,12 +260,54 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                 ),
 
                 const SizedBox(height: 30),
+                _sectionTitle("Horario Laboral"),
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay(
+                              hour: int.parse(_startHourCtrl.text.split(":")[0]),
+                              minute: int.parse(_startHourCtrl.text.split(":")[1]),
+                            ),
+                          );
+                          if (picked != null) {
+                            setState(() => _startHourCtrl.text = "${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}");
+                          }
+                        },
+                        child: _inputField("Hora Inicio", _startHourCtrl, Icons.access_time, enabled: false),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay(
+                              hour: int.parse(_endHourCtrl.text.split(":")[0]),
+                              minute: int.parse(_endHourCtrl.text.split(":")[1]),
+                            ),
+                          );
+                          if (picked != null) {
+                            setState(() => _endHourCtrl.text = "${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}");
+                          }
+                        },
+                        child: _inputField("Hora Fin", _endHourCtrl, Icons.access_time_filled, enabled: false),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 30),
                 _sectionTitle("Certificación Higiénico Sanitaria"),
                 
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
+                    color: Colors.red.withValues(alpha: 0.1),
                     border: Border.all(color: Colors.redAccent),
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -277,7 +335,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                     color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: _certificateStatus.contains("✅") ? Colors.green : Theme.of(context).colorScheme.primary.withOpacity(0.5), 
+                        color: _certificateStatus.contains("✅") ? Colors.green : Theme.of(context).colorScheme.primary.withValues(alpha: 0.5), 
                         style: BorderStyle.solid),
                   ),
                   child: Column(
@@ -292,7 +350,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                           ),
                         )
                       else
-                        Icon(Icons.document_scanner, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5), size: 40),
+                        Icon(Icons.document_scanner, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5), size: 40),
                       
                       const SizedBox(height: 8),
                       
@@ -307,7 +365,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                         child: Text(
                           "Estado: $_certificateStatus",
                           style: TextStyle(
-                            color: _certificateStatus.contains("✅") ? Colors.green : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                            color: _certificateStatus.contains("✅") ? Colors.green : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                             fontWeight: FontWeight.bold
                           ),
                           textAlign: TextAlign.center,
@@ -331,12 +389,13 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
     );
   }
 
-  Widget _inputField(String label, TextEditingController ctrl, IconData icon, {int maxLines = 1}) {
+  Widget _inputField(String label, TextEditingController ctrl, IconData icon, {int maxLines = 1, bool enabled = true}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
         controller: ctrl,
         maxLines: maxLines,
+        enabled: enabled,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon),

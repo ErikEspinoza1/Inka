@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Paleta de colores central "Inka"
-  static const Color background = Color(0xFF080808); // Negro profundo
+  static const Color background = Color(0xFF050505); // Negro Inka profundo corregido
   static const Color surface = Color(0xFF1A1A1A); // Gris oscuro
   static const Color primary = Color(0xFF1DE9B6); // Azul Turquesa (Teal Accent)
   static const Color primaryVariant = Color(0xFF00BFA5); 

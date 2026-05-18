@@ -14,6 +14,14 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    avatar_url: Optional[str] = None
+    current_password: Optional[str] = None
+    new_password: Optional[str] = None
+    fcm_token: Optional[str] = None
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -23,8 +31,12 @@ class UserResponse(BaseModel):
     email: EmailStr
     full_name: str
     role: UserRole
-    
-    model_config = ConfigDict(from_attributes=True)
+    avatar_url: Optional[str] = None
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+# --- ARTISTS ---
 
 # --- ARTISTAS ---
 class ArtistCreate(BaseModel):
@@ -39,19 +51,14 @@ class ArtistCreate(BaseModel):
     instagram_handle: str
     whatsapp_number: Optional[str] = None
     website_url: Optional[str] = None
-    business_license_id: str
-    business_document_url: Optional[str] = None
-
-class ArtistUpdate(BaseModel):
-    shop_name: Optional[str] = None
-    bio: Optional[str] = None
-    styles: Optional[List[str]] = None
-    instagram_handle: Optional[str] = None
-    address: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    workspace_type: Optional[StudioType] = None
-    business_document_url: Optional[str] = None
+    
+    # Documentación para verificar
+    business_license_id: str # DNI/NIF
+    business_document_url: Optional[str] = None # URL de la foto del certificado
+    
+    # Horario
+    working_hours_start: Optional[str] = "09:00"
+    working_hours_end: Optional[str] = "18:00"
 
 class ArtistResponse(BaseModel):
     id: UUID
@@ -77,6 +84,7 @@ class BookingCreate(BaseModel):
     body_part: str
     size_cm: Optional[str] = None
     booking_date: Optional[datetime] = None
+    duration_hours: Optional[float] = None
 
 class BookingUpdate(BaseModel):
     status: Optional[BookingStatus] = None
@@ -85,6 +93,7 @@ class BookingUpdate(BaseModel):
     idea_description: Optional[str] = None
     body_part: Optional[str] = None
     size_cm: Optional[str] = None
+    duration_hours: Optional[float] = None
     client_accepted: Optional[bool] = None
     artist_accepted: Optional[bool] = None
 
@@ -100,6 +109,7 @@ class BookingResponse(BaseModel):
     price_quote: Optional[float] = None
     client_accepted: bool
     artist_accepted: bool
+    duration_hours: Optional[float] = None
     created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
@@ -119,6 +129,10 @@ class PostResponse(BaseModel):
     created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
+
+class PostUpdate(BaseModel):
+    description: Optional[str] = None
+    style_tag: Optional[str] = None
 
 class ReviewCreate(BaseModel):
     booking_id: UUID
@@ -149,7 +163,12 @@ class MessageResponse(BaseModel):
     is_read: bool
     created_at: datetime
     
-    model_config = ConfigDict(from_attributes=True)
+    # Documentos
+    business_license_id: Optional[str] = None
+    business_document_url: Optional[str] = None # Aquí irá la URL de la foto del certificado
+    
+    working_hours_start: Optional[str] = None
+    working_hours_end: Optional[str] = None
 
 # --- DISEÑOS DE IA (Añadir esto a api/schemas.py) ---
 
@@ -160,8 +179,25 @@ class AIDesignCreate(BaseModel):
 
 class AIDesignResponse(BaseModel):
     id: UUID
-    prompt_text: str
-    image_url: str
-    created_at: datetime
+    shop_name: str
+    bio: Optional[str] = None
+    styles: Optional[List[str]] = []
     
-    model_config = ConfigDict(from_attributes=True)
+    # --- CAMPOS QUE FALTABAN ---
+    latitude: float   # <--- IMPORTANTE: Sin esto, el mapa no sabe dónde poner el pin
+    longitude: float  # <--- IMPORTANTE
+    
+    # Resto de campos
+    address: Optional[str] = None
+    workspace_type: Optional[str] = None 
+    instagram_handle: Optional[str] = None
+    
+    is_verified: bool
+    business_license_id: Optional[str] = None
+    business_document_url: Optional[str] = None
+    
+    working_hours_start: Optional[str] = "09:00"
+    working_hours_end: Optional[str] = "18:00"
+
+    class Config:
+        from_attributes = True

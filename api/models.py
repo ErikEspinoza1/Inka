@@ -31,7 +31,9 @@ class Profile(Base):
     full_name = Column(String)
     avatar_url = Column(String, nullable=True)
     role = Column(Enum(UserRole), default=UserRole.cliente)
-    password = Column(String)
+    password = Column(String) 
+    preference_embedding = Column(Vector(768), nullable=True) # Para el algoritmo de Feed
+    fcm_token = Column(String, nullable=True) # Token para notificaciones push
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     artist_profile = relationship("Artist", back_populates="profile", uselist=False)
     bookings_as_client = relationship("Booking", back_populates="client", foreign_keys="Booking.client_id")
@@ -57,7 +59,13 @@ class Artist(Base):
     latitude = Column(Float)
     longitude = Column(Float)
     workspace_type = Column(Enum(StudioType), default=StudioType.shop)
-    show_exact_location = Column(Boolean, default=True)
+    show_exact_location = Column(Boolean, default=True) # False = Privacidad (Estudios privados)
+    
+    # Horario Laboral
+    working_hours_start = Column(String, default="09:00")
+    working_hours_end = Column(String, default="18:00")
+
+    # Relaciones
     profile = relationship("Profile", back_populates="artist_profile")
     posts = relationship("Post", back_populates="artist")
     bookings = relationship("Booking", back_populates="artist", foreign_keys="Booking.artist_id")
@@ -89,6 +97,7 @@ class Booking(Base):
     size_cm = Column(String)
     price_quote = Column(Numeric, nullable=True)
     booking_date = Column(DateTime(timezone=True), nullable=True)
+    duration_hours = Column(Float, nullable=True)
     client_accepted = Column(Boolean, default=False)
     artist_accepted = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -125,3 +134,36 @@ class AIDesign(Base):
     image_url = Column(String, nullable=False)
     style_tag = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class SearchCache(Base):
+    __tablename__ = "search_cache"
+    search_query = Column(String, primary_key=True)
+    embedding = Column(Vector(768), nullable=False)
+    search_count = Column(Integer, default=1)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+from sqlalchemy import UniqueConstraint
+
+class Like(Base):
+    __tablename__ = "likes"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"), nullable=False)
+    post_id = Column(UUID(as_uuid=True), ForeignKey("posts.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (UniqueConstraint('user_id', 'post_id', name='uix_user_post_like'),)
+
+class Favorite(Base):
+    __tablename__ = "favorites"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"), nullable=False)
+    post_id = Column(UUID(as_uuid=True), ForeignKey("posts.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (UniqueConstraint('user_id', 'post_id', name='uix_user_post_favorite'),)
+
+class Follow(Base):
+    __tablename__ = "follows"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    follower_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False)
+    followed_id = Column(UUID(as_uuid=True), ForeignKey("artists.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (UniqueConstraint('follower_id', 'followed_id', name='uix_follower_followed'),)
