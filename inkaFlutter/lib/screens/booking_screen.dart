@@ -146,8 +146,8 @@ class _BookingScreenState extends State<BookingScreen> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Reserva enviada correctamente. El artista se pondrá en contacto contigo.'),
+          const SnackBar(
+            content: Text('Reserva enviada correctamente. El artista se pondrá en contacto contigo.'),
             backgroundColor: Colors.green,
           ),
       );

@@ -20,6 +20,7 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
   Map<String, dynamic>? _artistData;
   List<dynamic> _portfolioImages = [];
   bool _isLoading = true;
+  bool _isNewestFirst = true;
 
   @override
   void initState() {
@@ -70,15 +71,33 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             _buildArtistInfo(),
             const SizedBox(height: 20),
 
+            _buildActionButtons(),
+            const SizedBox(height: 20),
+
             // Portfolio
             if (_portfolioImages.isNotEmpty) ...[
-              Text(
-                'Portfolio',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Portfolio',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _isNewestFirst = !_isNewestFirst;
+                        _portfolioImages = _portfolioImages.reversed.toList();
+                      });
+                    },
+                    icon: Icon(_isNewestFirst ? Icons.arrow_downward : Icons.arrow_upward, size: 16),
+                    label: Text(_isNewestFirst ? 'Más nuevas' : 'Más antiguas'),
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
               _buildPortfolioGrid(),
@@ -90,7 +109,6 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             ],
 
             const SizedBox(height: 30),
-            _buildActionButtons(),
           ],
         ),
       ),
@@ -338,7 +356,6 @@ class _ArtistProfileViewScreenState extends State<ArtistProfileViewScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 60),
       ],
     );
   }

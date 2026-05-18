@@ -134,14 +134,14 @@ class _AuthScreenState extends State<AuthScreen> {
               if (!_isLogin)
                 TextField(
                   controller: _nameCtrl,
-                  decoration: InputDecoration(labelText: 'Nombre Completo', prefixIcon: const Icon(Icons.person)),
+                  decoration: const InputDecoration(labelText: 'Nombre Completo', prefixIcon: Icon(Icons.person)),
                 ),
               if (!_isLogin) const SizedBox(height: 16),
 
               // Campo Email
               TextField(
                 controller: _emailCtrl,
-                decoration: InputDecoration(labelText: 'Email', prefixIcon: const Icon(Icons.email)),
+                decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email)),
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
@@ -149,7 +149,7 @@ class _AuthScreenState extends State<AuthScreen> {
               // Campo Password
               TextField(
                 controller: _passCtrl,
-                decoration: InputDecoration(labelText: 'Contraseña', prefixIcon: const Icon(Icons.lock)),
+                decoration: const InputDecoration(labelText: 'Contraseña', prefixIcon: Icon(Icons.lock)),
                 obscureText: true,
               ),
               const SizedBox(height: 30),

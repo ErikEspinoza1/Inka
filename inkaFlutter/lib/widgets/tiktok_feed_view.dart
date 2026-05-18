@@ -1,4 +1,7 @@
 import 'dart:ui';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
@@ -49,8 +52,30 @@ class _TikTokFeedViewState extends State<TikTokFeedView> {
     });
   }
 
-  void _sharePost(String imageUrl) {
-    Share.share('¡Mira este increíble tatuaje en Inka! $imageUrl');
+  Future<void> _sharePost(String imageUrl) async {
+    try {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Preparando imagen para compartir...')),
+        );
+      }
+      
+      final response = await http.get(Uri.parse(imageUrl));
+      final documentDirectory = await getTemporaryDirectory();
+      final file = File('${documentDirectory.path}/compartir_inka_tattoo.png');
+      file.writeAsBytesSync(response.bodyBytes);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: '¡Descárgate Inka para ver más fotos como esta!',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al compartir la imagen'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override

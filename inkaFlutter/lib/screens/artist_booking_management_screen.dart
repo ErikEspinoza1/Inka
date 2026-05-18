@@ -60,7 +60,7 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
           booking['status'] = 'contactado';
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Cliente contactado'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('Cliente contactado'), backgroundColor: Colors.green),
         );
       }
     }
@@ -106,8 +106,8 @@ class _ArtistBookingManagementScreenState extends State<ArtistBookingManagementS
       location: 'Estudio de Tatuajes',
       startDate: startDate,
       endDate: endDate,
-      iosParams: IOSParams(reminder: const Duration(hours: 1)),
-      androidParams: AndroidParams(emailInvites: []),
+      iosParams: const IOSParams(reminder: Duration(hours: 1)),
+      androidParams: const AndroidParams(emailInvites: []),
     );
 
     try {

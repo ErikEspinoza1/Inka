@@ -1,6 +1,5 @@
 // lib/screens/ar_tattoo_screen.dart
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:camera/camera.dart';
@@ -112,11 +111,19 @@ class _ArTattooScreenState extends State<ArTattooScreen> with WidgetsBindingObse
           _tattooImage = await _loadUiImage('assets/images/tattoo.png');
         }
       } else {
-        _tattooImage = await _loadUiImage('assets/images/tattoo.png');
+        try {
+          _tattooImage = await _loadUiImage('assets/images/tattoo.png');
+        } catch (e) {
+          debugPrint('No tattoo image found to fallback to.');
+        }
       }
     } catch (e) {
       debugPrint("🚨 ERROR CARGANDO IMAGEN TATUAJE EN AR: $e");
-      _tattooImage = await _loadUiImage('assets/images/tattoo.png');
+      try {
+        _tattooImage = await _loadUiImage('assets/images/tattoo.png');
+      } catch (_) {
+        debugPrint('Fallback image not found');
+      }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
