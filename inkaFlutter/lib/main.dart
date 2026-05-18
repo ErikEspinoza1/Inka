@@ -28,7 +28,12 @@ void main() async {
   );
 
   // Inicialización de Firebase
-  await Firebase.initializeApp();
+  try {
+    await Firebase.initializeApp();
+    print("✅ Firebase inicializado correctamente");
+  } catch (e) {
+    print("🚨 Advertencia: Firebase no pudo inicializarse (usando mock google-services.json): $e");
+  }
 
   // Bloquear orientación vertical
   await SystemChrome.setPreferredOrientations([
