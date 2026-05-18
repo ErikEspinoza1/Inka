@@ -30,12 +30,12 @@ def validar_imagen_tatuaje(image_url: str) -> bool:
     En caso de error, retorna True para no bloquear la app.
     """
     try:
-        print(f"🔍 Analizando imagen: {image_url}")
+        print(f"[IA SCAN] Analizando imagen: {image_url}")
         
         # Descargamos la imagen temporalmente desde la URL que mandó Flutter
         respuesta_img = requests.get(image_url)
         if respuesta_img.status_code != 200:
-            print("⚠️ No se pudo descargar la imagen para analizarla.")
+            print("[WARNING] No se pudo descargar la imagen para analizarla.")
             return True  # Si no podemos descargarla, la dejamos pasar para no bloquear la app
             
         img = Image.open(io.BytesIO(respuesta_img.content))
@@ -54,12 +54,12 @@ def validar_imagen_tatuaje(image_url: str) -> bool:
         response = model.generate_content([prompt, img])
         resultado = response.text.strip().upper()
         
-        print(f"🕵️ Filtro IA detectó: {resultado}")
+        print(f"[IA DETECTED] Filtro IA detecto: {resultado}")
         
         return resultado == "SI"
         
     except Exception as e:
-        print(f"❌ Error en Gemini Vision: {e}")
+        print(f"[ERROR] Error en Gemini Vision: {e}")
         return True  # Si falla la IA por algún motivo, dejamos pasar la imagen
 
 
@@ -83,7 +83,7 @@ def create_post(
         es_valida = validar_imagen_tatuaje(post.image_url)
         
         if not es_valida:
-            print("🗑️ IA rechazó la imagen. Procediendo a borrarla del Storage de Supabase...")
+            print("[IA REJECTED] IA rechazo la imagen. Procediendo a borrarla del Storage de Supabase...")
             try:
                 # Extraemos la ruta del archivo de la URL de Supabase
                 # Ejemplo URL: https://...supabase.co/storage/v1/object/public/app-images/fotos/mi_tatuaje.jpg
@@ -93,9 +93,9 @@ def create_post(
                     
                     # Le decimos a Supabase que elimine el archivo basura
                     supabase.storage.from_("app-images").remove([ruta_archivo])
-                    print(f"✅ Archivo basura eliminado del Bucket: {ruta_archivo}")
+                    print(f"[OK] Archivo basura eliminado del Bucket: {ruta_archivo}")
             except Exception as e:
-                print(f"⚠️ Error intentando borrar la imagen huérfana: {e}")
+                print(f"[ERROR] Error intentando borrar la imagen huerfana: {e}")
 
             # Lanzamos el error para que Flutter se entere y el Post NUNCA se guarde en BD
             raise HTTPException(

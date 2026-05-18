@@ -125,7 +125,7 @@ def search_tattoos(
     vector_busqueda = None
 
     if cache_result and cache_result[0] is not None:
-        print(f"⚡ ¡Caché Hit! Usando vector guardado para: '{clean_query}'")
+        print(f"[CACHE HIT] Usando vector guardado para: '{clean_query}'")
         vector_busqueda = cache_result[0]
         # Incrementar contador de popularidad (Caché Hit)
         try:
@@ -140,7 +140,7 @@ def search_tattoos(
         # =======================================================
         # 🧠 2. SIN CACHÉ: Llamamos a Gemini para crear el vector
         # =======================================================
-        print(f"🧠 Buscando en Gemini el significado de: '{clean_query}'")
+        print(f"[GEMINI] Buscando significado de: '{clean_query}'")
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             return {"error": "Falta GEMINI_API_KEY"}
@@ -171,9 +171,9 @@ def search_tattoos(
                     {"q": clean_query, "v": vector_str}
                 )
                 db.commit()
-                print("💾 Nueva búsqueda guardada en caché.")
+                print("[CACHE SAVE] Nueva busqueda guardada en cache.")
             except Exception as e:
-                print(f"⚠️ Aviso al guardar caché: {e}")
+                print(f"[WARNING] Aviso al guardar cache: {e}")
                 db.rollback()
         else:
             return {"error": "Fallo al comunicar con la IA de búsqueda"}

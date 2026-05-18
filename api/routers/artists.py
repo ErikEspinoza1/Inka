@@ -191,7 +191,7 @@ async def upload_certificate(
     # ====================================================
     # 🤖 EL BOT: VERIFICACIÓN CON IA (GEMINI 1.5 FLASH)
     # ====================================================
-    print("🤖 IA Analizando documento...")
+    print("[IA] IA Analizando documento...")
     is_ai_verified = False
     verification_status = "Pendiente Revisión"
     
@@ -236,7 +236,7 @@ async def upload_certificate(
         explicacion = analisis.get("explicacion", "")
         nombre_detectado = analisis.get("nombre_detectado", "No detectado")
         
-        print(f"🕵️ Resultado Gemini: {is_ai_verified} - {explicacion}")
+        print(f"[IA RESULT] Resultado Gemini: {is_ai_verified} - {explicacion}")
         if is_ai_verified:
             verification_status = f"Verificado (IA): Coincide con {nombre_detectado}"
         else:
@@ -254,7 +254,7 @@ async def upload_certificate(
         # Si el nombre del archivo actual es distinto al nuevo, lo borramos.
         # Si es el mismo, el 'upsert' de la función de subida se encargará de sobrescribirlo.
         if filename not in artist.business_document_url:
-            print(f"🗑️ El nombre ha cambiado o es necesario limpiar. Borrando anterior...")
+            print(f"[CLEANUP] El nombre ha cambiado o es necesario limpiar. Borrando anterior...")
             delete_file_from_supabase(artist.business_document_url)
 
     public_url = upload_file_to_supabase(file_bytes, filename)
@@ -327,7 +327,7 @@ async def create_post(
     texto_ia_embedding = ""  # Se llenará si Gemini aprueba la imagen
     
     if api_key:
-        print("🔍 Pasando filtro Anti-Basura + Análisis Multimodal de Gemini...")
+        print("[IA SCAN] Pasando filtro Anti-Basura + Analisis Multimodal de Gemini...")
         try:
             img = Image.open(io.BytesIO(file_bytes))
             model = genai.GenerativeModel('gemini-flash-latest')
@@ -381,9 +381,9 @@ async def create_post(
             texto_inapropiado = analisis.get("texto_inapropiado", False)
             descripcion_tecnica = analisis.get("descripcion_tecnica", "")
             
-            print(f"🕵️ ¿Es tatuaje? {es_tatuaje}")
-            print(f"🚫 ¿Texto inapropiado? {texto_inapropiado}")
-            print(f"📝 Descripción técnica: {descripcion_tecnica}")
+            print(f"[IA CHECK] Is tattoo? {es_tatuaje}")
+            print(f"[IA CHECK] Inappropriate text? {texto_inapropiado}")
+            print(f"[IA CHECK] Technical description: {descripcion_tecnica}")
             
             # VALIDACIÓN 1: Imagen no es tatuaje
             if not es_tatuaje:
@@ -405,7 +405,7 @@ async def create_post(
         except HTTPException:
             raise
         except Exception as e:
-            print(f"⚠️ Error en el filtro Gemini: {e}")
+            print(f"[ERROR] Error en el filtro Gemini: {e}")
             raise HTTPException(status_code=500, detail="Error validando la imagen.")
     
     # =======================================================
@@ -420,16 +420,16 @@ async def create_post(
     # =======================================================
     ar_public_url = None
     try:
-        print("🪄 Iniciando extracción de tatuaje para AR en segundo plano...")
+        print("[AR PROCESS] Iniciando extraccion de tatuaje para AR en segundo plano...")
         ar_bytes = generar_stencil_ar(file_bytes)
         
         if ar_bytes:
             ar_filename = f"ar_stencil_{current_user.id}_{timestamp}.png"
             # Subimos el PNG transparente a una carpeta especial en Supabase
             ar_public_url = upload_file_to_supabase(ar_bytes, ar_filename, folder="ar-stencils")
-            print(f"✅ Stencil AR subido: {ar_public_url}")
+            print(f"[AR OK] Stencil AR subido: {ar_public_url}")
     except Exception as e:
-        print(f"⚠️ Aviso: Falló la generación del Stencil AR. Error: {e}")
+        print(f"[AR ERROR] Aviso: Fallo la generacion del Stencil AR. Error: {e}")
         # No lanzamos HTTPException porque no queremos bloquear la subida del post normal
         # simplemente se quedará sin versión AR.
     
@@ -448,16 +448,16 @@ async def create_post(
     
     if texto_para_embedding.strip():
         try:
-            print(f"🤖 Calculando embedding: {texto_para_embedding[:100]}...")
+            print(f"[EMBEDDING] Calculando embedding: {texto_para_embedding[:100]}...")
             response = genai.embed_content(
                 model="models/gemini-embedding-001",
                 content=texto_para_embedding,
                 task_type="retrieval_document"
             )
             vector_ia = response['embedding'][:768]
-            print("✅ Embedding calculado (IA visual + texto artista).")
+            print("[EMBEDDING OK] Embedding calculado (IA visual + texto artista).")
         except Exception as e:
-            print(f"⚠️ Aviso: Falló el embedding. Error: {e}")
+            print(f"[EMBEDDING ERROR] Aviso: Fallo el embedding. Error: {e}")
 
     # =======================================================
     # 4. Crear post en Base de Datos
