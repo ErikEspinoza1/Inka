@@ -19,10 +19,19 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   int _lastUnreadCount = 0;
   int _selectedIndex = 0; 
 
+  final GlobalKey<FeedScreenState> _feedKey = GlobalKey<FeedScreenState>();
+  late final List<Widget> _screens;
+
   @override
   void initState() {
     super.initState();
     _startNotificationCheck();
+    _screens = [
+      FeedScreen(key: _feedKey),           // 0: Feed (TikTok)
+      const MapScreen(),                   // 1: Mapa
+      const ChatListScreen(),              // 2: Chats
+      const ClientProfileScreen(),         // 3: Perfil
+    ];
   }
 
   @override
@@ -52,14 +61,11 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     });
   }
 
-  static const List<Widget> _screens = <Widget>[
-    FeedScreen(),           // 0: Feed (TikTok)
-    MapScreen(),            // 1: Mapa
-    ChatListScreen(),       // 2: Chats
-    ClientProfileScreen(),  // 3: Perfil
-  ];
-
   void _onItemTapped(int index) {
+    if (index == 0 && _selectedIndex == 0) {
+      // Si ya estamos en "Para ti" y volvemos a pulsar la casita, actualizamos el feed
+      _feedKey.currentState?.refreshFeed();
+    }
     setState(() {
       _selectedIndex = index;
     });

@@ -53,13 +53,9 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     });
   }
 
-  Future<void> _unsaveFavorite(int index) async {
-    final post = _favorites[index];
-    final postId = post['id']?.toString() ?? '';
-
+  Future<void> _unsaveFavorite(String postId) async {
     // Actualizar el Provider global para que se refleje en todas las pantallas
     context.read<InteractionProvider>().toggleSave(postId);
-    setState(() => _favorites.removeAt(index));
 
     if (mounted) {
       ScaffoldMessenger.of(context).clearSnackBars();
@@ -288,65 +284,75 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
   }
 
   Widget _buildFavoritesTab() {
-    if (_favorites.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.bookmark_border, size: 60, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)),
-            const SizedBox(height: 16),
-            const Text('Aún no has guardado ningún tatuaje.'),
-          ],
-        ),
-      );
-    }
+    return Consumer<InteractionProvider>(
+      builder: (context, provider, _) {
+        final activeFavorites = _favorites.where((post) {
+          final postId = post['id']?.toString() ?? '';
+          return provider.isSaved(postId);
+        }).toList();
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(2),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 2,
-        mainAxisSpacing: 2,
-      ),
-      itemCount: _favorites.length,
-      itemBuilder: (context, index) {
-        final post = _favorites[index];
-        return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => FullScreenFeedScreen(
-                  posts: _favorites,
-                  initialIndex: index,
-                ),
+        if (activeFavorites.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.bookmark_border, size: 60, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)),
+                const SizedBox(height: 16),
+                const Text('Aún no has guardado ningún tatuaje.'),
+              ],
+            ),
+          );
+        }
+
+        return GridView.builder(
+          padding: const EdgeInsets.all(2),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 2,
+            mainAxisSpacing: 2,
+          ),
+          itemCount: activeFavorites.length,
+          itemBuilder: (context, index) {
+            final post = activeFavorites[index];
+            final postId = post['id']?.toString() ?? '';
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => FullScreenFeedScreen(
+                      posts: activeFavorites,
+                      initialIndex: index,
+                    ),
+                  ),
+                );
+              },
+              onLongPress: () => _showUnsaveDialog(postId),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.network(
+                    post['image_url'] ?? '',
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      child: const Icon(Icons.broken_image, color: Colors.white30),
+                    ),
+                  ),
+                  const Positioned(
+                    top: 4, right: 4,
+                    child: Icon(Icons.bookmark, color: Colors.amber, size: 20),
+                  ),
+                ],
               ),
             );
           },
-          onLongPress: () => _showUnsaveDialog(index),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.network(
-                post['image_url'] ?? '',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: const Icon(Icons.broken_image, color: Colors.white30),
-                ),
-              ),
-              const Positioned(
-                top: 4, right: 4,
-                child: Icon(Icons.bookmark, color: Colors.amber, size: 20),
-              ),
-            ],
-          ),
         );
       },
     );
   }
 
-  void _showUnsaveDialog(int index) {
+  void _showUnsaveDialog(String postId) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -357,7 +363,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              _unsaveFavorite(index);
+              _unsaveFavorite(postId);
             },
             child: Text('Eliminar', style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ),

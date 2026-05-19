@@ -52,8 +52,15 @@ class AiExploreService {
 
   Future<List<Map<String, dynamic>>> buscarTatuajesPorIdea(String idea) async {
     try {
+      final token = await _authService.getToken();
+      final headers = <String, String>{};
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+
       final response = await http.get(
         Uri.parse('$baseUrl/search/tattoos?query=$idea'),
+        headers: headers,
       );
 
       if (response.statusCode == 200) {
