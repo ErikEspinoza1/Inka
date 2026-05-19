@@ -4,16 +4,29 @@ from firebase_admin import credentials, messaging
 from sqlalchemy.orm import Session
 import models
 
+import json
+
 # Inicializar Firebase Admin
-# El archivo JSON debe estar en la carpeta 'api'
 cred_path = os.path.join(os.path.dirname(__file__), "..", "firebase-adminsdk.json")
 
-if os.path.exists(cred_path):
+# Intentar primero cargar desde la variable de entorno (Ideal para Koyeb/Render)
+firebase_env = os.getenv("FIREBASE_CREDENTIALS_JSON")
+
+if firebase_env:
+    try:
+        cred_dict = json.loads(firebase_env)
+        cred = credentials.Certificate(cred_dict)
+        firebase_admin.initialize_app(cred)
+        print("[OK] Firebase Admin inicializado desde variable de entorno")
+    except Exception as e:
+        print(f"[ERROR] Error al parsear FIREBASE_CREDENTIALS_JSON: {e}")
+elif os.path.exists(cred_path):
+    # Fallback: archivo local (Para desarrollo local)
     cred = credentials.Certificate(cred_path)
     firebase_admin.initialize_app(cred)
-    print("[OK] Firebase Admin inicializado correctamente")
+    print("[OK] Firebase Admin inicializado desde archivo local")
 else:
-    print("[WARNING] No se encontro firebase-adminsdk.json. Las notificaciones push no funcionaran.")
+    print("[WARNING] No se encontraron credenciales de Firebase. Las notificaciones push no funcionaran.")
 
 def send_push_notification(receiver_id: str, title: str, body: str, db: Session):
     """

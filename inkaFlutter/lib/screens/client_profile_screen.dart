@@ -64,7 +64,9 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Eliminado de favoritos'), duration: Duration(seconds: 2)),
+        const SnackBar(
+            content: Text('Eliminado de favoritos'),
+            duration: Duration(seconds: 2)),
       );
     }
   }
@@ -75,7 +77,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     final success = await _authService.updateUserProfile({
       'full_name': _nameCtrl.text,
       // El email ya no lo enviamos porque es solo lectura según el usuario
-      if (_newPassCtrl.text.isNotEmpty) 'current_password': _currentPassCtrl.text,
+      if (_newPassCtrl.text.isNotEmpty)
+        'current_password': _currentPassCtrl.text,
       if (_newPassCtrl.text.isNotEmpty) 'new_password': _newPassCtrl.text,
     });
 
@@ -88,14 +91,19 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       await _loadData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Perfil actualizado correctamente'), backgroundColor: Colors.green),
+          const SnackBar(
+              content: Text('Perfil actualizado correctamente'),
+              backgroundColor: Colors.green),
         );
       }
     } else {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Error al actualizar perfil. Verifica los datos o la contraseña actual.'), backgroundColor: Theme.of(context).colorScheme.error),
+          SnackBar(
+              content: const Text(
+                  'Error al actualizar perfil. Verifica los datos o la contraseña actual.'),
+              backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     }
@@ -122,21 +130,25 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
 
     if (pickedFile != null) {
       setState(() => _isLoading = true);
-      
+
       final success = await _authService.uploadAvatar(pickedFile.path);
-      
+
       if (success) {
         await _loadData(); // Recargar el perfil para mostrar la nueva foto
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Foto de perfil actualizada'), backgroundColor: Colors.green),
+            const SnackBar(
+                content: Text('Foto de perfil actualizada'),
+                backgroundColor: Colors.green),
           );
         }
       } else {
         setState(() => _isLoading = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: const Text('Error al subir la foto'), backgroundColor: Theme.of(context).colorScheme.error),
+            SnackBar(
+                content: const Text('Error al subir la foto'),
+                backgroundColor: Theme.of(context).colorScheme.error),
           );
         }
       }
@@ -150,7 +162,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     }
 
     if (_profileData == null) {
-      return const Scaffold(body: Center(child: Text('Error al cargar perfil')));
+      return const Scaffold(
+          body: Center(child: Text('Error al cargar perfil')));
     }
 
     final avatarUrl = _profileData!['avatar_url'];
@@ -163,7 +176,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
           actions: [
             if (!_isEditing)
               IconButton(
-                icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
+                icon: Icon(Icons.edit,
+                    color: Theme.of(context).colorScheme.primary),
                 onPressed: () => setState(() => _isEditing = true),
               )
             else
@@ -172,7 +186,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                 onPressed: _saveProfile,
               ),
             IconButton(
-              icon: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
+              icon: Icon(Icons.logout,
+                  color: Theme.of(context).colorScheme.error),
               onPressed: _logout,
             )
           ],
@@ -188,13 +203,19 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                   CircleAvatar(
                     radius: 40,
                     backgroundColor: Theme.of(context).colorScheme.primary,
-                    backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                    backgroundImage:
+                        avatarUrl != null ? NetworkImage(avatarUrl) : null,
                     child: avatarUrl == null
-                      ? Text(
-                          _profileData!['full_name']?.substring(0, 1).toUpperCase() ?? 'U',
-                          style: TextStyle(fontSize: 32, color: Theme.of(context).colorScheme.onPrimary),
-                        )
-                      : null,
+                        ? Text(
+                            _profileData!['full_name']
+                                    ?.substring(0, 1)
+                                    .toUpperCase() ??
+                                'U',
+                            style: TextStyle(
+                                fontSize: 32,
+                                color: Theme.of(context).colorScheme.onPrimary),
+                          )
+                        : null,
                   ),
                   Container(
                     padding: const EdgeInsets.all(4),
@@ -203,7 +224,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.black, width: 2),
                     ),
-                    child: const Icon(Icons.camera_alt, size: 16, color: Colors.black),
+                    child: const Icon(Icons.camera_alt,
+                        size: 16, color: Colors.black),
                   ),
                 ],
               ),
@@ -211,16 +233,20 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
             const SizedBox(height: 12),
             Text(
               _profileData!['full_name'] ?? 'Usuario',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
             Text(
               _profileData!['role'] ?? 'Cliente',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)
-              ),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.7)),
             ),
             const SizedBox(height: 16),
-
             const TabBar(
               tabs: [
                 Tab(icon: Icon(Icons.person), text: "Info"),
@@ -228,7 +254,6 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                 Tab(icon: Icon(Icons.people), text: "Siguiendo"),
               ],
             ),
-
             Expanded(
               child: TabBarView(
                 children: [
@@ -262,24 +287,33 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              _buildTextField('Nombre completo', _nameCtrl, Icons.person, _isEditing),
+              _buildTextField(
+                  'Nombre completo', _nameCtrl, Icons.person, _isEditing),
               const SizedBox(height: 16),
-              _buildTextField('Email', _emailCtrl, Icons.email, false), // Siempre false (lectura)
+              _buildTextField('Email', _emailCtrl, Icons.email,
+                  false), // Siempre false (lectura)
               if (_isEditing) ...[
                 const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 8),
                 Text(
                   'Cambiar Contraseña',
-                  style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
-                _buildTextField('Contraseña Actual', _currentPassCtrl, Icons.lock_outline, true, isPassword: true),
+                _buildTextField('Contraseña Actual', _currentPassCtrl,
+                    Icons.lock_outline, true,
+                    isPassword: true),
                 const SizedBox(height: 12),
-                _buildTextField('Nueva Contraseña', _newPassCtrl, Icons.lock, true, isPassword: true),
+                _buildTextField(
+                    'Nueva Contraseña', _newPassCtrl, Icons.lock, true,
+                    isPassword: true),
               ],
               const SizedBox(height: 24),
-              _buildInfoTile('Fecha de registro', _formatDate(_profileData!['created_at'])),
+              _buildInfoTile('Fecha de registro',
+                  _formatDate(_profileData!['created_at'])),
             ],
           ),
         ),
@@ -293,7 +327,12 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.bookmark_border, size: 60, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)),
+            Icon(Icons.bookmark_border,
+                size: 60,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.3)),
             const SizedBox(height: 16),
             const Text('Aún no has guardado ningún tatuaje.'),
           ],
@@ -336,7 +375,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                 ),
               ),
               const Positioned(
-                top: 4, right: 4,
+                top: 4,
+                right: 4,
                 child: Icon(Icons.bookmark, color: Colors.amber, size: 20),
               ),
             ],
@@ -353,13 +393,16 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         title: const Text('¿Eliminar de guardados?'),
         content: const Text('Este tatuaje desaparecerá de tu colección.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar')),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               _unsaveFavorite(index);
             },
-            child: Text('Eliminar', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            child: Text('Eliminar',
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ),
         ],
       ),
@@ -381,11 +424,17 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.people_outline, size: 60, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)),
+                Icon(Icons.people_outline,
+                    size: 60,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.3)),
                 const SizedBox(height: 16),
                 const Text('Aún no sigues a ningún artista.'),
                 const SizedBox(height: 8),
-                const Text('Pulsa el + en el feed para seguir tatuadores.', style: TextStyle(color: Colors.grey)),
+                const Text('Pulsa el + en el feed para seguir tatuadores.',
+                    style: TextStyle(color: Colors.grey)),
               ],
             ),
           );
@@ -402,13 +451,18 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                 leading: CircleAvatar(
                   radius: 28,
                   backgroundColor: Theme.of(context).colorScheme.primary,
-                  backgroundImage: artist['avatar_url'] != null ? NetworkImage(artist['avatar_url']) : null,
+                  backgroundImage: artist['avatar_url'] != null
+                      ? NetworkImage(artist['avatar_url'])
+                      : null,
                   child: artist['avatar_url'] == null
-                    ? Text(
-                        artist['shop_name']?.substring(0, 1).toUpperCase() ?? 'A',
-                        style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontWeight: FontWeight.bold),
-                      )
-                    : null,
+                      ? Text(
+                          artist['shop_name']?.substring(0, 1).toUpperCase() ??
+                              'A',
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              fontWeight: FontWeight.bold),
+                        )
+                      : null,
                 ),
                 title: Row(
                   children: [
@@ -421,7 +475,9 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                     if (artist['is_verified'] == true)
                       Padding(
                         padding: const EdgeInsets.only(left: 4),
-                        child: Icon(Icons.verified, size: 18, color: Theme.of(context).colorScheme.secondary),
+                        child: Icon(Icons.verified,
+                            size: 18,
+                            color: Theme.of(context).colorScheme.secondary),
                       ),
                   ],
                 ),
@@ -429,14 +485,19 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                   (artist['styles'] as List?)?.join(' · ') ?? '',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+                  style: TextStyle(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.6)),
                 ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => ArtistProfileViewScreen(artistId: artist['id']),
+                      builder: (context) =>
+                          ArtistProfileViewScreen(artistId: artist['id']),
                     ),
                   );
                 },
@@ -448,7 +509,9 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon, bool enabled, {bool isPassword = false}) {
+  Widget _buildTextField(String label, TextEditingController controller,
+      IconData icon, bool enabled,
+      {bool isPassword = false}) {
     return TextField(
       controller: controller,
       enabled: enabled,
@@ -468,7 +531,10 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         children: [
           Text(
             label,
-            style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 14, fontWeight: FontWeight.bold),
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+                fontSize: 14,
+                fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(value, style: Theme.of(context).textTheme.bodyLarge),
