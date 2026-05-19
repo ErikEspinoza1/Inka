@@ -88,14 +88,16 @@ class _TikTokFeedViewState extends State<TikTokFeedView> {
 
     return Consumer<InteractionProvider>(
       builder: (context, provider, _) {
-        return PageView.builder(
-          controller: _pageController,
-          scrollDirection: Axis.vertical,
-          physics: const BouncingScrollPhysics(),
-          itemCount: widget.posts.length,
-          onPageChanged: widget.onPageChanged,
-          itemBuilder: (context, index) {
-            final post = widget.posts[index];
+        return ScrollConfiguration(
+          behavior: const ScrollBehavior().copyWith(overscroll: false),
+          child: PageView.builder(
+            controller: _pageController,
+            scrollDirection: Axis.vertical,
+            physics: const BouncingScrollPhysics(),
+            itemCount: widget.posts.length,
+            onPageChanged: widget.onPageChanged,
+            itemBuilder: (context, index) {
+              final post = widget.posts[index];
             final postId = post['id']?.toString() ?? index.toString();
             final imageUrl = post['image_url'] ?? '';
             final desc = post['description'] ?? '';
@@ -217,26 +219,27 @@ class _TikTokFeedViewState extends State<TikTokFeedView> {
 
                   // 6. PANEL LATERAL DERECHO
                   Positioned(
-                    bottom: 20, right: 16,
+                    bottom: 100, right: 16, // Lo movemos más arriba
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         // Avatar + Follow
-                        GestureDetector(
-                          onTap: () {
-                            if (artistId.isNotEmpty) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ArtistProfileViewScreen(artistId: artistId),
-                                ),
-                              );
-                            }
-                          },
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Container(
+                        Stack(
+                          clipBehavior: Clip.none,
+                          alignment: Alignment.center,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                if (artistId.isNotEmpty) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ArtistProfileViewScreen(artistId: artistId),
+                                    ),
+                                  );
+                                }
+                              },
+                              child: Container(
                                 width: 50, height: 50,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
@@ -250,11 +253,15 @@ class _TikTokFeedViewState extends State<TikTokFeedView> {
                                   ? const Center(child: Icon(Icons.person, color: Colors.white, size: 30))
                                   : null,
                               ),
-                              if (!isFollowing)
-                                Positioned(
-                                  bottom: -8, left: 13,
-                                  child: GestureDetector(
-                                    onTap: () => provider.toggleFollow(artistId),
+                            ),
+                            if (!isFollowing)
+                              Positioned(
+                                bottom: -10,
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () => provider.toggleFollow(artistId),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(4.0), // Área táctil más grande
                                     child: Container(
                                       width: 24, height: 24,
                                       decoration: BoxDecoration(
@@ -266,8 +273,8 @@ class _TikTokFeedViewState extends State<TikTokFeedView> {
                                     ),
                                   ),
                                 ),
-                            ],
-                          ),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 28),
 
@@ -326,7 +333,8 @@ class _TikTokFeedViewState extends State<TikTokFeedView> {
               ),
             );
           },
-        );
+        ),
+      );
       },
     );
   }

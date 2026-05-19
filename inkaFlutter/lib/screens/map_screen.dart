@@ -6,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http; // Para hacer la petición a la API
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // Importar
+import 'package:url_launcher/url_launcher.dart'; // Para abrir Google Maps
 import '../services/auth_service.dart';
 import 'artist_profile_view_screen.dart';
 import 'booking_screen.dart';
@@ -264,6 +265,18 @@ class _MapScreenState extends State<MapScreen> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _launchDirections(artist.position.latitude, artist.position.longitude),
+                          icon: const Icon(Icons.directions, color: Colors.white),
+                          label: const Text('Cómo llegar', style: TextStyle(color: Colors.white)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blueAccent, // Color distintivo para el mapa
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 16),
                     ],
                   ),
@@ -274,6 +287,19 @@ class _MapScreenState extends State<MapScreen> {
         );
       },
     );
+  }
+
+  Future<void> _launchDirections(double lat, double lng) async {
+    final url = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir el mapa.')),
+        );
+      }
+    }
   }
 
   void _onMapTap() {

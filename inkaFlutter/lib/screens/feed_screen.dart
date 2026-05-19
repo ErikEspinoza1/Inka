@@ -9,10 +9,10 @@ class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
 
   @override
-  State<FeedScreen> createState() => _FeedScreenState();
+  State<FeedScreen> createState() => FeedScreenState();
 }
 
-class _FeedScreenState extends State<FeedScreen> {
+class FeedScreenState extends State<FeedScreen> {
   final AiExploreService _aiService = AiExploreService();
   bool _isLoading = true;
   List<Map<String, dynamic>> _posts = [];
@@ -35,6 +35,15 @@ class _FeedScreenState extends State<FeedScreen> {
     }
   }
 
+  // Método público para recargar (cuando se pulsa la "casita" otra vez)
+  void refreshFeed() {
+    setState(() {
+      _isLoading = true;
+      _posts = [];
+    });
+    _loadFeed();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -50,6 +59,7 @@ class _FeedScreenState extends State<FeedScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0, // <-- Elimina el sombreado al scrollear por debajo
         actions: [
           IconButton(
             icon: const Icon(Icons.search, color: Colors.white, size: 30),
