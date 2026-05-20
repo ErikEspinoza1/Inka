@@ -95,8 +95,8 @@ class TattooPainter extends CustomPainter {
       case BodyZone.rightHand:
       case BodyZone.leftFoot:
       case BodyZone.rightFoot:
-        isFlat = false;
-        maxTaper = 0.4;
+        isFlat = true; // Dorso de la mano/pie es casi plano
+        maxTaper = 0.1;
         break;
       case BodyZone.leftForearm:
       case BodyZone.rightForearm:
@@ -137,7 +137,7 @@ class TattooPainter extends CustomPainter {
 
     final paint = Paint()
       ..shader = ui.ImageShader(tattooImage!, ui.TileMode.clamp, ui.TileMode.clamp, identityMatrix)
-      ..imageFilter = ui.ImageFilter.blur(sigmaX: 0.6, sigmaY: 0.6)
+      ..imageFilter = ui.ImageFilter.blur(sigmaX: 0.3, sigmaY: 0.3)
       ..colorFilter = const ui.ColorFilter.mode(ui.Color(0x224A2511), ui.BlendMode.multiply)
       ..filterQuality = FilterQuality.high
       ..blendMode = BlendMode.multiply  // 🔥 MAGIA: Funde cualquier residuo blanco con la piel de forma ultra realista

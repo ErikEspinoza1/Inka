@@ -78,11 +78,13 @@ class _ArTattooScreenState extends State<ArTattooScreen> with WidgetsBindingObse
   bool _isPanelExpanded = true; // 🔥 UX Premium: Controla si el panel inferior de ajustes está expandido o colapsado
 
   // 🔥 Optimización AR: Reducimos minCutoff y beta para estabilizar de forma mas agresiva los temblores en horizontal
-  final OneEuroFilter _startFilter = OneEuroFilter(minCutoff: 0.02, beta: 0.002);
-  final OneEuroFilter _endFilter = OneEuroFilter(minCutoff: 0.02, beta: 0.002);
+  late OneEuroFilter _startFilter;
+  late OneEuroFilter _endFilter;
 
   PoseLandmark? _stabilizedStart;
   PoseLandmark? _stabilizedEnd;
+  
+  bool _isTracking = false; // 🔥 Para saber si actualmente se están detectando bien las extremidades
 
   ui.Image? _tattooImage;
   CameraDescription? _cameraDescription;
@@ -93,7 +95,19 @@ class _ArTattooScreenState extends State<ArTattooScreen> with WidgetsBindingObse
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this); // Registrar observador del ciclo de vida
+    _initFilters();
     _initializeAll();
+  }
+
+  void _initFilters() {
+    // 🔥 Filtros adaptativos: Las manos sufren mucho temblor en ML Kit, requieren estabilización extrema
+    if (_selectedZone == BodyZone.leftHand || _selectedZone == BodyZone.rightHand) {
+      _startFilter = OneEuroFilter(minCutoff: 0.001, beta: 0.0005); // Estabilidad máxima (menor temblor)
+      _endFilter = OneEuroFilter(minCutoff: 0.001, beta: 0.0005);
+    } else {
+      _startFilter = OneEuroFilter(minCutoff: 0.015, beta: 0.002); // Estándar para brazos/cuerpo
+      _endFilter = OneEuroFilter(minCutoff: 0.015, beta: 0.002);
+    }
   }
 
   Future<void> _initializeAll() async {
@@ -229,22 +243,65 @@ class _ArTattooScreenState extends State<ArTattooScreen> with WidgetsBindingObse
       if (poses.isNotEmpty) {
         final pose = poses.first;
         final (startType, endType, _) = _getZoneConfig();
-        final rawStart = pose.landmarks[startType];
-        final rawEnd = pose.landmarks[endType];
+        
+        PoseLandmark? rawStart = pose.landmarks[startType];
+        PoseLandmark? rawEnd = pose.landmarks[endType];
 
-        if (rawStart != null && rawEnd != null && rawStart.likelihood > 0.3) {
+        // 🔥 MEJORA DE MANOS: Cálculo sintético de los nudillos para evitar inestabilidad al mover los dedos
+        if (_selectedZone == BodyZone.leftHand || _selectedZone == BodyZone.rightHand) {
+          final isLeft = _selectedZone == BodyZone.leftHand;
+          final wrist = pose.landmarks[isLeft ? PoseLandmarkType.leftWrist : PoseLandmarkType.rightWrist];
+          final pinky = pose.landmarks[isLeft ? PoseLandmarkType.leftPinky : PoseLandmarkType.rightPinky];
+          final index = pose.landmarks[isLeft ? PoseLandmarkType.leftIndex : PoseLandmarkType.rightIndex];
+          final thumb = pose.landmarks[isLeft ? PoseLandmarkType.leftThumb : PoseLandmarkType.rightThumb];
+          
+          if (wrist != null) {
+            rawStart = wrist;
+            
+            // Sistema de fallback inteligente: si el índice y meñique están visibles, hacemos el promedio (nudillos).
+            // Si el usuario gira la mano ("al revés") y se oculta algún dedo, usamos el que esté disponible.
+            if (pinky != null && index != null && pinky.likelihood > 0.15 && index.likelihood > 0.15) {
+              rawEnd = PoseLandmark(
+                type: index.type, 
+                x: (pinky.x + index.x) / 2, 
+                y: (pinky.y + index.y) / 2, 
+                z: (pinky.z + index.z) / 2, 
+                likelihood: (pinky.likelihood + index.likelihood) / 2
+              );
+            } else if (index != null && index.likelihood > 0.15) {
+              rawEnd = index;
+            } else if (pinky != null && pinky.likelihood > 0.15) {
+              rawEnd = pinky;
+            } else if (thumb != null && thumb.likelihood > 0.15) {
+              rawEnd = thumb;
+            }
+          }
+        }
+
+        // Rebajamos el umbral de likelihood a 0.15 para que sea mucho más permisivo cuando la mano está girada o "al revés"
+        if (rawStart != null && rawEnd != null && rawStart.likelihood > 0.15 && rawEnd.likelihood > 0.15) {
           final timestamp = DateTime.now().millisecondsSinceEpoch;
           final sOff = _startFilter.filter(Offset(rawStart.x, rawStart.y), timestamp);
           final eOff = _endFilter.filter(Offset(rawEnd.x, rawEnd.y), timestamp);
 
           if (mounted) {
             setState(() {
+              _isTracking = true;
               _stabilizedStart = PoseLandmark(
-                  type: rawStart.type, x: sOff.dx, y: sOff.dy, z: rawStart.z, likelihood: rawStart.likelihood);
+                  type: rawStart!.type, x: sOff.dx, y: sOff.dy, z: rawStart.z, likelihood: rawStart.likelihood);
               _stabilizedEnd = PoseLandmark(
-                  type: rawEnd.type, x: eOff.dx, y: eOff.dy, z: rawEnd.z, likelihood: rawEnd.likelihood);
+                  type: rawEnd!.type, x: eOff.dx, y: eOff.dy, z: rawEnd.z, likelihood: rawEnd.likelihood);
             });
           }
+        } else {
+          // Fade out si se pierde el rastro
+          if (mounted && _isTracking) {
+            setState(() => _isTracking = false);
+          }
+        }
+      } else {
+        if (mounted && _isTracking) {
+          setState(() => _isTracking = false);
         }
       }
     } finally {
@@ -325,21 +382,25 @@ class _ArTattooScreenState extends State<ArTattooScreen> with WidgetsBindingObse
                   fit: StackFit.expand,
                   children: [
                     CameraPreview(_controller!),
-                    CustomPaint(
-                      painter: TattooPainter(
-                        tattooImage: _tattooImage,
-                        startPoint: _stabilizedStart,
-                        endPoint: _stabilizedEnd,
-                        absoluteImageSize: _inputImageSize,
-                        isFrontCamera: _isFrontCamera,
-                        scaleFactor: _sizeValue,
-                        positionX: _posXValue,
-                        positionY: _posYValue,
-                        rotationManual: _rotValue,
-                        opacity: _opacityValue,
-                        rotationOffset: rotationOffset,
-                        sensorOrientation: _sensorOrientation,
-                        selectedZone: _selectedZone,
+                    AnimatedOpacity(
+                      opacity: _isTracking ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 300),
+                      child: CustomPaint(
+                        painter: TattooPainter(
+                          tattooImage: _tattooImage,
+                          startPoint: _stabilizedStart,
+                          endPoint: _stabilizedEnd,
+                          absoluteImageSize: _inputImageSize,
+                          isFrontCamera: _isFrontCamera,
+                          scaleFactor: _sizeValue,
+                          positionX: _posXValue,
+                          positionY: _posYValue,
+                          rotationManual: _rotValue,
+                          opacity: _opacityValue,
+                          rotationOffset: rotationOffset,
+                          sensorOrientation: _sensorOrientation,
+                          selectedZone: _selectedZone,
+                        ),
                       ),
                     ),
                     Positioned(
@@ -614,6 +675,17 @@ class _ArTattooScreenState extends State<ArTattooScreen> with WidgetsBindingObse
           _selectedZone = zone;
           _posXValue = 0.5;
           _posYValue = 0.5;
+          
+          // 🔥 UX Premium: Ajustar escala predeterminada para partes pequeñas (manos/pies)
+          if (zone == BodyZone.leftHand || zone == BodyZone.rightHand || zone == BodyZone.leftFoot || zone == BodyZone.rightFoot) {
+            _sizeValue = 0.45; // Más pequeño
+          } else {
+            _sizeValue = 0.8; // Estándar
+          }
+          
+          // Reiniciar el filtro al cambiar de zona para evitar que el tatuaje "vuele"
+          _initFilters();
+          _isTracking = false;
         }),
         icon: Icon(icon, size: 14),
         label: Text(label, style: const TextStyle(fontSize: 11)),
