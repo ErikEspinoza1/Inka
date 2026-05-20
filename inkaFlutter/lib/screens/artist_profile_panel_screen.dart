@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
 import 'artist_profile_screen.dart';
 import 'menu_inicio.dart';
+import '../widgets/feedback_modal.dart';
 
 class ArtistProfilePanelScreen extends StatefulWidget {
   const ArtistProfilePanelScreen({super.key});
@@ -143,6 +144,18 @@ class _ArtistProfilePanelScreenState extends State<ArtistProfilePanelScreen> {
                           icon: const Icon(Icons.edit),
                           label: const Text('Editar Perfil'),
                           style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => showFeedbackModal(context),
+                          icon: const Icon(Icons.lightbulb_outline),
+                          label: const Text('Enviar Sugerencia o Reportar Fallo'),
+                          style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
                         ),
