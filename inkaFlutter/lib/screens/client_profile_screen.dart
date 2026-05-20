@@ -7,6 +7,7 @@ import '../providers/interaction_provider.dart';
 import 'menu_inicio.dart';
 import 'explore_screen.dart';
 import 'artist_profile_view_screen.dart';
+import '../widgets/feedback_modal.dart';
 
 class ClientProfileScreen extends StatefulWidget {
   const ClientProfileScreen({super.key});
@@ -276,6 +277,20 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
               ],
               const SizedBox(height: 24),
               _buildInfoTile('Fecha de registro', _formatDate(_profileData!['created_at'])),
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => showFeedbackModal(context),
+                  icon: const Icon(Icons.lightbulb_outline),
+                  label: const Text('Enviar Sugerencia o Reportar Fallo'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
             ],
           ),
         ),

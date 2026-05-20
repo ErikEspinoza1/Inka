@@ -29,6 +29,7 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
 
   bool _isLogin = true;
   bool _isLoading = false;
+  bool _acceptedTerms = false;
 
   void _submit() async {
     // 1. PRIMERO: Recoger valores de los controladores
@@ -164,6 +165,43 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
     );
   }
 
+  void _showTermsModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Términos y Condiciones - INKA', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 16),
+              const Text(
+                '1. Naturaleza del Servicio: INKA es una plataforma de intermediación tecnológica (Ley 34/2002). No procesamos pagos. Cualquier transacción económica (Bizum, efectivo) es estrictamente privada entre cliente y artista. INKA no se hace responsable de disputas o impagos.\n\n'
+                '2. Derechos de Imagen: El usuario declara ser el autor de las imágenes subidas o poseer el consentimiento de las personas que aparecen en ellas (Ley Orgánica 1/1982).\n\n'
+                '3. Procesamiento de IA: El usuario acepta que las imágenes subidas puedan ser procesadas por Inteligencias Artificiales de terceros para habilitar la simulación AR y la búsqueda vectorial (RGPD).',
+                style: TextStyle(fontSize: 14, height: 1.5),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cerrar'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -253,13 +291,50 @@ class _ArtistAuthScreenState extends State<ArtistAuthScreen> {
                 decoration: const InputDecoration(labelText: 'Contraseña', prefixIcon: Icon(Icons.lock)),
                 obscureText: true,
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
+              // Checkbox Legal (Solo en registro)
+              if (!_isLogin)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Checkbox(
+                      value: _acceptedTerms,
+                      onChanged: (val) {
+                        setState(() {
+                          _acceptedTerms = val ?? false;
+                        });
+                      },
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _showTermsModal,
+                        child: Text.rich(
+                          TextSpan(
+                            text: 'He leído y acepto la ',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            children: [
+                              TextSpan(
+                                text: 'Política de Privacidad y los Términos de Uso',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  decoration: TextDecoration.underline,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              if (!_isLogin) const SizedBox(height: 20),
               _isLoading
                   ? const CircularProgressIndicator()
                   : SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _submit,
+                        onPressed: (!_isLogin && !_acceptedTerms) ? null : _submit,
                         child: Text(_isLogin ? 'ENTRAR' : 'REGISTRARSE'),
                       ),
                     ),
